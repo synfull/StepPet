@@ -1,0 +1,719 @@
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Animated,
+  RefreshControl,
+  Alert
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { DataContext } from '../context/DataContext';
+import { PedometerContext } from '../context/PedometerContext';
+import { RootStackParamList } from '../types/navigationTypes';
+import { updatePetWithSteps } from '../utils/petUtils';
+import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
+import { isSameDay } from '../utils/dateUtils';
+import PetDisplay from '../components/PetDisplay';
+import ProgressBar from '../components/ProgressBar';
+import MiniGameCard from '../components/MiniGameCard';
+import Button from '../components/Button';
+
+type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const Home: React.FC = () => {
+  const navigation = useNavigation<HomeNavigationProp>();
+  const { petData, setPetData } = useContext(DataContext);
+  const { 
+    isAvailable, 
+    dailySteps, 
+    weeklySteps, 
+    totalSteps,
+    setDailySteps,
+    setWeeklySteps,
+    setTotalSteps
+  } = useContext(PedometerContext);
+  
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [showPulseHint, setShowPulseHint] = useState(false);
+  
+  // Animation values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // Pedometer subscription
+  useEffect(() => {
+    if (isAvailable) {
+      const subscription = subscribeToPedometer((steps) => {
+        // This will update with real-time step count
+        setDailySteps(steps);
+      });
+      
+      // Cleanup subscription on unmount
+      return () => {
+        if (subscription) {
+          subscription.remove();
+        }
+      };
+    }
+  }, [isAvailable]);
+  
+  // Refresh data periodically
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      refreshStepData();
+    }, 15 * 60 * 1000); // Refresh every 15 minutes
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Show pulse hint after a delay
+  useEffect(() => {
+    if (petData && petData.growthStage !== 'Egg') {
+      const timeoutId = setTimeout(() => {
+        setShowPulseHint(true);
+        startPulseAnimation();
+      }, 5000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [petData]);
+  
+  // Start pulse animation
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+  
+  // Refresh step data
+  const refreshStepData = async () => {
+    if (!isAvailable) return;
+    
+    try {
+      const daily = await fetchDailySteps();
+      const weekly = await fetchWeeklySteps();
+      
+      setDailySteps(daily);
+      setWeeklySteps(weekly);
+      setLastRefreshed(new Date());
+      
+      // Update pet with new steps if applicable
+      if (petData) {
+        const lastTotal = totalSteps;
+        const newSteps = daily - lastTotal;
+        
+        if (newSteps > 0) {
+          const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
+          setPetData(updatedPet);
+          setTotalSteps(daily);
+          
+          // Handle level up
+          if (leveledUp) {
+            navigation.navigate('PetLevelUp', { 
+              level: updatedPet.level,
+              petType: updatedPet.type 
+            });
+          }
+          
+          // Handle milestone reached
+          if (milestoneReached) {
+            navigation.navigate('MilestoneUnlocked', { 
+              milestoneId: milestoneReached 
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing step data:', error);
+    }
+  };
+  
+  // Pull-to-refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshStepData();
+    setRefreshing(false);
+  };
+  
+  // Handle tap on pet
+  const handlePetTap = () => {
+    if (showPulseHint) {
+      setShowPulseHint(false);
+      pulseAnim.stopAnimation();
+    }
+    
+    if (petData?.growthStage === 'Egg') {
+      navigation.navigate('PetHatching');
+    } else {
+      navigation.navigate('PetDetails');
+    }
+  };
+  
+  // Handle mini game press
+  const handleMiniGamePress = (game: 'feed' | 'fetch' | 'adventure') => {
+    if (!petData || petData.growthStage === 'Egg') {
+      Alert.alert(
+        'Pet Still in Egg',
+        'Your pet needs to hatch before you can play mini-games!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    switch (game) {
+      case 'feed':
+        handleFeedPet();
+        break;
+      case 'fetch':
+        handleFetchGame();
+        break;
+      case 'adventure':
+        handleAdventureWalk();
+        break;
+    }
+  };
+  
+  // Handle feed pet
+  const handleFeedPet = () => {
+    if (!petData) return;
+    
+    // Check if already fed today
+    const now = new Date();
+    const lastFed = petData.miniGames.feed.lastClaimed 
+      ? new Date(petData.miniGames.feed.lastClaimed) 
+      : null;
+    
+    if (lastFed && isSameDay(lastFed, now) && petData.miniGames.feed.claimedToday) {
+      Alert.alert(
+        'Already Fed Today',
+        'You have already fed your pet today. Come back tomorrow!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Check if enough steps
+    if (dailySteps < 2500) {
+      Alert.alert(
+        'More Steps Needed',
+        `You need 2,500 steps to feed your pet. You currently have ${dailySteps} steps.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Update pet data
+    const updatedPet = { ...petData };
+    updatedPet.miniGames.feed.lastClaimed = now.toISOString();
+    updatedPet.miniGames.feed.claimedToday = true;
+    updatedPet.xp += 100;
+    
+    // Check for level up
+    if (updatedPet.xp >= updatedPet.xpToNextLevel) {
+      Alert.alert(
+        'Pet Fed',
+        'Your pet is happy and well-fed! You earned 100 XP, which leveled up your pet!',
+        [{ text: 'Great!' }]
+      );
+      
+      // Save and update
+      updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
+        setPetData(updatedPet);
+        
+        if (leveledUp) {
+          navigation.navigate('PetLevelUp', { 
+            level: updatedPet.level,
+            petType: updatedPet.type 
+          });
+        }
+      });
+    } else {
+      // Just add XP, no level up
+      Alert.alert(
+        'Pet Fed',
+        'Your pet is happy and well-fed! You earned 100 XP.',
+        [{ text: 'Great!' }]
+      );
+      
+      setPetData(updatedPet);
+      // Save the updated pet
+      updatePetWithSteps(petData, 0);
+    }
+  };
+  
+  // Handle fetch game
+  const handleFetchGame = () => {
+    if (!petData) return;
+    
+    // Check fetch claims today
+    const claims = petData.miniGames.fetch.claimsToday || 0;
+    if (claims >= 2) {
+      Alert.alert(
+        'Fetch Limit Reached',
+        'Your pet has already played fetch twice today. Come back tomorrow!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Check if enough steps
+    const stepsNeeded = (claims + 1) * 1000; // 1000 steps for first claim, 2000 for second
+    if (dailySteps < stepsNeeded) {
+      Alert.alert(
+        'More Steps Needed',
+        `You need ${stepsNeeded} steps to play fetch. You currently have ${dailySteps} steps.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Update pet data
+    const updatedPet = { ...petData };
+    const now = new Date();
+    
+    // Update claims
+    updatedPet.miniGames.fetch.claimsToday = claims + 1;
+    updatedPet.miniGames.fetch.lastClaimed = updatedPet.miniGames.fetch.lastClaimed || [];
+    
+    if (!Array.isArray(updatedPet.miniGames.fetch.lastClaimed)) {
+      updatedPet.miniGames.fetch.lastClaimed = [];
+    }
+    
+    updatedPet.miniGames.fetch.lastClaimed.push(now.toISOString());
+    updatedPet.xp += 50;
+    
+    // Check for level up
+    if (updatedPet.xp >= updatedPet.xpToNextLevel) {
+      Alert.alert(
+        'Fetch Complete',
+        'Your pet had fun playing fetch! You earned 50 XP, which leveled up your pet!',
+        [{ text: 'Great!' }]
+      );
+      
+      // Save and update
+      updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
+        setPetData(updatedPet);
+        
+        if (leveledUp) {
+          navigation.navigate('PetLevelUp', { 
+            level: updatedPet.level,
+            petType: updatedPet.type 
+          });
+        }
+      });
+    } else {
+      // Just add XP, no level up
+      Alert.alert(
+        'Fetch Complete',
+        'Your pet had fun playing fetch! You earned 50 XP.',
+        [{ text: 'Great!' }]
+      );
+      
+      setPetData(updatedPet);
+      // Save the updated pet
+      updatePetWithSteps(petData, 0);
+    }
+  };
+  
+  // Handle adventure walk
+  const handleAdventureWalk = () => {
+    if (!petData) return;
+    
+    // Check if adventure is active
+    const { adventure } = petData.miniGames;
+    const now = new Date();
+    const lastComplete = adventure.lastCompleted 
+      ? new Date(adventure.lastCompleted) 
+      : null;
+    
+    // Check if completed this week already
+    if (lastComplete) {
+      const daysSinceComplete = Math.floor((now.getTime() - lastComplete.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceComplete < 7) {
+        Alert.alert(
+          'Adventure Already Completed',
+          'You\'ve already completed an adventure walk this week. A new adventure will be available in ' + 
+            (7 - daysSinceComplete) + ' days.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+    
+    // Check if adventure is in progress
+    if (adventure.isActive) {
+      // Check progress
+      if (weeklySteps >= 15000) {
+        // Adventure complete
+        const updatedPet = { ...petData };
+        updatedPet.miniGames.adventure.isActive = false;
+        updatedPet.miniGames.adventure.lastCompleted = now.toISOString();
+        updatedPet.miniGames.adventure.currentProgress = 15000;
+        updatedPet.xp += 300;
+        
+        // Check for level up
+        if (updatedPet.xp >= updatedPet.xpToNextLevel) {
+          Alert.alert(
+            'Adventure Complete',
+            'Congratulations! You completed the adventure walk with your pet! You earned 300 XP, which leveled up your pet!',
+            [{ text: 'Great!' }]
+          );
+          
+          // Save and update
+          updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
+            setPetData(updatedPet);
+            
+            if (leveledUp) {
+              navigation.navigate('PetLevelUp', { 
+                level: updatedPet.level,
+                petType: updatedPet.type 
+              });
+            }
+          });
+        } else {
+          // Just add XP, no level up
+          Alert.alert(
+            'Adventure Complete',
+            'Congratulations! You completed the adventure walk with your pet! You earned 300 XP.',
+            [{ text: 'Great!' }]
+          );
+          
+          setPetData(updatedPet);
+          // Save the updated pet
+          updatePetWithSteps(petData, 0);
+        }
+      } else {
+        // Adventure in progress
+        Alert.alert(
+          'Adventure In Progress',
+          `You're on an adventure with your pet! Keep walking to reach 15,000 steps this week. Current progress: ${weeklySteps}/15,000 steps.`,
+          [{ text: 'Keep Walking!' }]
+        );
+      }
+    } else {
+      // Start new adventure
+      const updatedPet = { ...petData };
+      updatedPet.miniGames.adventure.isActive = true;
+      updatedPet.miniGames.adventure.lastStarted = now.toISOString();
+      updatedPet.miniGames.adventure.currentProgress = weeklySteps;
+      
+      Alert.alert(
+        'Adventure Started',
+        'You\'ve started a new adventure with your pet! Walk 15,000 steps this week to complete it and earn 300 XP.',
+        [{ text: 'Let\'s Go!' }]
+      );
+      
+      setPetData(updatedPet);
+      // Save the updated pet
+      updatePetWithSteps(petData, 0);
+    }
+  };
+  
+  // If no pet data, show pet selection screen
+  if (!petData) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>Welcome to StepPet!</Text>
+          <Text style={styles.emptyText}>
+            Looks like you don't have a pet yet. Let's get started by hatching an egg!
+          </Text>
+          <Button
+            title="Hatch Your Pet"
+            onPress={() => navigation.navigate('PetHatching')}
+            size="large"
+            style={styles.startButton}
+          />
+        </View>
+      </View>
+    );
+  }
+  
+  // Calculate XP progress
+  const xpProgress = petData.xp / petData.xpToNextLevel;
+  
+  // Determine feed status
+  const canFeedToday = !petData.miniGames.feed.claimedToday || 
+    !isSameDay(new Date(petData.miniGames.feed.lastClaimed || ''), new Date());
+  
+  // Determine fetch status
+  const fetchClaimsToday = petData.miniGames.fetch.claimsToday || 0;
+  const canFetchToday = fetchClaimsToday < 2;
+  
+  // Determine adventure status
+  const adventureActive = petData.miniGames.adventure.isActive;
+  const adventureComplete = petData.miniGames.adventure.lastCompleted 
+    ? Math.floor((new Date().getTime() - new Date(petData.miniGames.adventure.lastCompleted).getTime()) 
+      / (1000 * 60 * 60 * 24)) < 7
+    : false;
+  
+  return (
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.stepCounter}>
+            <Ionicons name="footsteps" size={20} color="#8C52FF" />
+            <Text style={styles.stepText}>{dailySteps.toLocaleString()} steps today</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#666666" />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Pet Display */}
+        <View style={styles.petSection}>
+          <Animated.View 
+            style={[
+              styles.petContainer,
+              showPulseHint ? { transform: [{ scale: pulseAnim }] } : null
+            ]}
+          >
+            <TouchableOpacity onPress={handlePetTap} activeOpacity={0.8}>
+              <PetDisplay
+                petType={petData.type}
+                growthStage={petData.growthStage}
+                level={petData.level}
+                mainColor={petData.appearance.mainColor}
+                accentColor={petData.appearance.accentColor}
+                hasCustomization={petData.appearance.hasCustomization}
+                size="xlarge"
+              />
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Pet Info */}
+          <View style={styles.petInfo}>
+            <Text style={styles.petName}>{petData.name}</Text>
+            <Text style={styles.petType}>
+              Level {petData.level} {petData.type} • {petData.growthStage}
+            </Text>
+            <View style={styles.progressContainer}>
+              <ProgressBar
+                progress={xpProgress}
+                height={12}
+                fillColor={petData.appearance.mainColor}
+                backgroundColor="#E0E0E0"
+                borderRadius={6}
+                animated
+                showLabel
+                labelStyle="outside"
+                labelFormat="fraction"
+                currentValue={petData.xp}
+                maxValue={petData.xpToNextLevel}
+              />
+            </View>
+          </View>
+        </View>
+        
+        {/* Mini Games Section */}
+        <View style={styles.miniGamesSection}>
+          <Text style={styles.sectionTitle}>Daily Activities</Text>
+          
+          {/* Feed Mini Game */}
+          <MiniGameCard
+            title="Feed Your Pet"
+            description="Walk 2,500 steps to feed your pet."
+            icon="nutrition-outline"
+            stepsRequired={2500}
+            stepsProgress={dailySteps}
+            isActive={canFeedToday}
+            isComplete={!canFeedToday}
+            isLocked={petData.growthStage === 'Egg'}
+            onPress={() => handleMiniGamePress('feed')}
+            color="#FF9500"
+          />
+          
+          {/* Fetch Mini Game */}
+          <MiniGameCard
+            title="Play Fetch"
+            description={`Walk ${(fetchClaimsToday + 1) * 1000} steps to play fetch ${fetchClaimsToday === 0 ? '(first time)' : '(second time)'}.`}
+            icon="tennisball-outline"
+            stepsRequired={(fetchClaimsToday + 1) * 1000}
+            stepsProgress={dailySteps}
+            isActive={canFetchToday}
+            isComplete={fetchClaimsToday >= 2}
+            isLocked={petData.growthStage === 'Egg'}
+            onPress={() => handleMiniGamePress('fetch')}
+            color="#34C759"
+          />
+          
+          {/* Adventure Walk */}
+          <MiniGameCard
+            title="Adventure Walk"
+            description="Walk 15,000 steps this week for a special adventure."
+            icon="map-outline"
+            stepsRequired={15000}
+            stepsProgress={adventureActive ? weeklySteps : 0}
+            isActive={!adventureComplete && !adventureActive}
+            isComplete={adventureComplete}
+            isLocked={petData.growthStage === 'Egg'}
+            onPress={() => handleMiniGamePress('adventure')}
+            color="#5856D6"
+          />
+        </View>
+        
+        {/* Last refreshed indicator */}
+        <View style={styles.refreshInfo}>
+          <Text style={styles.refreshText}>
+            Last updated: {lastRefreshed.toLocaleTimeString()}
+          </Text>
+          <TouchableOpacity onPress={refreshStepData}>
+            <Text style={styles.refreshButton}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  stepCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3EDFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  stepText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 14,
+    color: '#333333',
+    marginLeft: 6,
+  },
+  settingsButton: {
+    padding: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontFamily: 'Caprasimo-Regular',
+    fontSize: 24,
+    color: '#333333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  startButton: {
+    marginTop: 20,
+  },
+  petSection: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 24,
+  },
+  petContainer: {
+    marginBottom: 16,
+  },
+  petInfo: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  petName: {
+    fontFamily: 'Caprasimo-Regular',
+    fontSize: 28,
+    color: '#333333',
+    marginBottom: 4,
+  },
+  petType: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 12,
+  },
+  progressContainer: {
+    width: '100%',
+  },
+  miniGamesSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 20,
+    color: '#333333',
+    marginBottom: 16,
+  },
+  refreshInfo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  refreshText: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 12,
+    color: '#909090',
+  },
+  refreshButton: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 12,
+    color: '#8C52FF',
+    marginLeft: 8,
+    textDecorationLine: 'underline',
+  },
+});
+
+export default Home; 
