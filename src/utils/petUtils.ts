@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
 import { 
   PetData, 
   PetType, 
@@ -81,6 +80,15 @@ export const DEFAULT_MILESTONES: Milestone[] = [
   }
 ];
 
+// Custom UUID generation function that works in React Native
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // Get a random pet type
 export const getRandomPetType = (): { type: PetType; category: PetCategory } => {
   const categories = Object.keys(PET_CATEGORIES) as PetCategory[];
@@ -100,7 +108,7 @@ export const createNewPet = (type: PetType, category: PetCategory, name: string)
   const now = new Date().toISOString();
   
   return {
-    id: uuidv4(),
+    id: generateUUID(),
     name,
     type,
     category,
