@@ -6,6 +6,7 @@ import {
   Animated,
   Image,
   Dimensions,
+  ImageSourcePropType,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +21,18 @@ import { getRandomPetType } from '../utils/petUtils';
 type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width, height } = Dimensions.get('window');
+
+// Pet baby images mapping
+const PET_BABY_IMAGES: { [key: string]: ImageSourcePropType } = {
+  Dragon: require('../../assets/images/pets/dragon_baby.png'),
+  Wolf: require('../../assets/images/pets/wolf_baby.png'),
+  Eagle: require('../../assets/images/pets/eagle_baby.png'),
+  Unicorn: require('../../assets/images/pets/unicorn_baby.png'),
+  WaterTurtle: require('../../assets/images/pets/waterturtle_baby.png'),
+  FireLizard: require('../../assets/images/pets/firelizard_baby.png'),
+  RobotDog: require('../../assets/images/pets/robotdog_baby.png'),
+  ClockworkBunny: require('../../assets/images/pets/clockworkbunny_baby.png'),
+};
 
 const PetHatching: React.FC = () => {
   const navigation = useNavigation<PetHatchingNavigationProp>();
@@ -233,7 +246,7 @@ const PetHatching: React.FC = () => {
               ]}
             >
               <Image
-                source={require('../../assets/images/pets/default_baby.png')}
+                source={selectedPet ? PET_BABY_IMAGES[selectedPet.type] : PET_BABY_IMAGES.Dragon}
                 style={styles.petImage}
                 resizeMode="contain"
               />
