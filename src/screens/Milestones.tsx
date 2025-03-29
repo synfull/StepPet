@@ -137,11 +137,8 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 const Milestones: React.FC = () => {
   const navigation = useNavigation<MilestonesNavigationProp>();
   const { petData, setPetData } = useContext(DataContext);
-  const { totalSteps } = useContext(PedometerContext);
+  const { dailySteps } = useContext(PedometerContext);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
-  
-  // Calculate relative steps (steps since pet was created)
-  const relativeSteps = Math.max(0, totalSteps - (petData?.startingStepCount || 0));
   
   useEffect(() => {
     if (petData) {
@@ -243,7 +240,7 @@ const Milestones: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{relativeSteps.toLocaleString()}</Text>
+            <Text style={styles.statValue}>{dailySteps.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Total Steps</Text>
           </View>
           
@@ -264,7 +261,7 @@ const Milestones: React.FC = () => {
             <MilestoneItem
               key={milestone.id}
               milestone={milestone}
-              totalSteps={relativeSteps}
+              totalSteps={dailySteps}
               onClaim={handleClaimMilestone}
             />
           ))}

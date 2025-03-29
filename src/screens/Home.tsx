@@ -440,6 +440,33 @@ const Home: React.FC = () => {
     }
   };
   
+  // Calculate progress based on pet stage
+  const getProgress = () => {
+    if (!petData) {
+      return {
+        progress: 0,
+        currentValue: 0,
+        maxValue: 1
+      };
+    }
+
+    if (petData.growthStage === 'Egg') {
+      return {
+        progress: dailySteps / 7500,
+        currentValue: dailySteps,
+        maxValue: 7500
+      };
+    } else {
+      return {
+        progress: petData.xp / petData.xpToNextLevel,
+        currentValue: petData.xp,
+        maxValue: petData.xpToNextLevel
+      };
+    }
+  };
+
+  const progressData = getProgress();
+  
   // If no pet data, show pet selection screen
   if (!petData) {
     return (
@@ -468,9 +495,6 @@ const Home: React.FC = () => {
       </View>
     );
   }
-  
-  // Calculate XP progress
-  const xpProgress = petData.xp / petData.xpToNextLevel;
   
   // Determine feed status
   const canFeedToday = !petData.miniGames.feed.claimedToday || 
@@ -542,18 +566,23 @@ const Home: React.FC = () => {
             </Text>
             <View style={styles.progressContainer}>
               <ProgressBar
-                progress={xpProgress}
+                progress={progressData.progress}
                 height={12}
-                fillColor={petData.appearance.mainColor}
+                fillColor="#8C52FF"
                 backgroundColor="#E0E0E0"
                 borderRadius={6}
                 animated
                 showLabel
                 labelStyle="outside"
                 labelFormat="fraction"
-                currentValue={petData.xp}
-                maxValue={petData.xpToNextLevel}
+                currentValue={progressData.currentValue}
+                maxValue={progressData.maxValue}
               />
+              {petData.growthStage === 'Egg' && (
+                <Text style={styles.progressHint}>
+                  Reach 7,500 steps to hatch your egg!
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -704,6 +733,13 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     width: '100%',
+  },
+  progressHint: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 8,
   },
   miniGamesSection: {
     paddingHorizontal: 20,
