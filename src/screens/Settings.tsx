@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Share,
+  BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -69,13 +70,13 @@ const Settings: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear all data from AsyncStorage
+              // Clear ALL data from AsyncStorage
               await AsyncStorage.clear();
               
               // Reset pet data in context
               setPetData(null);
               
-              // Navigate back to onboarding
+              // Force reload the app by navigating to Main
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Main' as never }],
@@ -84,8 +85,14 @@ const Settings: React.FC = () => {
               // Show confirmation
               Alert.alert(
                 'Data Reset',
-                'All data has been reset successfully.',
-                [{ text: 'OK' }]
+                'All data has been reset successfully. Please close and reopen the app to start fresh.',
+                [{ 
+                  text: 'OK',
+                  onPress: () => {
+                    // Force close the app
+                    BackHandler.exitApp();
+                  }
+                }]
               );
             } catch (error) {
               console.error('Error resetting data:', error);

@@ -16,7 +16,8 @@ import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
 import { DataContext } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
-import { createNewPet, savePetData, getRandomPetType } from '../utils/petUtils';
+import { createNewPet, savePetData, getRandomPetType, PET_COLORS } from '../utils/petUtils';
+import { PetCategory, GrowthStage } from '../types/petTypes';
 import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
 import Header from '../components/Header';
@@ -28,7 +29,7 @@ const PetNaming: React.FC<PetNamingProps> = ({ navigation, route }) => {
   const [petName, setPetName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const { setPetData } = useContext(DataContext);
+  const { setPetData, petData } = useContext(DataContext);
   const { totalSteps } = useContext(PedometerContext);
   
   // Pet category based on pet type
@@ -58,14 +59,29 @@ const PetNaming: React.FC<PetNamingProps> = ({ navigation, route }) => {
     setIsLoading(true);
 
     try {
-      // Create new pet with the chosen name
-      const newPet = createNewPet(petType, getPetCategory(), petName.trim());
+      if (!petData) {
+        throw new Error('No pet data found');
+      }
+
+      // Update the existing pet with the new name while preserving all other properties
+      const updatedPet = {
+        ...petData,
+        name: petName.trim(),
+        type: petType,
+        category: getPetCategory() as PetCategory,
+        growthStage: 'Baby' as GrowthStage,
+        appearance: {
+          ...PET_COLORS[petType as keyof typeof PET_COLORS],
+          hasCustomization: false,
+          customizationApplied: false
+        }
+      };
       
       // Save pet data
-      await savePetData(newPet);
+      await savePetData(updatedPet);
       
       // Update context
-      setPetData(newPet);
+      setPetData(updatedPet);
       
       // Navigate to the main screen
       navigation.reset({
@@ -73,7 +89,7 @@ const PetNaming: React.FC<PetNamingProps> = ({ navigation, route }) => {
         routes: [{ name: 'Main' }],
       });
     } catch (error) {
-      console.error('Error creating pet:', error);
+      console.error('Error updating pet name:', error);
       setIsLoading(false);
     }
   };

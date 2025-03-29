@@ -25,6 +25,7 @@ import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
 import Button from '../components/Button';
+import { getRandomPetType } from '../utils/petUtils';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -159,19 +160,56 @@ const Home: React.FC = () => {
   };
   
   // Handle tap on pet
-  const handlePetTap = () => {
+  const handlePetTap = async () => {
     if (showPulseHint) {
       setShowPulseHint(false);
       pulseAnim.stopAnimation();
     }
     
     if (petData?.growthStage === 'Egg') {
-      if (dailySteps >= 7500) {
-        navigation.navigate('PetHatching');
+      if (dailySteps >= 25) {
+        try {
+          // Update pet data to reflect hatching
+          const { type: randomPetType } = getRandomPetType();
+          const updatedPet = {
+            ...petData,
+            type: randomPetType,
+            miniGames: {
+              feed: {
+                lastClaimed: null,
+                claimedToday: false
+              },
+              fetch: {
+                lastClaimed: null,
+                claimsToday: 0
+              },
+              adventure: {
+                lastStarted: null,
+                lastCompleted: null,
+                currentProgress: 0,
+                isActive: false
+              }
+            }
+          };
+          
+          // Update pet data to reflect hatching
+          const { updatedPet: hatchedPet } = await updatePetWithSteps(updatedPet, 0);
+          setPetData(hatchedPet);
+          navigation.navigate('PetHatching', {
+            petType: hatchedPet.type
+          });
+        } catch (error) {
+          console.error('Error hatching egg:', error);
+          Alert.alert(
+            'Error',
+            'There was a problem hatching your egg. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
       } else {
         Alert.alert(
           'Not Ready to Hatch',
-          `Your egg needs ${7500 - dailySteps} more steps to hatch! Keep walking to help it grow.`,
+          `Your egg needs ${25 - dailySteps} more steps to hatch! Keep walking to help it grow.`,
           [{ text: 'OK' }]
         );
       }
@@ -304,13 +342,7 @@ const Home: React.FC = () => {
     
     // Update claims
     updatedPet.miniGames.fetch.claimsToday = claims + 1;
-    updatedPet.miniGames.fetch.lastClaimed = updatedPet.miniGames.fetch.lastClaimed || [];
-    
-    if (!Array.isArray(updatedPet.miniGames.fetch.lastClaimed)) {
-      updatedPet.miniGames.fetch.lastClaimed = [];
-    }
-    
-    updatedPet.miniGames.fetch.lastClaimed.push(now.toISOString());
+    updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
     updatedPet.xp += 50;
     
     // Check for level up
@@ -452,9 +484,9 @@ const Home: React.FC = () => {
 
     if (petData.growthStage === 'Egg') {
       return {
-        progress: dailySteps / 7500,
+        progress: dailySteps / 25,
         currentValue: dailySteps,
-        maxValue: 7500
+        maxValue: 25
       };
     } else {
       return {
@@ -562,7 +594,7 @@ const Home: React.FC = () => {
           <View style={styles.petInfo}>
             <Text style={styles.petName}>{petData.name}</Text>
             <Text style={styles.petType}>
-              Level {petData.level} {petData.type} • {petData.growthStage}
+              Level {petData.level} {petData.growthStage === 'Egg' ? 'Egg' : petData.type}
             </Text>
             <View style={styles.progressContainer}>
               <ProgressBar
@@ -578,9 +610,23 @@ const Home: React.FC = () => {
                 currentValue={progressData.currentValue}
                 maxValue={progressData.maxValue}
               />
-              {petData.growthStage === 'Egg' && (
+              {petData.growthStage === 'Egg' ? (
+                <>
+                  <Text style={styles.progressHint}>
+                    Reach 25 steps to hatch your egg!
+                  </Text>
+                  {dailySteps >= 25 && (
+                    <TouchableOpacity 
+                      style={styles.hatchButton}
+                      onPress={handlePetTap}
+                    >
+                      <Text style={styles.hatchButtonText}>Hatch Egg</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
                 <Text style={styles.progressHint}>
-                  Reach 7,500 steps to hatch your egg!
+                  Walk {progressData.maxValue - progressData.currentValue} more steps to reach level {petData.level + 1}!
                 </Text>
               )}
             </View>
@@ -769,6 +815,27 @@ const styles = StyleSheet.create({
     color: '#8C52FF',
     marginLeft: 8,
     textDecorationLine: 'underline',
+  },
+  hatchButton: {
+    backgroundColor: '#8C52FF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  hatchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat-SemiBold',
+    textAlign: 'center',
   },
 });
 

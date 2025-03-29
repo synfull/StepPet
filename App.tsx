@@ -102,25 +102,16 @@ export default function App() {
   useEffect(() => {
     async function loadPetData() {
       try {
-        const storedPetData = await AsyncStorage.getItem('@pet_data');
-        if (storedPetData) {
-          try {
-            const parsedData = JSON.parse(storedPetData);
-            // Validate the parsed data matches the PetData type
-            if (parsedData && typeof parsedData === 'object' && 'id' in parsedData) {
-              setPetData(parsedData as PetData);
-            } else {
-              console.error('Invalid pet data format');
-              setError('Invalid pet data format');
-            }
-          } catch (parseError) {
-            console.error('Error parsing pet data:', parseError);
-            setError('Failed to parse pet data');
-          }
-        }
+        // Clear any existing data to start fresh
+        await AsyncStorage.clear();
+        setPetData(null);
+        setIsOnboardingComplete(false);
+        setHasCheckedOnboarding(true);
+        setLoading(false);
       } catch (error) {
-        console.error('Error loading pet data:', error);
-        setError('Failed to load pet data');
+        console.error('Error resetting data:', error);
+        setError('Failed to reset data');
+        setLoading(false);
       }
     }
     
@@ -164,13 +155,12 @@ export default function App() {
     }
   }, [fontsLoaded, hasCheckedOnboarding, loading]);
 
-  if (!fontsLoaded || !hasCheckedOnboarding || loading) {
+  // Render loading screen
+  if (loading || !fontsLoaded || !hasCheckedOnboarding) {
     return (
-      <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#8C52FF" />
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#8C52FF" />
+      </View>
     );
   }
 

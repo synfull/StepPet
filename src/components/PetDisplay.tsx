@@ -199,12 +199,84 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
             contentFit="contain"
           />
         );
-      // Add the rest of the pet types with placeholder images
-      default:
+      case 'Eagle':
         return (
-          <View style={[styles.petPlaceholder, { backgroundColor: mainColor }]}>
-            {/* This is a placeholder for pet types that don't have images yet */}
-          </View>
+          <Image
+            source={
+              growthStage === 'Baby' ? 
+                require('../../assets/images/pets/eagle_baby.png') :
+              growthStage === 'Juvenile' ?
+                require('../../assets/images/pets/eagle_juvenile.png') :
+                require('../../assets/images/pets/eagle_adult.png')
+            }
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
+        );
+      case 'FireLizard':
+        return (
+          <Image
+            source={
+              growthStage === 'Baby' ? 
+                require('../../assets/images/pets/firelizard_baby.png') :
+              growthStage === 'Juvenile' ?
+                require('../../assets/images/pets/firelizard_juvenile.png') :
+                require('../../assets/images/pets/firelizard_adult.png')
+            }
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
+        );
+      case 'WaterTurtle':
+        return (
+          <Image
+            source={
+              growthStage === 'Baby' ? 
+                require('../../assets/images/pets/waterturtle_baby.png') :
+              growthStage === 'Juvenile' ?
+                require('../../assets/images/pets/waterturtle_juvenile.png') :
+                require('../../assets/images/pets/waterturtle_adult.png')
+            }
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
+        );
+      case 'RobotDog':
+        return (
+          <Image
+            source={
+              growthStage === 'Baby' ? 
+                require('../../assets/images/pets/robotdog_baby.png') :
+              growthStage === 'Juvenile' ?
+                require('../../assets/images/pets/robotdog_juvenile.png') :
+                require('../../assets/images/pets/robotdog_adult.png')
+            }
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
+        );
+      case 'ClockworkBunny':
+        return (
+          <Image
+            source={
+              growthStage === 'Baby' ? 
+                require('../../assets/images/pets/clockworkbunny_baby.png') :
+              growthStage === 'Juvenile' ?
+                require('../../assets/images/pets/clockworkbunny_juvenile.png') :
+                require('../../assets/images/pets/clockworkbunny_adult.png')
+            }
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
+        );
+      default:
+        // Fallback to egg if pet type is not recognized
+        return (
+          <Image
+            source={require('../../assets/images/egg.png')}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="contain"
+          />
         );
     }
   };

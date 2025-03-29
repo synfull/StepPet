@@ -27,53 +27,106 @@ export const PET_COLORS = {
   ClockworkBunny: { mainColor: '#FF9800', accentColor: '#9C27B0' }
 };
 
-// Steps required for each level
+// ORIGINAL VALUES (DO NOT DELETE)
+// export const LEVEL_REQUIREMENTS = [
+//    7500,    // Level 1 to 2 (hatching egg)
+//    12500,   // Level 2 to 3
+//    17500,   // Level 3 to 4
+//    22500,   // Level 4 to 5
+//    27500,   // Level 5 to 6
+//    32500,   // Level 6 to 7
+//    37500,   // Level 7 to 8
+//    42500,   // Level 8 to 9
+//    47500,   // Level 9 to 10
+//    52500    // Level 10+
+// ];
+
+// TEST VALUES
 export const LEVEL_REQUIREMENTS = [
-  7500,    // Level 1 to 2 (hatching egg)
-  12500,   // Level 2 to 3
-  17500,   // Level 3 to 4
-  22500,   // Level 4 to 5
-  27500,   // Level 5 to 6
-  32500,   // Level 6 to 7
-  37500,   // Level 7 to 8
-  42500,   // Level 8 to 9
-  47500,   // Level 9 to 10
-  52500    // Level 10+
+  25,      // Level 1 to 2 (hatching egg)
+  200,     // Level 2 to 3
+  300,     // Level 3 to 4
+  400,     // Level 4 to 5
+  500,     // Level 5 to 6
+  600,     // Level 6 to 7
+  700,     // Level 7 to 8
+  800,     // Level 8 to 9
+  900,     // Level 9 to 10
+  1000     // Level 10+
 ];
 
-// Default milestones
+// ORIGINAL VALUES (DO NOT DELETE)
+// export const DEFAULT_MILESTONES: Milestone[] = [
+//   {
+//     id: 'milestone-5k',
+//     steps: 5000,
+//     reward: 'xp',
+//     rewardDetails: '+500 XP Boost',
+//     claimed: false
+//   },
+//   {
+//     id: 'milestone-10k',
+//     steps: 10000,
+//     reward: 'appearance',
+//     rewardDetails: 'Pet Appearance Tweak',
+//     claimed: false
+//   },
+//   {
+//     id: 'milestone-25k',
+//     steps: 25000,
+//     reward: 'background',
+//     rewardDetails: 'Background Theme',
+//     claimed: false
+//   },
+//   {
+//     id: 'milestone-50k',
+//     steps: 50000,
+//     reward: 'animation',
+//     rewardDetails: 'Special Animation',
+//     claimed: false
+//   },
+//   {
+//     id: 'milestone-100k',
+//     steps: 100000,
+//     reward: 'badge',
+//     rewardDetails: 'Elite Badge + Animated Background',
+//     claimed: false
+//   }
+// ];
+
+// TEST VALUES
 export const DEFAULT_MILESTONES: Milestone[] = [
   {
-    id: 'milestone-5k',
-    steps: 5000,
+    id: 'milestone-50',
+    steps: 50,
     reward: 'xp',
     rewardDetails: '+500 XP Boost',
     claimed: false
   },
   {
-    id: 'milestone-10k',
-    steps: 10000,
+    id: 'milestone-100',
+    steps: 100,
     reward: 'appearance',
     rewardDetails: 'Pet Appearance Tweak',
     claimed: false
   },
   {
-    id: 'milestone-25k',
-    steps: 25000,
+    id: 'milestone-150',
+    steps: 150,
     reward: 'background',
     rewardDetails: 'Background Theme',
     claimed: false
   },
   {
-    id: 'milestone-50k',
-    steps: 50000,
+    id: 'milestone-200',
+    steps: 200,
     reward: 'animation',
     rewardDetails: 'Special Animation',
     claimed: false
   },
   {
-    id: 'milestone-100k',
-    steps: 100000,
+    id: 'milestone-250',
+    steps: 250,
     reward: 'badge',
     rewardDetails: 'Elite Badge + Animated Background',
     claimed: false
@@ -193,11 +246,10 @@ export const updatePetWithSteps = async (
   if (updatedPet.growthStage === 'Egg') {
     if (updatedPet.totalSteps >= updatedPet.stepsToHatch) {
       updatedPet.growthStage = 'Baby';
-      updatedPet.level = 2;
       updatedPet.xp = 0;
-      updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[1];
+      updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[0];
       updatedPet.stepsSinceHatched = updatedPet.totalSteps - updatedPet.stepsToHatch;
-      leveledUp = true;
+      leveledUp = false;
     }
   } else {
     // Pet is already hatched, add XP and update level

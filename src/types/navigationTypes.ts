@@ -4,7 +4,7 @@ import { PetType } from './petTypes';
 export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList>;
   PetNaming: { petType: PetType };
-  PetHatching: undefined;
+  PetHatching: { petType: PetType };
   PetLevelUp: { level: number; petType: PetType };
   AddFriend: undefined;
   QRCode: undefined;

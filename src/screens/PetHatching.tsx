@@ -15,7 +15,6 @@ import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { RootStackParamList } from '../types/navigationTypes';
 import { PetType } from '../types/petTypes';
-import { getRandomPetType } from '../utils/petUtils';
 import Button from '../components/Button';
 
 // Pet baby images mapping
@@ -32,19 +31,35 @@ const PET_BABY_IMAGES: { [key in Exclude<PetType, ''>]: ImageSourcePropType } = 
 
 type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const PetHatching: React.FC = () => {
+interface PetHatchingProps {
+  route: {
+    params: {
+      petType: PetType;
+    };
+  };
+}
+
+const PetHatching: React.FC<PetHatchingProps> = ({ route }) => {
+  const { petType } = route.params;
   const navigation = useNavigation<PetHatchingNavigationProp>();
   const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
-  const [selectedPet, setSelectedPet] = useState<PetType | null>(null);
-  const [sound, setSound] = useState<Audio.Sound>();
+  const [hatchingSound, setHatchingSound] = useState<Audio.Sound>();
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
-  // Load sound effect
+  // Load hatching sound
   useEffect(() => {
+    async function loadSound() {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/egg-crack.wav')
+        );
+        setHatchingSound(sound);
+      } catch (error) {
+        console.log('Could not load hatching sound:', error);
+        // Continue without sound
+      }
+    }
     loadSound();
-    return () => {
-      sound?.unloadAsync();
-    };
   }, []);
 
   // Start hatching automatically
@@ -52,41 +67,32 @@ const PetHatching: React.FC = () => {
     startHatchingAnimation();
   }, []);
 
-  const loadSound = async () => {
+  // Play hatching sound
+  const playHatchingSound = async () => {
     try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/egg_crack.mp3')
-      );
-      setSound(sound);
+      if (hatchingSound) {
+        await hatchingSound.playAsync();
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error loading sound:', error);
+      console.log('Could not play hatching sound:', error);
+      // Continue without sound
     }
   };
 
   const startHatchingAnimation = async () => {
-    // Play cracking sound
-    try {
-      await sound?.playAsync();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error playing sound:', error);
-    }
+    // Play hatching sound
+    await playHatchingSound();
 
     // Start cracking animation
     setTimeout(() => {
-      // Select random pet type
-      const { type } = getRandomPetType();
-      setSelectedPet(type);
       setAnimationState('hatched');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }, 3000);
   };
 
   const handleContinue = () => {
-    if (!selectedPet) return;
-    
     navigation.navigate('PetNaming', {
-      petType: selectedPet,
+      petType,
     });
   };
 
@@ -96,7 +102,7 @@ const PetHatching: React.FC = () => {
         return (
           <>
             <Image
-              source={require('../../assets/images/pets/egg_cracking.png')}
+              source={require('../../assets/images/egg.png')}
               style={styles.eggImage}
               resizeMode="contain"
             />
@@ -104,15 +110,16 @@ const PetHatching: React.FC = () => {
           </>
         );
       case 'hatched':
-        if (!selectedPet) return null;
         return (
           <>
             <Image
-              source={PET_BABY_IMAGES[selectedPet]}
+              source={petType && petType in PET_BABY_IMAGES ? PET_BABY_IMAGES[petType as keyof typeof PET_BABY_IMAGES] : require('../../assets/images/egg.png')}
               style={styles.petImage}
               resizeMode="contain"
             />
-            <Text style={styles.text}>It's a {selectedPet}!</Text>
+            <Text style={styles.text}>
+              It's a {petType === '' ? 'Mystery Pet' : petType.replace(/([A-Z])/g, ' $1').trim()}!
+            </Text>
             <Button
               title="Name Your Pet"
               onPress={handleContinue}
