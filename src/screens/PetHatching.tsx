@@ -36,7 +36,7 @@ const PET_BABY_IMAGES: { [key: string]: ImageSourcePropType } = {
 
 const PetHatching: React.FC = () => {
   const navigation = useNavigation<PetHatchingNavigationProp>();
-  const [animationState, setAnimationState] = useState<'idle' | 'cracking' | 'hatched'>('idle');
+  const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
   const [selectedPet, setSelectedPet] = useState<{ type: string; category: string } | null>(null);
   const crackingAnim = useRef(new Animated.Value(0)).current;
   const hatchedAnim = useRef(new Animated.Value(0)).current;
@@ -47,14 +47,14 @@ const PetHatching: React.FC = () => {
   const scaleAnimation = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
-    startIdleAnimation();
-    
     // Determine random pet on load but don't reveal yet
     const { type, category } = getRandomPetType();
     setSelectedPet({ type, category });
     
-    // Load sound
-    loadSound();
+    // Load sound and start hatching immediately
+    loadSound().then(() => {
+      startHatchingAnimation();
+    });
     
     return () => {
       // Clean up sound
@@ -115,12 +115,6 @@ const PetHatching: React.FC = () => {
     // Play sound
     playSound();
     
-    // Stop idle animation
-    shakeAnimation.stopAnimation();
-    
-    // Set state to cracking
-    setAnimationState('cracking');
-    
     // Cracking animation
     Animated.sequence([
       Animated.timing(crackingAnim, {
@@ -152,24 +146,17 @@ const PetHatching: React.FC = () => {
   
   const renderContent = () => {
     switch (animationState) {
-      case 'idle':
+      case 'cracking':
         return (
           <View style={styles.centeredContent}>
             <Animated.View
               style={[
                 styles.eggContainer,
                 {
-                  transform: [
-                    {
-                      rotate: shakeAnimation.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: ['-5deg', '5deg'],
-                      }),
-                    },
-                    {
-                      scale: scaleAnimation,
-                    },
-                  ],
+                  opacity: crackingAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 0],
+                  }),
                 },
               ]}
             >
@@ -180,48 +167,7 @@ const PetHatching: React.FC = () => {
               />
             </Animated.View>
             <Text style={styles.instructionText}>
-              Tap the egg to start hatching!
-            </Text>
-            <Button
-              title="Start Hatching"
-              onPress={startHatchingAnimation}
-              size="large"
-              style={styles.button}
-            />
-          </View>
-        );
-        
-      case 'cracking':
-        return (
-          <View style={styles.centeredContent}>
-            <Animated.View
-              style={[
-                styles.eggContainer,
-                {
-                  opacity: crackingAnim.interpolate({
-                    inputRange: [0, 0.8, 1],
-                    outputRange: [1, 1, 0],
-                  }),
-                  transform: [
-                    {
-                      scale: crackingAnim.interpolate({
-                        inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
-                        outputRange: [1, 1.1, 1, 1.1, 1, 1.2],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <LottieView
-                source={require('../../assets/animations/egg-cracking.json')}
-                autoPlay
-                loop={false}
-                style={styles.crackingAnimation}
-              />
-            </Animated.View>
-            <Text style={styles.hatchingText}>
-              Your egg is hatching...
+              Your egg is hatching!
             </Text>
           </View>
         );
@@ -229,40 +175,41 @@ const PetHatching: React.FC = () => {
       case 'hatched':
         return (
           <View style={styles.centeredContent}>
-            <Animated.View
-              style={[
-                styles.petContainer,
-                {
-                  opacity: hatchedAnim,
-                  transform: [
+            {selectedPet && (
+              <>
+                <Animated.View
+                  style={[
+                    styles.petContainer,
                     {
-                      scale: hatchedAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.5, 1],
-                      }),
+                      opacity: hatchedAnim,
+                      transform: [
+                        {
+                          scale: hatchedAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.5, 1],
+                          }),
+                        },
+                      ],
                     },
-                  ],
-                },
-              ]}
-            >
-              <Image
-                source={selectedPet ? PET_BABY_IMAGES[selectedPet.type] : PET_BABY_IMAGES.Dragon}
-                style={styles.petImage}
-                resizeMode="contain"
-              />
-            </Animated.View>
-            <Text style={styles.congratsText}>
-              Congratulations! You hatched a {selectedPet?.type}!
-            </Text>
-            <Text style={styles.subText}>
-              Now it's time to give your pet a name.
-            </Text>
-            <Button
-              title="Continue"
-              onPress={handleContinue}
-              size="large"
-              style={styles.button}
-            />
+                  ]}
+                >
+                  <Image
+                    source={PET_BABY_IMAGES[selectedPet.type]}
+                    style={styles.petImage}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
+                <Text style={styles.congratsText}>
+                  Congratulations! Your egg has hatched into a {selectedPet.type}!
+                </Text>
+                <Button
+                  title="Name Your Pet"
+                  onPress={handleContinue}
+                  size="large"
+                  style={styles.button}
+                />
+              </>
+            )}
           </View>
         );
     }

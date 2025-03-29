@@ -1,4 +1,4 @@
-export type PetCategory = 'Fantasy' | 'Animals' | 'Elemental' | 'Quirky';
+export type PetCategory = 'Fantasy' | 'Animals' | 'Elemental' | 'Quirky' | '';
 
 export type PetType = 
   | 'Dragon' 
@@ -8,32 +8,39 @@ export type PetType =
   | 'FireLizard' 
   | 'WaterTurtle' 
   | 'RobotDog' 
-  | 'ClockworkBunny';
+  | 'ClockworkBunny'
+  | '';
 
 export type GrowthStage = 'Egg' | 'Baby' | 'Juvenile' | 'Adult';
 
 export interface PetAppearance {
   mainColor: string;
   accentColor: string;
-  hasCustomization?: boolean;
-  customizationApplied?: boolean;
+  hasCustomization: boolean;
+  customizationApplied: boolean;
 }
 
-export interface PetMiniGames {
-  feed: {
-    lastClaimed: string | null;
-    claimedToday: boolean;
-  };
-  fetch: {
-    lastClaimed: string[] | null;
-    claimsToday: number;
-  };
-  adventure: {
-    lastStarted: string | null;
-    lastCompleted: string | null;
-    currentProgress: number;
-    isActive: boolean;
-  };
+export interface MiniGameStatus {
+  lastClaimed: string | null;
+  claimedToday: boolean;
+}
+
+export interface FetchGameStatus {
+  lastClaimed: string | null;
+  claimsToday: number;
+}
+
+export interface AdventureStatus {
+  lastStarted: string | null;
+  lastCompleted: string | null;
+  currentProgress: number;
+  isActive: boolean;
+}
+
+export interface MiniGames {
+  feed: MiniGameStatus;
+  fetch: FetchGameStatus;
+  adventure: AdventureStatus;
 }
 
 export interface Milestone {
@@ -57,7 +64,7 @@ export interface PetData {
   stepsSinceHatched: number;
   totalSteps: number;
   appearance: PetAppearance;
-  miniGames: PetMiniGames;
+  miniGames: MiniGames;
   milestones: Milestone[];
   created: string;
 }

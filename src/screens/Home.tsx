@@ -162,7 +162,15 @@ const Home: React.FC = () => {
     }
     
     if (petData?.growthStage === 'Egg') {
-      navigation.navigate('PetHatching');
+      if (dailySteps >= 7500) {
+        navigation.navigate('PetHatching');
+      } else {
+        Alert.alert(
+          'Not Ready to Hatch',
+          `Your egg needs ${7500 - dailySteps} more steps to hatch! Keep walking to help it grow.`,
+          [{ text: 'OK' }]
+        );
+      }
     } else {
       navigation.navigate('PetDetails');
     }

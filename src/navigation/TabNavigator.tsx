@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Home from '../screens/Home';
 import Milestones from '../screens/Milestones';
 import Friends from '../screens/Friends';
@@ -10,12 +11,18 @@ import { TabParamList } from '../types/navigationTypes';
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabNavigator = () => {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          ...styles.tabBar,
+          height: Platform.OS === 'ios' ? 80 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 5,
+        },
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarActiveTintColor: '#8C52FF',
         tabBarInactiveTintColor: '#909090',
@@ -65,9 +72,6 @@ const TabNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 60,
-    paddingBottom: 5,
-    paddingTop: 5,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
@@ -79,11 +83,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 5,
+    paddingTop: 5,
   },
   tabBarLabel: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 2,
+    marginBottom: Platform.OS === 'ios' ? 0 : 2,
   },
   iconContainer: {
     marginTop: 2,

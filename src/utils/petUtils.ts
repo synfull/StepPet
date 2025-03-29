@@ -104,14 +104,14 @@ export const getRandomPetType = (): { type: PetType; category: PetCategory } => 
 };
 
 // Create a new pet
-export const createNewPet = (type: PetType, category: PetCategory, name: string): PetData => {
+export const createNewPet = (type?: PetType | '', category?: PetCategory | '', name?: string): PetData => {
   const now = new Date().toISOString();
   
   return {
     id: generateUUID(),
-    name,
-    type,
-    category,
+    name: name || 'Egg',
+    type: type || '',
+    category: category || '',
     level: 1,
     xp: 0,
     xpToNextLevel: LEVEL_REQUIREMENTS[0],
@@ -119,8 +119,13 @@ export const createNewPet = (type: PetType, category: PetCategory, name: string)
     stepsToHatch: LEVEL_REQUIREMENTS[0],
     stepsSinceHatched: 0,
     totalSteps: 0,
-    appearance: {
-      ...PET_COLORS[type],
+    appearance: type ? {
+      ...PET_COLORS[type as PetType],
+      hasCustomization: false,
+      customizationApplied: false
+    } : {
+      mainColor: '#8C8C8C',
+      accentColor: '#E0E0E0',
       hasCustomization: false,
       customizationApplied: false
     },

@@ -9,6 +9,7 @@ import { DataContext } from '@context/DataContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
 import { View, ActivityIndicator, Text } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { 
   fetchDailySteps, 
   fetchWeeklySteps, 
@@ -157,34 +158,40 @@ export default function App() {
 
   if (!fontsLoaded || !hasCheckedOnboarding || loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#8C52FF" />
-      </View>
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#8C52FF" />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text style={{ color: '#FF3B30', textAlign: 'center' }}>{error}</Text>
-      </View>
+      <SafeAreaProvider>
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ color: '#FF3B30', textAlign: 'center' }}>{error}</Text>
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <StatusBar style="auto" />
-      <PedometerContext.Provider value={pedometerValue}>
-        <DataContext.Provider value={dataValue}>
-          <NavigationContainer>
-            {isOnboardingComplete ? (
-              <MainNavigator />
-            ) : (
-              <Onboarding completeOnboarding={completeOnboarding} />
-            )}
-          </NavigationContainer>
-        </DataContext.Provider>
-      </PedometerContext.Provider>
-    </View>
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <StatusBar style="auto" />
+        <PedometerContext.Provider value={pedometerValue}>
+          <DataContext.Provider value={dataValue}>
+            <NavigationContainer>
+              {isOnboardingComplete ? (
+                <MainNavigator />
+              ) : (
+                <Onboarding completeOnboarding={completeOnboarding} />
+              )}
+            </NavigationContainer>
+          </DataContext.Provider>
+        </PedometerContext.Provider>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

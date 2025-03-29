@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   FlatList,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -18,6 +19,8 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { Friend } from '../types/petTypes';
 import { formatRelativeTime } from '../utils/dateUtils';
 import Header from '../components/Header';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DataContext } from '../context/DataContext';
 
 type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -118,7 +121,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress }) => {
         />
         {friend.isCrowned && (
           <View style={styles.crownBadge}>
-            <Ionicons name="crown" size={12} color="#FFD700" />
+            <Ionicons name="trophy" size={12} color="#FFD700" />
           </View>
         )}
       </View>
@@ -142,7 +145,9 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress }) => {
 };
 
 const Friends: React.FC = () => {
-  const navigation = useNavigation<FriendsNavigationProp>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { petData } = useContext(DataContext);
+  const insets = useSafeAreaInsets();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -193,21 +198,22 @@ const Friends: React.FC = () => {
   // Sort friends by weekly steps
   const sortedFriends = [...friends].sort((a, b) => b.weeklySteps - a.weeklySteps);
 
+  const headerRightComponent = (
+    <TouchableOpacity 
+      onPress={() => navigation.navigate('QRCode')}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="qr-code-outline" size={24} color="#8C52FF" />
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar style="dark" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleShowQRCode}>
-            <Ionicons name="qr-code-outline" size={24} color="#8C52FF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={handleAddFriend}>
-            <Ionicons name="person-add-outline" size={24} color="#8C52FF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header 
+        title="Friends"
+        rightComponent={headerRightComponent}
+      />
       
       <View style={styles.content}>
         <View style={styles.leaderboardHeader}>
@@ -257,28 +263,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 22,
-    color: '#333333',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-  },
-  headerButton: {
-    padding: 8,
-    marginLeft: 8,
   },
   content: {
     flex: 1,
