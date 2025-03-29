@@ -70,8 +70,16 @@ export default function App() {
           const daily = await fetchDailySteps();
           const weekly = await fetchWeeklySteps();
           
-          setDailySteps(daily);
-          setWeeklySteps(weekly);
+          // Load pet data to get starting step count
+          const storedPetData = await AsyncStorage.getItem('@pet_data');
+          const startingStepCount = storedPetData ? JSON.parse(storedPetData).startingStepCount || 0 : 0;
+          
+          // Calculate relative steps
+          const relativeDaily = Math.max(0, daily - startingStepCount);
+          const relativeWeekly = Math.max(0, weekly - startingStepCount);
+          
+          setDailySteps(relativeDaily);
+          setWeeklySteps(relativeWeekly);
           
           // Get total steps from storage
           const storedTotal = await AsyncStorage.getItem('@total_steps');

@@ -7,8 +7,8 @@ export const pedoInit = async (): Promise<boolean> => {
   return isAvailable;
 };
 
-// Get steps for today (since midnight)
-export const fetchDailySteps = async (): Promise<number> => {
+// Get steps for today (since midnight or custom start time)
+export const fetchDailySteps = async (startTime?: Date): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
@@ -17,8 +17,10 @@ export const fetchDailySteps = async (): Promise<number> => {
     }
 
     const now = new Date();
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = startTime || new Date();
+    if (!startTime) {
+      start.setHours(0, 0, 0, 0);
+    }
     
     const { steps } = await Pedometer.getStepCountAsync(start, now);
     
@@ -91,16 +93,29 @@ export const updateTotalSteps = async (newSteps: number): Promise<number> => {
 };
 
 // Subscribe to pedometer updates
-export const subscribeToPedometer = (callback: (steps: number) => void) => {
+export const subscribeToPedometer = (callback: (steps: number) => void, startTime?: Date) => {
   const now = new Date();
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+  const start = startTime || new Date();
+  if (!startTime) {
+    start.setHours(0, 0, 0, 0);
+  }
   
   let subscription: { remove: () => void } | null = null;
+  let initialSteps: number | null = null;
   
   try {
+    // First get the current step count from our start time
+    Pedometer.getStepCountAsync(start, now).then(({ steps }) => {
+      initialSteps = steps;
+      callback(steps); // Call immediately with initial steps
+    });
+    
+    // Then subscribe to updates
     subscription = Pedometer.watchStepCount(result => {
-      callback(result.steps);
+      // If we have an initial step count, calculate the difference
+      if (initialSteps !== null) {
+        callback(result.steps);
+      }
     });
   } catch (error) {
     console.error('Error subscribing to pedometer:', error);

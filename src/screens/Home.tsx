@@ -50,13 +50,14 @@ const Home: React.FC = () => {
   
   // Pedometer subscription
   useEffect(() => {
-    if (isAvailable) {
+    if (isAvailable && petData) {
+      // Use the pet's creation time as the start time for counting steps
+      const petCreationTime = new Date(petData.created);
       const subscription = subscribeToPedometer((steps) => {
-        // Calculate steps relative to when the pet was created
-        const relativeSteps = Math.max(0, steps - (petData?.startingStepCount || 0));
-        // This will update with real-time step count
-        setDailySteps(relativeSteps);
-      });
+        // No need to subtract startingStepCount since we're starting from pet creation time
+        setDailySteps(steps);
+        setTotalSteps(steps);
+      }, petCreationTime);
       
       // Cleanup subscription on unmount
       return () => {
@@ -65,7 +66,7 @@ const Home: React.FC = () => {
         }
       };
     }
-  }, [isAvailable, petData?.startingStepCount]);
+  }, [isAvailable, petData]);
   
   // Refresh data periodically
   useEffect(() => {
@@ -108,44 +109,41 @@ const Home: React.FC = () => {
   
   // Refresh step data
   const refreshStepData = async () => {
-    if (!isAvailable) return;
+    if (!isAvailable || !petData) return;
     
     try {
-      const daily = await fetchDailySteps();
+      // Use the pet's creation time as the start time for counting steps
+      const petCreationTime = new Date(petData.created);
+      const daily = await fetchDailySteps(petCreationTime);
       const weekly = await fetchWeeklySteps();
       
-      // Calculate steps relative to when the pet was created
-      const relativeDaily = Math.max(0, daily - (petData?.startingStepCount || 0));
-      const relativeWeekly = Math.max(0, weekly - (petData?.startingStepCount || 0));
-      
-      setDailySteps(relativeDaily);
-      setWeeklySteps(relativeWeekly);
+      // No need to subtract startingStepCount since we're starting from pet creation time
+      setDailySteps(daily);
+      setWeeklySteps(weekly);
       setLastRefreshed(new Date());
       
       // Update pet with new steps if applicable
-      if (petData) {
-        const lastTotal = totalSteps;
-        const newSteps = relativeDaily - lastTotal;
+      const lastTotal = totalSteps;
+      const newSteps = daily - lastTotal;
+      
+      if (newSteps > 0) {
+        const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
+        setPetData(updatedPet);
+        setTotalSteps(daily);
         
-        if (newSteps > 0) {
-          const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
-          setPetData(updatedPet);
-          setTotalSteps(relativeDaily);
-          
-          // Handle level up
-          if (leveledUp) {
-            navigation.navigate('PetLevelUp', { 
-              level: updatedPet.level,
-              petType: updatedPet.type 
-            });
-          }
-          
-          // Handle milestone reached
-          if (milestoneReached) {
-            navigation.navigate('MilestoneUnlocked', { 
-              milestoneId: milestoneReached 
-            });
-          }
+        // Handle level up
+        if (leveledUp) {
+          navigation.navigate('PetLevelUp', { 
+            level: updatedPet.level,
+            petType: updatedPet.type 
+          });
+        }
+        
+        // Handle milestone reached
+        if (milestoneReached) {
+          navigation.navigate('MilestoneUnlocked', { 
+            milestoneId: milestoneReached 
+          });
         }
       }
     } catch (error) {
