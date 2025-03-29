@@ -104,7 +104,7 @@ export const getRandomPetType = (): { type: PetType; category: PetCategory } => 
 };
 
 // Create a new pet
-export const createNewPet = (type?: PetType | '', category?: PetCategory | '', name?: string): PetData => {
+export const createNewPet = async (currentSteps: number, type?: PetType | '', category?: PetCategory | '', name?: string): Promise<PetData> => {
   const now = new Date().toISOString();
   
   return {
@@ -119,6 +119,7 @@ export const createNewPet = (type?: PetType | '', category?: PetCategory | '', n
     stepsToHatch: LEVEL_REQUIREMENTS[0],
     stepsSinceHatched: 0,
     totalSteps: 0,
+    startingStepCount: currentSteps,
     appearance: type ? {
       ...PET_COLORS[type as PetType],
       hasCustomization: false,

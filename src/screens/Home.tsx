@@ -52,8 +52,10 @@ const Home: React.FC = () => {
   useEffect(() => {
     if (isAvailable) {
       const subscription = subscribeToPedometer((steps) => {
+        // Calculate steps relative to when the pet was created
+        const relativeSteps = Math.max(0, steps - (petData?.startingStepCount || 0));
         // This will update with real-time step count
-        setDailySteps(steps);
+        setDailySteps(relativeSteps);
       });
       
       // Cleanup subscription on unmount
@@ -63,7 +65,7 @@ const Home: React.FC = () => {
         }
       };
     }
-  }, [isAvailable]);
+  }, [isAvailable, petData?.startingStepCount]);
   
   // Refresh data periodically
   useEffect(() => {
@@ -112,19 +114,23 @@ const Home: React.FC = () => {
       const daily = await fetchDailySteps();
       const weekly = await fetchWeeklySteps();
       
-      setDailySteps(daily);
-      setWeeklySteps(weekly);
+      // Calculate steps relative to when the pet was created
+      const relativeDaily = Math.max(0, daily - (petData?.startingStepCount || 0));
+      const relativeWeekly = Math.max(0, weekly - (petData?.startingStepCount || 0));
+      
+      setDailySteps(relativeDaily);
+      setWeeklySteps(relativeWeekly);
       setLastRefreshed(new Date());
       
       // Update pet with new steps if applicable
       if (petData) {
         const lastTotal = totalSteps;
-        const newSteps = daily - lastTotal;
+        const newSteps = relativeDaily - lastTotal;
         
         if (newSteps > 0) {
           const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
           setPetData(updatedPet);
-          setTotalSteps(daily);
+          setTotalSteps(relativeDaily);
           
           // Handle level up
           if (leveledUp) {
@@ -449,9 +455,13 @@ const Home: React.FC = () => {
           <Button
             title="Get Your Egg"
             onPress={async () => {
-              const newPet = createNewPet();
+              const newPet = await createNewPet(dailySteps);
               await savePetData(newPet);
               setPetData(newPet);
+              // Reset step counters to 0 since we're starting fresh
+              setDailySteps(0);
+              setWeeklySteps(0);
+              setTotalSteps(0);
             }}
             size="large"
             style={styles.startButton}
