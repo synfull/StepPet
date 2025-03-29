@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
   Animated,
+  TouchableOpacity,
   Image,
-  Dimensions,
   ImageSourcePropType,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -13,17 +13,13 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
-import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
-import Button from '../components/Button';
+import { PetType } from '../types/petTypes';
 import { getRandomPetType } from '../utils/petUtils';
-
-type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-const { width, height } = Dimensions.get('window');
+import Button from '../components/Button';
 
 // Pet baby images mapping
-const PET_BABY_IMAGES: { [key: string]: ImageSourcePropType } = {
+const PET_BABY_IMAGES: { [key in Exclude<PetType, ''>]: ImageSourcePropType } = {
   Dragon: require('../../assets/images/pets/dragon_baby.png'),
   Wolf: require('../../assets/images/pets/wolf_baby.png'),
   Eagle: require('../../assets/images/pets/eagle_baby.png'),
@@ -34,191 +30,106 @@ const PET_BABY_IMAGES: { [key: string]: ImageSourcePropType } = {
   ClockworkBunny: require('../../assets/images/pets/clockworkbunny_baby.png'),
 };
 
+type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const PetHatching: React.FC = () => {
   const navigation = useNavigation<PetHatchingNavigationProp>();
   const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
-  const [selectedPet, setSelectedPet] = useState<{ type: string; category: string } | null>(null);
-  const crackingAnim = useRef(new Animated.Value(0)).current;
-  const hatchedAnim = useRef(new Animated.Value(0)).current;
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  
-  // Animations
-  const shakeAnimation = useRef(new Animated.Value(0)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
-  
+  const [selectedPet, setSelectedPet] = useState<PetType | null>(null);
+  const [sound, setSound] = useState<Audio.Sound>();
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  // Load sound effect
   useEffect(() => {
-    // Determine random pet on load but don't reveal yet
-    const { type, category } = getRandomPetType();
-    setSelectedPet({ type, category });
-    
-    // Load sound and start hatching immediately
-    loadSound().then(() => {
-      startHatchingAnimation();
-    });
-    
+    loadSound();
     return () => {
-      // Clean up sound
-      if (sound) {
-        sound.unloadAsync();
-      }
+      sound?.unloadAsync();
     };
   }, []);
-  
+
+  // Start hatching automatically
+  useEffect(() => {
+    startHatchingAnimation();
+  }, []);
+
   const loadSound = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/egg-crack.mp3')
+        require('../../assets/sounds/egg_crack.mp3')
       );
       setSound(sound);
     } catch (error) {
-      console.error('Error loading sound', error);
+      console.error('Error loading sound:', error);
     }
   };
-  
-  const playSound = async () => {
-    if (sound) {
-      try {
-        await sound.setPositionAsync(0);
-        await sound.playAsync();
-      } catch (error) {
-        console.error('Error playing sound', error);
-      }
-    }
-  };
-  
-  const startIdleAnimation = () => {
-    // Subtle continuous shake animation for idle state
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shakeAnimation, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shakeAnimation, {
-          toValue: -1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shakeAnimation, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  };
-  
+
   const startHatchingAnimation = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Play sound
-    playSound();
-    
-    // Cracking animation
-    Animated.sequence([
-      Animated.timing(crackingAnim, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(hatchedAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Hatch completed, show pet
-      setAnimationState('hatched');
-      
-      // Vibrate
+    // Play cracking sound
+    try {
+      await sound?.playAsync();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+
+    // Start cracking animation
+    setTimeout(() => {
+      // Select random pet type
+      const { type } = getRandomPetType();
+      setSelectedPet(type);
+      setAnimationState('hatched');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, 3000);
+  };
+
+  const handleContinue = () => {
+    if (!selectedPet) return;
+    
+    navigation.navigate('PetNaming', {
+      petType: selectedPet,
     });
   };
-  
-  const handleContinue = () => {
-    if (selectedPet) {
-      navigation.replace('PetNaming', {
-        petType: selectedPet.type as any,
-      });
-    }
-  };
-  
+
   const renderContent = () => {
     switch (animationState) {
       case 'cracking':
         return (
-          <View style={styles.centeredContent}>
-            <Animated.View
-              style={[
-                styles.eggContainer,
-                {
-                  opacity: crackingAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 0],
-                  }),
-                },
-              ]}
-            >
-              <Image
-                source={require('../../assets/images/egg.png')}
-                style={styles.eggImage}
-                resizeMode="contain"
-              />
-            </Animated.View>
-            <Text style={styles.instructionText}>
-              Your egg is hatching!
-            </Text>
-          </View>
+          <>
+            <Image
+              source={require('../../assets/images/pets/egg_cracking.png')}
+              style={styles.eggImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.text}>Your egg is hatching!</Text>
+          </>
         );
-        
       case 'hatched':
+        if (!selectedPet) return null;
         return (
-          <View style={styles.centeredContent}>
-            {selectedPet && (
-              <>
-                <Animated.View
-                  style={[
-                    styles.petContainer,
-                    {
-                      opacity: hatchedAnim,
-                      transform: [
-                        {
-                          scale: hatchedAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.5, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <Image
-                    source={PET_BABY_IMAGES[selectedPet.type]}
-                    style={styles.petImage}
-                    resizeMode="contain"
-                  />
-                </Animated.View>
-                <Text style={styles.congratsText}>
-                  Congratulations! Your egg has hatched into a {selectedPet.type}!
-                </Text>
-                <Button
-                  title="Name Your Pet"
-                  onPress={handleContinue}
-                  size="large"
-                  style={styles.button}
-                />
-              </>
-            )}
-          </View>
+          <>
+            <Image
+              source={PET_BABY_IMAGES[selectedPet]}
+              style={styles.petImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.text}>It's a {selectedPet}!</Text>
+            <Button
+              title="Name Your Pet"
+              onPress={handleContinue}
+              size="large"
+              style={styles.button}
+            />
+          </>
         );
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      {renderContent()}
+      <View style={styles.content}>
+        {renderContent()}
+      </View>
     </View>
   );
 };
@@ -227,71 +138,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  centeredContent: {
+  content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  eggContainer: {
-    width: width * 0.7,
-    height: width * 0.7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
-  },
   eggImage: {
-    width: '100%',
-    height: '100%',
-  },
-  crackingAnimation: {
-    width: '100%',
-    height: '100%',
-  },
-  petContainer: {
-    width: width * 0.7,
-    height: width * 0.7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
+    width: 200,
+    height: 200,
+    marginBottom: 24,
   },
   petImage: {
-    width: '100%',
-    height: '100%',
+    width: 200,
+    height: 200,
+    marginBottom: 24,
   },
-  instructionText: {
+  text: {
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 20,
+    fontSize: 24,
     color: '#333333',
     textAlign: 'center',
-    marginBottom: 30,
-  },
-  hatchingText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 24,
-    color: '#8C52FF',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  congratsText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 24,
-    color: '#8C52FF',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 32,
   },
   button: {
-    width: '80%',
+    marginTop: 20,
   },
 });
 

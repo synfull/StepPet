@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { DataContext } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
-import { updatePetWithSteps } from '../utils/petUtils';
+import { updatePetWithSteps, createNewPet, savePetData } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
 import { isSameDay } from '../utils/dateUtils';
 import PetDisplay from '../components/PetDisplay';
@@ -447,8 +447,12 @@ const Home: React.FC = () => {
             Looks like you don't have a pet yet. Let's get started by hatching an egg!
           </Text>
           <Button
-            title="Hatch Your Pet"
-            onPress={() => navigation.navigate('PetHatching')}
+            title="Get Your Egg"
+            onPress={async () => {
+              const newPet = createNewPet();
+              await savePetData(newPet);
+              setPetData(newPet);
+            }}
             size="large"
             style={styles.startButton}
           />
