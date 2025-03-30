@@ -46,6 +46,8 @@ const AddFriend: React.FC = () => {
         petType: getRandomPetType(),
         petLevel: Math.floor(Math.random() * 4) + 1,
         weeklySteps: Math.floor(Math.random() * 40000) + 10000,
+        monthlySteps: Math.floor(Math.random() * 160000) + 40000,
+        allTimeSteps: Math.floor(Math.random() * 1000000) + 100000,
         lastActive: new Date().toISOString(),
       };
 

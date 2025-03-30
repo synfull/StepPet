@@ -24,6 +24,8 @@ import { DataContext } from '../context/DataContext';
 
 type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+type TimePeriod = 'weekly' | 'monthly' | 'allTime';
+
 // Sample friend data for demonstration
 const SAMPLE_FRIENDS: Friend[] = [
   {
@@ -33,6 +35,8 @@ const SAMPLE_FRIENDS: Friend[] = [
     petType: 'Dragon',
     petLevel: 3,
     weeklySteps: 42500,
+    monthlySteps: 168000,
+    allTimeSteps: 1250000,
     lastActive: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
     isCrowned: true
   },
@@ -43,6 +47,8 @@ const SAMPLE_FRIENDS: Friend[] = [
     petType: 'Unicorn',
     petLevel: 4,
     weeklySteps: 38700,
+    monthlySteps: 155000,
+    allTimeSteps: 980000,
     lastActive: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
     isCrowned: true
   },
@@ -53,6 +59,8 @@ const SAMPLE_FRIENDS: Friend[] = [
     petType: 'Wolf',
     petLevel: 3,
     weeklySteps: 35200,
+    monthlySteps: 142000,
+    allTimeSteps: 890000,
     lastActive: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
     isCrowned: true
   },
@@ -63,6 +71,8 @@ const SAMPLE_FRIENDS: Friend[] = [
     petType: 'FireLizard',
     petLevel: 2,
     weeklySteps: 28100,
+    monthlySteps: 112000,
+    allTimeSteps: 450000,
     lastActive: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
   },
   {
@@ -72,6 +82,8 @@ const SAMPLE_FRIENDS: Friend[] = [
     petType: 'WaterTurtle',
     petLevel: 2,
     weeklySteps: 24800,
+    monthlySteps: 98000,
+    allTimeSteps: 320000,
     lastActive: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
   }
 ];
@@ -80,12 +92,26 @@ interface FriendItemProps {
   friend: Friend;
   rank: number;
   onPress: (friend: Friend) => void;
+  timePeriod: TimePeriod;
 }
 
-const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress }) => {
+const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeriod }) => {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(friend);
+  };
+
+  const getStepCount = () => {
+    switch (timePeriod) {
+      case 'weekly':
+        return friend.weeklySteps;
+      case 'monthly':
+        return friend.monthlySteps;
+      case 'allTime':
+        return friend.allTimeSteps;
+      default:
+        return friend.weeklySteps;
+    }
   };
 
   // Pet image based on type
@@ -134,7 +160,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress }) => {
       </View>
       
       <View style={styles.stepsContainer}>
-        <Text style={styles.stepsCount}>{friend.weeklySteps.toLocaleString()}</Text>
+        <Text style={styles.stepsCount}>{getStepCount().toLocaleString()}</Text>
         <Text style={styles.stepsLabel}>steps</Text>
         <Text style={styles.lastActiveText}>
           {formatRelativeTime(friend.lastActive)}
@@ -150,6 +176,7 @@ const Friends: React.FC = () => {
   const insets = useSafeAreaInsets();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<TimePeriod>('weekly');
 
   useEffect(() => {
     loadFriends();
@@ -188,15 +215,37 @@ const Friends: React.FC = () => {
   };
 
   const handleFriendPress = (friend: Friend) => {
+    const stepCount = selectedTimePeriod === 'weekly' 
+      ? friend.weeklySteps 
+      : selectedTimePeriod === 'monthly'
+        ? friend.monthlySteps
+        : friend.allTimeSteps;
+
     Alert.alert(
       `${friend.username}'s Profile`,
-      `Pet: ${friend.petName}\nType: ${friend.petType}\nLevel: ${friend.petLevel}\nWeekly Steps: ${friend.weeklySteps.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.lastActive)}`,
+      `Pet: ${friend.petName}\nType: ${friend.petType}\nLevel: ${friend.petLevel}\n${selectedTimePeriod.charAt(0).toUpperCase() + selectedTimePeriod.slice(1)} Steps: ${stepCount.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.lastActive)}`,
       [{ text: 'OK' }]
     );
   };
 
-  // Sort friends by weekly steps
-  const sortedFriends = [...friends].sort((a, b) => b.weeklySteps - a.weeklySteps);
+  const handleTimePeriodChange = (period: TimePeriod) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedTimePeriod(period);
+  };
+
+  // Sort friends by selected time period
+  const sortedFriends = [...friends].sort((a, b) => {
+    switch (selectedTimePeriod) {
+      case 'weekly':
+        return b.weeklySteps - a.weeklySteps;
+      case 'monthly':
+        return b.monthlySteps - a.monthlySteps;
+      case 'allTime':
+        return b.allTimeSteps - a.allTimeSteps;
+      default:
+        return b.weeklySteps - a.weeklySteps;
+    }
+  });
 
   const headerRightComponent = (
     <TouchableOpacity 
@@ -205,6 +254,47 @@ const Friends: React.FC = () => {
     >
       <Ionicons name="qr-code-outline" size={24} color="#8C52FF" />
     </TouchableOpacity>
+  );
+
+  const renderTimePeriodSelector = () => (
+    <View style={styles.timePeriodSelector}>
+      <TouchableOpacity
+        style={[
+          styles.timePeriodButton,
+          selectedTimePeriod === 'weekly' && styles.selectedTimePeriod
+        ]}
+        onPress={() => handleTimePeriodChange('weekly')}
+      >
+        <Text style={[
+          styles.timePeriodText,
+          selectedTimePeriod === 'weekly' && styles.selectedTimePeriodText
+        ]}>Weekly</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.timePeriodButton,
+          selectedTimePeriod === 'monthly' && styles.selectedTimePeriod
+        ]}
+        onPress={() => handleTimePeriodChange('monthly')}
+      >
+        <Text style={[
+          styles.timePeriodText,
+          selectedTimePeriod === 'monthly' && styles.selectedTimePeriodText
+        ]}>Monthly</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.timePeriodButton,
+          selectedTimePeriod === 'allTime' && styles.selectedTimePeriod
+        ]}
+        onPress={() => handleTimePeriodChange('allTime')}
+      >
+        <Text style={[
+          styles.timePeriodText,
+          selectedTimePeriod === 'allTime' && styles.selectedTimePeriodText
+        ]}>All Time</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -217,9 +307,17 @@ const Friends: React.FC = () => {
       
       <View style={styles.content}>
         <View style={styles.leaderboardHeader}>
-          <Text style={styles.leaderboardTitle}>Weekly Leaderboard</Text>
+          <Text style={styles.leaderboardTitle}>
+            {selectedTimePeriod === 'weekly' 
+              ? 'Weekly' 
+              : selectedTimePeriod === 'monthly'
+                ? 'Monthly'
+                : 'All Time'} Leaderboard
+          </Text>
           <Text style={styles.leaderboardSubtitle}>Top 3 earn a crown!</Text>
         </View>
+
+        {renderTimePeriodSelector()}
         
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -246,7 +344,8 @@ const Friends: React.FC = () => {
               <FriendItem 
                 friend={item} 
                 rank={index + 1} 
-                onPress={handleFriendPress} 
+                onPress={handleFriendPress}
+                timePeriod={selectedTimePeriod}
               />
             )}
             keyExtractor={(item) => item.id}
@@ -284,6 +383,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     marginTop: 2,
+  },
+  timePeriodSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  timePeriodButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  selectedTimePeriod: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timePeriodText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#666666',
+  },
+  selectedTimePeriodText: {
+    color: '#8C52FF',
+    fontFamily: 'Montserrat-SemiBold',
   },
   listContent: {
     paddingBottom: 20,

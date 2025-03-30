@@ -77,6 +77,8 @@ export interface Friend {
   petType: PetType;
   petLevel: number;
   weeklySteps: number;
+  monthlySteps: number;
+  allTimeSteps: number;
   lastActive: string;
   isCrowned?: boolean;
 } 
