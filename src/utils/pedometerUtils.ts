@@ -101,21 +101,19 @@ export const subscribeToPedometer = (callback: (steps: number) => void, startTim
   }
   
   let subscription: { remove: () => void } | null = null;
-  let initialSteps: number | null = null;
   
   try {
     // First get the current step count from our start time
     Pedometer.getStepCountAsync(start, now).then(({ steps }) => {
-      initialSteps = steps;
       callback(steps); // Call immediately with initial steps
     });
     
     // Then subscribe to updates
     subscription = Pedometer.watchStepCount(result => {
-      // If we have an initial step count, calculate the difference
-      if (initialSteps !== null) {
-        callback(result.steps);
-      }
+      // Get current steps from start time to now
+      Pedometer.getStepCountAsync(start, new Date()).then(({ steps }) => {
+        callback(steps);
+      });
     });
   } catch (error) {
     console.error('Error subscribing to pedometer:', error);

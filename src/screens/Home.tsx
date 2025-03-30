@@ -26,6 +26,7 @@ import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
 import Button from '../components/Button';
 import { getRandomPetType } from '../utils/petUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -55,9 +56,16 @@ const Home: React.FC = () => {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
       const subscription = subscribeToPedometer((steps) => {
-        // No need to subtract startingStepCount since we're starting from pet creation time
+        // Always set daily steps directly from the pedometer
         setDailySteps(steps);
-        setTotalSteps(steps);
+        
+        // Update total steps based on pet stage
+        if (petData.growthStage === 'Egg') {
+          setTotalSteps(steps);
+        } else {
+          // For hatched pets, just keep the total steps as is
+          setTotalSteps(petData.totalSteps);
+        }
       }, petCreationTime);
       
       // Cleanup subscription on unmount
@@ -118,7 +126,7 @@ const Home: React.FC = () => {
       const daily = await fetchDailySteps(petCreationTime);
       const weekly = await fetchWeeklySteps();
       
-      // No need to subtract startingStepCount since we're starting from pet creation time
+      // Update daily and weekly steps
       setDailySteps(daily);
       setWeeklySteps(weekly);
       setLastRefreshed(new Date());
@@ -130,7 +138,14 @@ const Home: React.FC = () => {
       if (newSteps > 0) {
         const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
         setPetData(updatedPet);
-        setTotalSteps(daily);
+        
+        // Update total steps based on pet stage
+        if (updatedPet.growthStage === 'Egg') {
+          setTotalSteps(daily);
+        } else {
+          // For hatched pets, preserve the total steps from hatching
+          setTotalSteps(updatedPet.totalSteps);
+        }
         
         // Handle level up
         if (leveledUp) {
@@ -159,6 +174,35 @@ const Home: React.FC = () => {
     setRefreshing(false);
   };
   
+  // Clear all app data
+  const clearAppData = async () => {
+    try {
+      // Clear AsyncStorage
+      await AsyncStorage.clear();
+      
+      // Reset all state
+      setPetData(null);
+      setDailySteps(0);
+      setWeeklySteps(0);
+      setTotalSteps(0);
+      
+      // Create a new pet with current steps
+      const newPet = await createNewPet(dailySteps);
+      await savePetData(newPet);
+      setPetData(newPet);
+      
+      // Reset step counters to 0 since we're starting fresh
+      setDailySteps(0);
+      setWeeklySteps(0);
+      setTotalSteps(0);
+      
+      return true;
+    } catch (error) {
+      console.error('Error clearing app data:', error);
+      return false;
+    }
+  };
+  
   // Handle tap on pet
   const handlePetTap = async () => {
     if (showPulseHint) {
@@ -174,6 +218,8 @@ const Home: React.FC = () => {
           const updatedPet = {
             ...petData,
             type: randomPetType,
+            totalSteps: dailySteps, // Set the total steps to current daily steps
+            xp: 0, // Reset XP to 0 for the new level
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -195,6 +241,7 @@ const Home: React.FC = () => {
           // Update pet data to reflect hatching
           const { updatedPet: hatchedPet } = await updatePetWithSteps(updatedPet, 0);
           setPetData(hatchedPet);
+          setTotalSteps(dailySteps); // Set total steps to current daily steps
           navigation.navigate('PetHatching', {
             petType: hatchedPet.type
           });
@@ -561,12 +608,35 @@ const Home: React.FC = () => {
             <Ionicons name="footsteps" size={20} color="#8C52FF" />
             <Text style={styles.stepText}>{dailySteps.toLocaleString()} steps today</Text>
           </View>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Ionicons name="settings-outline" size={24} color="#666666" />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={async () => {
+                const success = await clearAppData();
+                if (success) {
+                  Alert.alert(
+                    'Data Cleared',
+                    'All app data has been cleared. You can now start fresh!',
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  Alert.alert(
+                    'Error',
+                    'Failed to clear app data. Please try again.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color="#666666" />
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Pet Display */}
@@ -725,8 +795,13 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginLeft: 6,
   },
-  settingsButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
     padding: 8,
+    marginLeft: 8,
   },
   emptyContainer: {
     flex: 1,
