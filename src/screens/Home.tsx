@@ -27,6 +27,7 @@ import MiniGameCard from '../components/MiniGameCard';
 import Button from '../components/Button';
 import { getRandomPetType } from '../utils/petUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PetData, GrowthStage } from '../types/petTypes';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -65,11 +66,17 @@ const Home: React.FC = () => {
         } else {
           // For hatched pets, calculate XP based on new steps since hatching
           const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
-          const updatedPet = {
-            ...petData,
-            xp: Math.min(stepsAfterHatch, petData.xpToNextLevel) // Cap XP at xpToNextLevel
-          };
-          setPetData(updatedPet);
+          // Only update pet data if XP has actually changed
+          if (stepsAfterHatch !== petData.xp) {
+            const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+            if (newXP !== petData.xp) {
+              const updatedPet: PetData = {
+                ...petData,
+                xp: newXP
+              };
+              setPetData(updatedPet);
+            }
+          }
           setTotalSteps(petData.totalSteps);
         }
       }, petCreationTime);
@@ -81,7 +88,7 @@ const Home: React.FC = () => {
         }
       };
     }
-  }, [isAvailable, petData]);
+  }, [isAvailable, petData?.id, petData?.stepsSinceHatched, petData?.xpToNextLevel]);
   
   // Refresh data periodically
   useEffect(() => {
