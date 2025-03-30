@@ -19,4 +19,5 @@ export type TabParamList = {
   Home: undefined;
   Milestones: undefined;
   Friends: undefined;
+  Challenge: undefined;
 }; 

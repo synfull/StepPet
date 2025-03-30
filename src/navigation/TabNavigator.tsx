@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Home from '../screens/Home';
 import Milestones from '../screens/Milestones';
 import Friends from '../screens/Friends';
+import Challenge from '../screens/Challenge';
 import { TabParamList } from '../types/navigationTypes';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -35,6 +36,8 @@ const TabNavigator = () => {
             iconName = focused ? 'trophy' : 'trophy-outline';
           } else if (route.name === 'Friends') {
             iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Challenge') {
+            iconName = focused ? 'flag' : 'flag-outline';
           }
 
           return (
@@ -64,6 +67,13 @@ const TabNavigator = () => {
         component={Friends} 
         options={{
           tabBarLabel: 'Friends',
+        }}
+      />
+      <Tab.Screen 
+        name="Challenge" 
+        component={Challenge} 
+        options={{
+          tabBarLabel: 'Challenge',
         }}
       />
     </Tab.Navigator>
