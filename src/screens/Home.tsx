@@ -70,11 +70,28 @@ const Home: React.FC = () => {
           if (stepsAfterHatch !== petData.xp) {
             const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
             if (newXP !== petData.xp) {
-              const updatedPet: PetData = {
-                ...petData,
-                xp: newXP
-              };
-              setPetData(updatedPet);
+              // Check if this will cause a level up
+              if (newXP >= petData.xpToNextLevel) {
+                // Handle level up through updatePetWithSteps
+                updatePetWithSteps(petData, newXP - petData.xp).then(({ updatedPet, leveledUp }) => {
+                  setPetData(updatedPet);
+                  if (leveledUp) {
+                    navigation.navigate('PetLevelUp', {
+                      level: updatedPet.level,
+                      petType: updatedPet.type
+                    });
+                  }
+                });
+              } else {
+                // Just update XP without level up
+                const updatedPet: PetData = {
+                  ...petData,
+                  xp: newXP
+                };
+                setPetData(updatedPet);
+                // Save the updated pet
+                savePetData(updatedPet);
+              }
             }
           }
           setTotalSteps(petData.totalSteps);
