@@ -63,7 +63,13 @@ const Home: React.FC = () => {
         if (petData.growthStage === 'Egg') {
           setTotalSteps(steps);
         } else {
-          // For hatched pets, just keep the total steps as is
+          // For hatched pets, calculate XP based on new steps since hatching
+          const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
+          const updatedPet = {
+            ...petData,
+            xp: Math.min(stepsAfterHatch, petData.xpToNextLevel) // Cap XP at xpToNextLevel
+          };
+          setPetData(updatedPet);
           setTotalSteps(petData.totalSteps);
         }
       }, petCreationTime);
@@ -218,8 +224,11 @@ const Home: React.FC = () => {
           const updatedPet = {
             ...petData,
             type: randomPetType,
-            totalSteps: dailySteps, // Set the total steps to current daily steps
-            xp: 0, // Reset XP to 0 for the new level
+            growthStage: 'Baby' as const, // Set growth stage to Baby
+            totalSteps: dailySteps,
+            stepsSinceHatched: dailySteps,
+            xp: 0,
+            xpToNextLevel: 25, // Reset XP to next level
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -241,7 +250,7 @@ const Home: React.FC = () => {
           // Update pet data to reflect hatching
           const { updatedPet: hatchedPet } = await updatePetWithSteps(updatedPet, 0);
           setPetData(hatchedPet);
-          setTotalSteps(dailySteps); // Set total steps to current daily steps
+          setTotalSteps(dailySteps);
           navigation.navigate('PetHatching', {
             petType: hatchedPet.type
           });
