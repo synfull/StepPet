@@ -239,22 +239,23 @@ export const updatePetWithSteps = async (
   // Deep clone the pet to avoid mutation
   const updatedPet: PetData = JSON.parse(JSON.stringify(pet));
   
-  // Update steps
-  updatedPet.totalSteps += newSteps;
-  
   // Handle egg hatching
   if (updatedPet.growthStage === 'Egg') {
     if (updatedPet.totalSteps >= updatedPet.stepsToHatch) {
       updatedPet.growthStage = 'Baby';
       updatedPet.xp = 0;
       updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[0];
-      updatedPet.stepsSinceHatched = updatedPet.totalSteps - updatedPet.stepsToHatch;
+      updatedPet.stepsSinceHatched = 0; // Reset steps since hatching to 0
       leveledUp = false;
+    } else {
+      // Just update total steps for egg
+      updatedPet.totalSteps += newSteps;
     }
   } else {
     // Pet is already hatched, add XP and update level
     updatedPet.xp += newSteps;
     updatedPet.stepsSinceHatched += newSteps;
+    updatedPet.totalSteps += newSteps;
     
     // Check for level up
     if (updatedPet.xp >= updatedPet.xpToNextLevel) {
