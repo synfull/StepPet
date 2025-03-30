@@ -18,7 +18,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.steppet.app",
       "infoPlist": {
-        "NSMotionUsageDescription": "StepPet uses your step count to help your virtual pet grow and evolve."
+        "NSMotionUsageDescription": "StepPet uses your step count to help your virtual pet grow and evolve.",
+        "UIViewControllerBasedStatusBarAppearance": true,
+        "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+        "UIStatusBarHidden": false
       }
     },
     "android": {
@@ -37,7 +40,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "deploymentTarget": "15.1"
           }
         }
       ]

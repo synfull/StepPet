@@ -21,21 +21,98 @@ const MainNavigator = () => {
       initialRouteName="Main"
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: 'fade',
+        presentation: 'card',
         contentStyle: { backgroundColor: '#FFFFFF' }
       }}
     >
-      <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen name="PetNaming" component={PetNaming} />
-      <Stack.Screen name="PetHatching" component={PetHatching} />
-      <Stack.Screen name="PetLevelUp" component={PetLevelUp} />
-      <Stack.Screen name="AddFriend" component={AddFriend} />
-      <Stack.Screen name="QRCode" component={QRCode} />
-      <Stack.Screen name="Settings" component={Settings} />
-      <Stack.Screen name="PetDetails" component={PetDetails} />
-      <Stack.Screen name="Share" component={Share} />
-      <Stack.Screen name="MilestoneUnlocked" component={MilestoneUnlocked} />
-      <Stack.Screen name="AboutApp" component={AboutApp} />
+      <Stack.Screen 
+        name="Main" 
+        component={TabNavigator}
+        options={{
+          animation: 'none'
+        }}
+      />
+      <Stack.Screen 
+        name="PetNaming" 
+        component={PetNaming}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="PetHatching" 
+        component={PetHatching}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="PetLevelUp" 
+        component={PetLevelUp}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="AddFriend" 
+        component={AddFriend}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="QRCode" 
+        component={QRCode}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={Settings}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="PetDetails" 
+        component={PetDetails}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="Share" 
+        component={Share}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="MilestoneUnlocked" 
+        component={MilestoneUnlocked}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="AboutApp" 
+        component={AboutApp}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
     </Stack.Navigator>
   );
 };

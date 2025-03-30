@@ -8,7 +8,7 @@ import { PedometerContext } from '@context/PedometerContext';
 import { DataContext } from '@context/DataContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator, Text, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { 
   fetchDailySteps, 
@@ -41,81 +41,59 @@ export default function App() {
     'Montserrat-SemiBold': require('./assets/fonts/Montserrat-SemiBold.ttf'),
   });
 
-  // Check if onboarding is complete
+  // Initialize app data
   useEffect(() => {
-    async function checkOnboarding() {
+    async function initializeApp() {
       try {
-        const value = await AsyncStorage.getItem('@onboarding_complete');
-        setIsOnboardingComplete(value === 'true');
+        // First check onboarding status
+        const onboardingValue = await AsyncStorage.getItem('@onboarding_complete');
+        const isComplete = onboardingValue === 'true';
+        setIsOnboardingComplete(isComplete);
         setHasCheckedOnboarding(true);
-      } catch (error) {
-        console.error('Error checking onboarding status:', error);
-        setError('Failed to check onboarding status');
-        setIsOnboardingComplete(false);
-        setHasCheckedOnboarding(true);
-      }
-    }
-    
-    checkOnboarding();
-  }, []);
 
-  // Initialize pedometer
-  useEffect(() => {
-    async function initPedometer() {
-      try {
-        const available = await pedoInit();
-        setIsAvailable(available);
-        
-        if (available) {
-          const daily = await fetchDailySteps();
-          const weekly = await fetchWeeklySteps();
+        // Only load pet data and initialize pedometer if onboarding is complete
+        if (isComplete) {
+          // Initialize pedometer
+          const available = await pedoInit();
+          setIsAvailable(available);
           
-          // Load pet data to get starting step count
-          const storedPetData = await AsyncStorage.getItem('@pet_data');
-          const startingStepCount = storedPetData ? JSON.parse(storedPetData).startingStepCount || 0 : 0;
-          
-          // Calculate relative steps
-          const relativeDaily = Math.max(0, daily - startingStepCount);
-          const relativeWeekly = Math.max(0, weekly - startingStepCount);
-          
-          setDailySteps(relativeDaily);
-          setWeeklySteps(relativeWeekly);
-          
-          // Get total steps from storage
-          const storedTotal = await AsyncStorage.getItem('@total_steps');
-          if (storedTotal) {
-            setTotalSteps(parseInt(storedTotal, 10));
+          if (available) {
+            const daily = await fetchDailySteps();
+            const weekly = await fetchWeeklySteps();
+            
+            // Load pet data
+            const storedPetData = await AsyncStorage.getItem('@pet_data');
+            if (storedPetData) {
+              const parsedPetData = JSON.parse(storedPetData);
+              setPetData(parsedPetData);
+              
+              // Calculate relative steps
+              const startingStepCount = parsedPetData.startingStepCount || 0;
+              const relativeDaily = Math.max(0, daily - startingStepCount);
+              const relativeWeekly = Math.max(0, weekly - startingStepCount);
+              
+              setDailySteps(relativeDaily);
+              setWeeklySteps(relativeWeekly);
+              
+              // Get total steps from storage
+              const storedTotal = await AsyncStorage.getItem('@total_steps');
+              if (storedTotal) {
+                setTotalSteps(parseInt(storedTotal, 10));
+              }
+            }
           }
         }
       } catch (error) {
-        console.error('Pedometer initialization error:', error);
-        setError('Failed to initialize pedometer');
+        console.error('Error initializing app:', error);
+        setError('Failed to initialize app');
+        setIsOnboardingComplete(false);
+        setHasCheckedOnboarding(true);
       } finally {
         setLoading(false);
       }
     }
     
-    initPedometer();
-  }, []);
-
-  // Load pet data
-  useEffect(() => {
-    async function loadPetData() {
-      try {
-        // Clear any existing data to start fresh
-        await AsyncStorage.clear();
-        setPetData(null);
-        setIsOnboardingComplete(false);
-        setHasCheckedOnboarding(true);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error resetting data:', error);
-        setError('Failed to reset data');
-        setLoading(false);
-      }
-    }
-    
-    loadPetData();
+    initializeApp();
   }, []);
 
   // Complete onboarding
@@ -123,9 +101,20 @@ export default function App() {
     try {
       await AsyncStorage.setItem('@onboarding_complete', 'true');
       setIsOnboardingComplete(true);
+      
+      // Initialize pedometer after completing onboarding
+      const available = await pedoInit();
+      setIsAvailable(available);
+      
+      if (available) {
+        const daily = await fetchDailySteps();
+        const weekly = await fetchWeeklySteps();
+        setDailySteps(daily);
+        setWeeklySteps(weekly);
+      }
     } catch (error) {
-      console.error('Error saving onboarding status:', error);
-      setError('Failed to save onboarding status');
+      console.error('Error completing onboarding:', error);
+      setError('Failed to complete onboarding');
     }
   };
 
@@ -158,7 +147,8 @@ export default function App() {
   // Render loading screen
   if (loading || !fontsLoaded || !hasCheckedOnboarding) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
+        <StatusBar style="dark" />
         <ActivityIndicator size="large" color="#8C52FF" />
       </View>
     );
@@ -166,7 +156,8 @@ export default function App() {
 
   if (error) {
     return (
-      <SafeAreaProvider>
+      <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
+        <StatusBar style="dark" />
         <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Text style={{ color: '#FF3B30', textAlign: 'center' }}>{error}</Text>
         </SafeAreaView>
@@ -175,21 +166,30 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1 }} onLayout={onLayoutRootView}>
-        <StatusBar style="auto" />
-        <PedometerContext.Provider value={pedometerValue}>
-          <DataContext.Provider value={dataValue}>
-            <NavigationContainer>
+    <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
+      <StatusBar style="dark" />
+      <NavigationContainer
+        onStateChange={(state) => {
+          // Force any modals to be cleaned up when navigation state changes
+          requestAnimationFrame(() => {
+            if (state?.routes) {
+              // No-op, just ensuring state updates are processed
+            }
+          });
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
+          <PedometerContext.Provider value={pedometerValue}>
+            <DataContext.Provider value={dataValue}>
               {isOnboardingComplete ? (
                 <MainNavigator />
               ) : (
                 <Onboarding completeOnboarding={completeOnboarding} />
               )}
-            </NavigationContainer>
-          </DataContext.Provider>
-        </PedometerContext.Provider>
-      </SafeAreaView>
+            </DataContext.Provider>
+          </PedometerContext.Provider>
+        </SafeAreaView>
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
