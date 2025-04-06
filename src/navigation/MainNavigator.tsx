@@ -45,8 +45,8 @@ const MainNavigator = () => {
         name="PetHatching" 
         component={PetHatching}
         options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
+          presentation: 'card',
+          animation: 'slide_from_right'
         }}
       />
       <Stack.Screen 

@@ -9,7 +9,7 @@ import {
   ImageSourcePropType,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -30,18 +30,12 @@ const PET_BABY_IMAGES: { [key in Exclude<PetType, ''>]: ImageSourcePropType } = 
 };
 
 type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type PetHatchingRouteProp = RouteProp<RootStackParamList, 'PetHatching'>;
 
-interface PetHatchingProps {
-  route: {
-    params: {
-      petType: PetType;
-    };
-  };
-}
-
-const PetHatching: React.FC<PetHatchingProps> = ({ route }) => {
-  const { petType } = route.params;
+const PetHatching: React.FC = () => {
+  const route = useRoute<PetHatchingRouteProp>();
   const navigation = useNavigation<PetHatchingNavigationProp>();
+  const { petType } = route.params;
   const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
   const [hatchingSound, setHatchingSound] = useState<Audio.Sound>();
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -91,6 +85,8 @@ const PetHatching: React.FC<PetHatchingProps> = ({ route }) => {
   };
 
   const handleContinue = () => {
+    console.log('Continue button pressed'); // Debug log
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate('PetNaming', {
       petType,
     });
@@ -120,12 +116,14 @@ const PetHatching: React.FC<PetHatchingProps> = ({ route }) => {
             <Text style={styles.text}>
               It's a {petType === '' ? 'Mystery Pet' : petType.replace(/([A-Z])/g, ' $1').trim()}!
             </Text>
-            <Button
-              title="Name Your Pet"
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: '#8C52FF', padding: 16, borderRadius: 30 }]}
               onPress={handleContinue}
-              size="large"
-              style={styles.button}
-            />
+            >
+              <Text style={{ color: '#FFFFFF', fontFamily: 'Montserrat-Bold', fontSize: 18 }}>
+                Name Your Pet
+              </Text>
+            </TouchableOpacity>
           </>
         );
     }

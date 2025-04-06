@@ -10,8 +10,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
 import { DataContext } from '../context/DataContext';
@@ -22,9 +22,12 @@ import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
 import Header from '../components/Header';
 
-type PetNamingProps = NativeStackScreenProps<RootStackParamList, 'PetNaming'>;
+type PetNamingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type PetNamingRouteProp = RouteProp<RootStackParamList, 'PetNaming'>;
 
-const PetNaming: React.FC<PetNamingProps> = ({ navigation, route }) => {
+const PetNaming: React.FC = () => {
+  const route = useRoute<PetNamingRouteProp>();
+  const navigation = useNavigation<PetNamingNavigationProp>();
   const { petType } = route.params;
   const [petName, setPetName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -126,74 +129,53 @@ const PetNaming: React.FC<PetNamingProps> = ({ navigation, route }) => {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView 
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-      >
-        <StatusBar style="dark" />
-        <Header 
-          title="Name Your Pet" 
-          showBackButton
-        />
-        
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <StatusBar style="dark" />
+      <Header
+        title="Name Your Pet"
+        showBackButton
+      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.content}>
-          <View style={styles.petContainer}>
-            <PetDisplay
-              petType={petType}
-              growthStage="Baby"
-              level={1}
-              mainColor="#8C52FF"
-              accentColor="#5EFFA9"
-              size="large"
-            />
-          </View>
-          
-          <Text style={styles.promptText}>
-            What would you like to name your new {petType}?
-          </Text>
-          
-          <View style={[styles.inputContainer, isInputFocused && styles.inputContainerFocused]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter pet name"
-              placeholderTextColor="#A0A0A0"
-              value={petName}
-              onChangeText={handleNameChange}
-              maxLength={15}
-              autoCapitalize="words"
-              autoCorrect={false}
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={() => setIsInputFocused(false)}
-            />
-          </View>
-          
-          <TouchableWithoutFeedback onPress={generateRandomName}>
-            <View style={styles.randomNameButton}>
-              <Text style={styles.randomNameText}>Generate random name</Text>
-            </View>
-          </TouchableWithoutFeedback>
-          
-          <View style={styles.tipContainer}>
-            <Text style={styles.tipText}>
-              Tip: Choose a name that you'll love seeing every day on your pet journey!
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.buttonContainer}>
+          <PetDisplay
+            petType={petType}
+            growthStage="Baby"
+            level={1}
+            mainColor={PET_COLORS[petType as keyof typeof PET_COLORS].mainColor}
+            accentColor={PET_COLORS[petType as keyof typeof PET_COLORS].accentColor}
+            hasCustomization={false}
+            size="xlarge"
+          />
+          <Text style={styles.title}>What would you like to name your pet?</Text>
+          <TextInput
+            style={styles.input}
+            value={petName}
+            onChangeText={handleNameChange}
+            placeholder="Enter a name"
+            placeholderTextColor="#909090"
+            maxLength={20}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
+          />
+          <Button
+            title="Generate Random Name"
+            onPress={generateRandomName}
+            size="medium"
+            style={styles.randomButton}
+          />
           <Button
             title="Confirm Name"
             onPress={handleConfirmName}
-            loading={isLoading}
-            disabled={petName.trim().length === 0}
             size="large"
-            style={styles.button}
+            style={styles.confirmButton}
+            disabled={isLoading || petName.trim().length === 0}
           />
         </View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -205,65 +187,33 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
   },
-  petContainer: {
-    marginVertical: 20,
-  },
-  promptText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 20,
+  title: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 24,
     color: '#333333',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  inputContainer: {
+  input: {
     width: '100%',
     height: 50,
     borderWidth: 2,
     borderColor: '#E0E0E0',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    marginBottom: 10,
-  },
-  inputContainerFocused: {
-    borderColor: '#8C52FF',
-  },
-  input: {
-    flex: 1,
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 16,
-    color: '#333333',
-  },
-  randomNameButton: {
-    padding: 10,
-    marginBottom: 20,
-  },
-  randomNameText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#8C52FF',
-    textDecorationLine: 'underline',
-  },
-  tipContainer: {
-    backgroundColor: '#F3EDFF',
     borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-  },
-  tipText: {
+    paddingHorizontal: 16,
+    fontSize: 18,
     fontFamily: 'Montserrat-Regular',
-    fontSize: 14,
     color: '#333333',
-    textAlign: 'center',
+    marginBottom: 16,
   },
-  buttonContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
+  randomButton: {
+    marginBottom: 24,
   },
-  button: {
-    width: '100%',
+  confirmButton: {
+    marginTop: 8,
   },
 });
 
