@@ -161,35 +161,57 @@ const Home: React.FC = () => {
       setWeeklySteps(weekly);
       setLastRefreshed(new Date());
       
-      // Update pet with new steps if applicable
+      // Calculate new steps since last refresh
       const lastTotal = totalSteps;
       const newSteps = daily - lastTotal;
       
       if (newSteps > 0) {
-        const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
-        setPetData(updatedPet);
-        
-        // Update total steps based on pet stage
-        if (updatedPet.growthStage === 'Egg') {
-          setTotalSteps(daily);
+        // For hatched pets, calculate XP based on new steps since hatching
+        if (petData.growthStage !== 'Egg') {
+          const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
+          const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+          
+          // Update pet with new XP
+          const updatedPet = { ...petData };
+          updatedPet.xp = newXP;
+          updatedPet.totalSteps = daily;
+          
+          // Check for level up
+          if (newXP >= petData.xpToNextLevel) {
+            const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(updatedPet, 0);
+            setPetData(leveledPet);
+            setTotalSteps(leveledPet.totalSteps);
+            
+            if (leveledUp) {
+              navigation.navigate('PetLevelUp', { 
+                level: leveledPet.level,
+                petType: leveledPet.type 
+              });
+            }
+          } else {
+            // Just update XP without level up
+            await savePetData(updatedPet);
+            setPetData(updatedPet);
+            setTotalSteps(updatedPet.totalSteps);
+          }
         } else {
-          // For hatched pets, preserve the total steps from hatching
+          // For eggs, just update total steps
+          const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
+          setPetData(updatedPet);
           setTotalSteps(updatedPet.totalSteps);
-        }
-        
-        // Handle level up
-        if (leveledUp) {
-          navigation.navigate('PetLevelUp', { 
-            level: updatedPet.level,
-            petType: updatedPet.type 
-          });
-        }
-        
-        // Handle milestone reached
-        if (milestoneReached) {
-          navigation.navigate('MilestoneUnlocked', { 
-            milestoneId: milestoneReached 
-          });
+          
+          if (leveledUp) {
+            navigation.navigate('PetLevelUp', { 
+              level: updatedPet.level,
+              petType: updatedPet.type 
+            });
+          }
+          
+          if (milestoneReached) {
+            navigation.navigate('MilestoneUnlocked', { 
+              milestoneId: milestoneReached 
+            });
+          }
         }
       }
     } catch (error) {
