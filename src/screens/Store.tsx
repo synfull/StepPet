@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigationTypes';
 
 type GemPackage = {
   id: string;
@@ -70,10 +73,10 @@ const GemPackageCard: React.FC<{ pack: GemPackage }> = ({ pack }) => (
   </TouchableOpacity>
 );
 
-const ItemCategory: React.FC<{ title: string; onPress: () => void }> = ({ title, onPress }) => (
+const ItemCategory: React.FC<{ title: string; onPress: () => void; count: number }> = ({ title, onPress, count }) => (
   <TouchableOpacity style={styles.itemCategory} onPress={onPress}>
     <Text style={styles.categoryTitle}>{title}</Text>
-    <Text style={styles.comingSoonLabel}>Coming Soon!</Text>
+    <Text style={styles.itemCount}>{count} items</Text>
   </TouchableOpacity>
 );
 
@@ -93,6 +96,22 @@ const GemsTab = () => {
 };
 
 const ItemsTab = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const handleCategoryPress = (category: string) => {
+    switch (category) {
+      case 'Eyewear':
+        navigation.navigate('StoreEyewear');
+        break;
+      case 'Hats':
+        navigation.navigate('StoreHats');
+        break;
+      case 'Neck':
+        navigation.navigate('StoreNeck');
+        break;
+    }
+  };
+
   return (
     <ScrollView 
       style={styles.scrollView} 
@@ -100,16 +119,30 @@ const ItemsTab = () => {
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.sectionTitle}>Shop by Category</Text>
-      <ItemCategory title="Body" onPress={() => {}} />
-      <ItemCategory title="Eyewear" onPress={() => {}} />
-      <ItemCategory title="Hats" onPress={() => {}} />
-      <ItemCategory title="Neck" onPress={() => {}} />
+      <ItemCategory title="Eyewear" onPress={() => handleCategoryPress('Eyewear')} count={4} />
+      <ItemCategory title="Hats" onPress={() => handleCategoryPress('Hats')} count={4} />
+      <ItemCategory title="Neck" onPress={() => handleCategoryPress('Neck')} count={4} />
     </ScrollView>
   );
 };
 
 const Store = () => {
   const [activeTab, setActiveTab] = useState<'Gems' | 'Items'>('Gems');
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const handleCategoryPress = (category: string) => {
+    switch (category) {
+      case 'Eyewear':
+        navigation.navigate('StoreEyewear');
+        break;
+      case 'Hats':
+        navigation.navigate('StoreHats');
+        break;
+      case 'Neck':
+        navigation.navigate('StoreNeck');
+        break;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -305,7 +338,7 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 4,
   },
-  comingSoonLabel: {
+  itemCount: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
     color: '#666666',

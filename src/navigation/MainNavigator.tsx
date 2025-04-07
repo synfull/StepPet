@@ -11,6 +11,9 @@ import PetDetails from '../screens/PetDetails';
 import Share from '../screens/Share';
 import MilestoneUnlocked from '../screens/MilestoneUnlocked';
 import AboutApp from '../screens/AboutApp';
+import StoreHats from '../screens/StoreHats';
+import StoreEyewear from '../screens/StoreEyewear';
+import StoreNeck from '../screens/StoreNeck';
 import { RootStackParamList } from '../types/navigationTypes';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -60,6 +63,30 @@ const MainNavigator = () => {
       <Stack.Screen 
         name="AddFriend" 
         component={AddFriend}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreHats" 
+        component={StoreHats}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreEyewear" 
+        component={StoreEyewear}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreNeck" 
+        component={StoreNeck}
         options={{
           presentation: 'card',
           animation: 'slide_from_right'
