@@ -18,6 +18,7 @@ export interface PetAppearance {
   accentColor: string;
   hasCustomization: boolean;
   customizationApplied: boolean;
+  backgroundTheme: string;
 }
 
 export interface MiniGameStatus {

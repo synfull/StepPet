@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -139,6 +141,9 @@ const Milestones: React.FC = () => {
   const { petData, setPetData } = useContext(DataContext);
   const { dailySteps } = useContext(PedometerContext);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('#34C759');
+  const [currentMilestoneId, setCurrentMilestoneId] = useState<string | null>(null);
   
   useEffect(() => {
     if (petData) {
@@ -146,15 +151,50 @@ const Milestones: React.FC = () => {
     }
   }, [petData]);
   
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color);
+  };
+
+  const handleColorConfirm = async () => {
+    if (!currentMilestoneId || !petData) return;
+    
+    const updatedPet = { ...petData };
+    const milestoneIndex = updatedPet.milestones.findIndex(m => m.id === currentMilestoneId);
+    
+    if (milestoneIndex === -1) return;
+    
+    // Mark as claimed
+    updatedPet.milestones[milestoneIndex].claimed = true;
+    
+    // Apply the selected background theme
+    updatedPet.appearance.backgroundTheme = selectedColor;
+    
+    // Save updated pet data
+    await savePetData(updatedPet);
+    setPetData(updatedPet);
+    
+    // Close color picker and navigate to milestone unlocked screen
+    setShowColorPicker(false);
+    navigation.navigate('MilestoneUnlocked', { milestoneId: currentMilestoneId });
+  };
+  
   const handleClaimMilestone = async (milestoneId: string) => {
     if (!petData) return;
+    
+    const milestone = petData.milestones.find(m => m.id === milestoneId);
+    if (!milestone) return;
+    
+    // For background theme milestone, show color picker
+    if (milestone.reward === 'background') {
+      setCurrentMilestoneId(milestoneId);
+      setShowColorPicker(true);
+      return;
+    }
     
     const updatedPet = { ...petData };
     const milestoneIndex = updatedPet.milestones.findIndex(m => m.id === milestoneId);
     
     if (milestoneIndex === -1) return;
-    
-    const milestone = updatedPet.milestones[milestoneIndex];
     
     // Mark as claimed
     updatedPet.milestones[milestoneIndex].claimed = true;
@@ -177,16 +217,7 @@ const Milestones: React.FC = () => {
           [{ text: 'Nice!' }]
         );
         break;
-      case 'background':
-        // This would be handled in the UI later
-        Alert.alert(
-          'Milestone Reward',
-          'You unlocked a new background theme for your pet!',
-          [{ text: 'Cool!' }]
-        );
-        break;
       case 'animation':
-        // This would be handled in the UI later
         Alert.alert(
           'Milestone Reward',
           'You unlocked a special animation for your pet!',
@@ -194,7 +225,6 @@ const Milestones: React.FC = () => {
         );
         break;
       case 'badge':
-        // This would be handled in the UI later
         Alert.alert(
           'Milestone Reward',
           'You earned the "Step Champion" badge and an animated background!',
@@ -274,6 +304,70 @@ const Milestones: React.FC = () => {
           </Text>
         </View>
       </ScrollView>
+      
+      <Modal
+        visible={showColorPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowColorPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.colorPickerContainer}>
+            <Text style={styles.colorPickerTitle}>Choose Your Background Theme</Text>
+            
+            <View style={styles.colorOptions}>
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(52, 199, 89, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(52, 199, 89, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(90, 200, 250, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(90, 200, 250, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(255, 149, 0, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(255, 149, 0, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(255, 45, 85, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(255, 45, 85, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(255, 214, 10, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(255, 214, 10, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(0, 122, 255, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(0, 122, 255, 0.2)')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: 'rgba(255, 59, 48, 0.2)' }]}
+                onPress={() => handleColorSelect('rgba(255, 59, 48, 0.2)')}
+              />
+            </View>
+            
+            <View style={styles.selectedColorPreview}>
+              <View style={[styles.colorPreview, { backgroundColor: selectedColor }]} />
+              <Text style={styles.selectedColorText}>Selected Color</Text>
+            </View>
+            
+            <View style={styles.colorPickerButtons}>
+              <TouchableOpacity
+                style={[styles.colorPickerButton, styles.cancelButton]}
+                onPress={() => setShowColorPicker(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.colorPickerButton, styles.confirmButton]}
+                onPress={handleColorConfirm}
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -449,6 +543,81 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginLeft: 8,
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorPickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '80%',
+    alignItems: 'center',
+  },
+  colorPickerTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#333333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 24,
+  },
+  colorOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  selectedColorPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  colorPreview: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 12,
+  },
+  selectedColorText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 16,
+    color: '#333333',
+  },
+  colorPickerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  colorPickerButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  cancelButton: {
+    backgroundColor: '#F5F5F5',
+  },
+  confirmButton: {
+    backgroundColor: '#8C52FF',
+  },
+  cancelButtonText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#666666',
+  },
+  confirmButtonText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#FFFFFF',
   },
 });
 

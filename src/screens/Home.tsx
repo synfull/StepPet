@@ -646,7 +646,10 @@ const Home: React.FC = () => {
     : false;
   
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      { backgroundColor: petData?.appearance.backgroundTheme || '#FFFFFF' }
+    ]}>
       <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}

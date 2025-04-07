@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DataContext } from '../context/DataContext';
 import Header from '../components/Header';
 import { RootStackParamList } from '../types/navigationTypes';
+import { savePetData } from '../utils/petUtils';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -51,6 +52,23 @@ const Settings: React.FC = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setHapticFeedback(true);
     }
+  };
+  
+  const handleToggleBackgroundTheme = async () => {
+    if (!petData) return;
+    
+    const updatedPet = { ...petData };
+    if (updatedPet.appearance.backgroundTheme) {
+      // Remove background theme
+      updatedPet.appearance.backgroundTheme = '';
+    } else {
+      // Set default background theme
+      updatedPet.appearance.backgroundTheme = '#34C759';
+    }
+    
+    await savePetData(updatedPet);
+    setPetData(updatedPet);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   
   // Reset data handler
@@ -120,6 +138,11 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Error sharing app:', error);
     }
+  };
+  
+  const handleNavigate = (screen: 'AboutApp' | 'AddFriend' | 'QRCode' | 'Settings' | 'PetDetails') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate(screen);
   };
   
   // Render a settings item with a toggle switch
@@ -203,6 +226,14 @@ const Settings: React.FC = () => {
             hapticFeedback,
             toggleHapticFeedback,
             'hand-left-outline'
+          )}
+          
+          {renderToggleItem(
+            'Background Theme',
+            'Enable or disable the background theme for your pet',
+            !!petData?.appearance.backgroundTheme,
+            handleToggleBackgroundTheme,
+            'color-palette-outline'
           )}
         </View>
         
