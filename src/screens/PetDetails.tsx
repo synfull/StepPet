@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,32 +11,32 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { formatSimpleDate } from '../utils/dateUtils';
 import { savePetData } from '../utils/petUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
+import EvolutionChain from '../components/EvolutionChain';
 import { PET_TYPES } from '../utils/petUtils';
+import { PetType, GrowthStage } from '../types/petTypes';
 
-type PetDetailsProps = NativeStackScreenProps<RootStackParamList, 'PetDetails'>;
-type PetDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PetDetails'>;
 type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
+type PetDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PetDetails'>;
 
-interface PetDetailsRouteParams {
-  petId: string;
-  showSpecialAnimation?: boolean;
+interface PetDetailsProps {
+  route: PetDetailsRouteProp;
 }
 
 const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const navigation = useNavigation<PetDetailsNavigationProp>();
-  const { petData, setPetData } = useContext(DataContext);
+  const { petData, setPetData } = useData();
   const { dailySteps, weeklySteps, totalSteps } = useContext(PedometerContext);
   const [isEditing, setIsEditing] = useState(false);
   const [petName, setPetName] = useState(petData?.name || '');
@@ -104,24 +104,40 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   // Calculate XP progress
   const xpProgress = petData.xp / petData.xpToNextLevel;
   
-  // Get next evolution stage
-  const getNextEvolution = () => {
+  // Get next evolution stage and required steps
+  const getEvolutionInfo = () => {
+    const stepsToNextLevel = petData.xpToNextLevel - petData.xp;
+    
     switch (petData.growthStage) {
-      case 'Egg':
-        return 'Baby';
       case 'Baby':
-        return 'Juvenile';
+        // Need to reach level 3 for Juvenile
+        const stepsToJuvenile = (petData.level === 1) 
+          ? petData.xpToNextLevel * 2 - petData.xp // Need two level ups
+          : petData.xpToNextLevel - petData.xp; // One level up remaining
+        return {
+          nextStage: 'Juvenile',
+          stepsNeeded: stepsToJuvenile
+        };
       case 'Juvenile':
-        return 'Adult';
+        // Need to reach level 4 for Adult
+        return {
+          nextStage: 'Adult',
+          stepsNeeded: petData.xpToNextLevel - petData.xp
+        };
       case 'Adult':
-        return 'Max Level';
+        return {
+          nextStage: 'Max Level',
+          stepsNeeded: stepsToNextLevel
+        };
       default:
-        return 'Unknown';
+        return {
+          nextStage: 'Unknown',
+          stepsNeeded: stepsToNextLevel
+        };
     }
   };
   
-  // Determine steps to next level
-  const stepsToNextLevel = petData.xpToNextLevel - petData.xp;
+  const evolutionInfo = getEvolutionInfo();
   
   return (
     <View style={styles.container}>
@@ -169,160 +185,74 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           <PetDisplay
             petType={petData.type}
             growthStage={petData.growthStage}
-            level={petData.level}
-            mainColor={petData.appearance.mainColor}
-            accentColor={petData.appearance.accentColor}
-            hasCustomization={petData.appearance.hasCustomization}
             size="xlarge"
-            specialAnimation={showSpecialAnim}
+            showEquippedItems={true}
           />
         </View>
         
         <View style={styles.petInfoContainer}>
-          <Text style={styles.petName}>
-            {isEditing ? (
-              <TextInput
-                style={styles.petNameInput}
-                value={editedName}
-                onChangeText={setEditedName}
-                maxLength={20}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            ) : (
-              petData.name
-            )}
-          </Text>
+          {isEditing ? (
+            <TextInput
+              style={styles.petNameInput}
+              value={editedName}
+              onChangeText={setEditedName}
+              maxLength={20}
+              autoCapitalize="words"
+              autoCorrect={false}
+              placeholder="Enter pet name"
+            />
+          ) : (
+            <View style={styles.nameContainer}>
+              <Text style={styles.petName}>{petData.name}</Text>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>Lv. {petData.level}</Text>
+              </View>
+            </View>
+          )}
           <Text style={styles.petType}>
-            Level {petData.level} {PET_TYPES[petData.type].name}
+            {PET_TYPES[petData.type].name}
           </Text>
         </View>
         
-        <Text style={styles.petInfo}>
-          {petData.growthStage}
-        </Text>
+        {/* Evolution Chain */}
+        {petData.growthStage !== 'Egg' && (
+          <EvolutionChain
+            petType={petData.type}
+            currentStage={petData.growthStage}
+          />
+        )}
         
         {/* Progress Section */}
-        <View style={styles.section}>
+        <View style={styles.progressSection}>
           <Text style={styles.sectionTitle}>Progress</Text>
-          
-          <View style={styles.progressContainer}>
-            <View style={styles.progressLabelContainer}>
-              <Text style={styles.progressLabel}>XP Progress</Text>
-              <Text style={styles.progressValue}>
-                {petData.xp}/{petData.xpToNextLevel} XP
-              </Text>
-            </View>
-            
-            <ProgressBar
-              progress={xpProgress}
-              height={10}
-              fillColor={petData.appearance.mainColor}
-              backgroundColor="#E0E0E0"
-              borderRadius={5}
-            />
-            
-            <Text style={styles.progressInfo}>
-              {stepsToNextLevel} steps until level {petData.level + 1}
-            </Text>
-          </View>
-          
-          <View style={styles.progressDetail}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Growth Stage</Text>
-              <Text style={styles.detailValue}>{petData.growthStage}</Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Next Evolution</Text>
-              <Text style={styles.detailValue}>{getNextEvolution()}</Text>
-            </View>
-          </View>
+          <ProgressBar 
+            progress={xpProgress} 
+            height={12}
+            backgroundColor="#F0F0F0"
+            fillColor="#8C52FF"
+          />
+          <Text style={styles.progressText}>
+            {evolutionInfo.stepsNeeded.toLocaleString()} steps to {evolutionInfo.nextStage.toLowerCase()}
+          </Text>
         </View>
         
         {/* Stats Section */}
-        <View style={styles.section}>
+        <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Stats</Text>
-          
-          <View style={styles.statsContainer}>
+          <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Ionicons name="footsteps-outline" size={24} color="#8C52FF" />
+              <Text style={styles.statValue}>{dailySteps.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Today's Steps</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{weeklySteps.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Weekly Steps</Text>
+            </View>
+            <View style={styles.statItem}>
               <Text style={styles.statValue}>{totalSteps.toLocaleString()}</Text>
               <Text style={styles.statLabel}>Total Steps</Text>
             </View>
-            
-            <View style={styles.statItem}>
-              <Ionicons name="today-outline" size={24} color="#FF9500" />
-              <Text style={styles.statValue}>{dailySteps.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Today</Text>
-            </View>
-            
-            <View style={styles.statItem}>
-              <Ionicons name="calendar-outline" size={24} color="#34C759" />
-              <Text style={styles.statValue}>{weeklySteps.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>This Week</Text>
-            </View>
           </View>
-        </View>
-        
-        {/* Pet Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pet Information</Text>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Type</Text>
-            <Text style={styles.infoValue}>{PET_TYPES[petData.type].name}</Text>
-          </View>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Category</Text>
-            <Text style={styles.infoValue}>{PET_TYPES[petData.type].category.charAt(0).toUpperCase() + PET_TYPES[petData.type].category.slice(1)}</Text>
-          </View>
-          
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Birthday</Text>
-            <Text style={styles.infoValue}>{formatSimpleDate(petData.created)}</Text>
-          </View>
-          
-          {petData.appearance.hasCustomization && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Customization</Text>
-              <Text style={styles.infoValue}>Available</Text>
-              
-              <TouchableOpacity 
-                style={styles.customizeButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Customization',
-                    'Your pet has special customization options! This feature will be available in a future update.',
-                    [{ text: 'OK' }]
-                  );
-                }}
-              >
-                <Text style={styles.customizeButtonText}>Customize</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          {petData.appearance.hasEliteBadge && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Elite Badge</Text>
-              <Text style={styles.infoValue}>Unlocked</Text>
-              <View style={styles.badgeContainer}>
-                <Ionicons name="shield-checkmark" size={24} color="#8C52FF" />
-              </View>
-            </View>
-          )}
-          
-          {petData.appearance.hasAnimatedBackground && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Animated Background</Text>
-              <Text style={styles.infoValue}>Enabled</Text>
-              <View style={styles.backgroundContainer}>
-                <Ionicons name="sparkles" size={24} color="#8C52FF" />
-              </View>
-            </View>
-          )}
         </View>
       </ScrollView>
     </View>
@@ -357,20 +287,35 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   petInfoContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 4,
   },
   petName: {
     fontFamily: 'Caprasimo-Regular',
     fontSize: 28,
     color: '#333333',
-    marginTop: 16,
-    marginBottom: 4,
+    marginRight: 8,
+  },
+  levelBadge: {
+    backgroundColor: '#8C52FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  levelText: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
   petType: {
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
+    fontSize: 18,
     color: '#666666',
   },
   petInfo: {
@@ -387,112 +332,58 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 16,
   },
-  progressContainer: {
-    marginBottom: 16,
+  progressSection: {
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
-  progressLabelContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  progressLabel: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#333333',
-  },
-  progressValue: {
+  progressText: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
     color: '#666666',
+    textAlign: 'center',
+    marginTop: 8,
   },
-  progressInfo: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 12,
-    color: '#909090',
-    marginTop: 6,
-    textAlign: 'right',
+  statsSection: {
+    marginTop: 24,
+    paddingHorizontal: 20,
   },
-  progressDetail: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 8,
-    padding: 16,
-  },
-  detailItem: {
+  statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#666666',
-  },
-  detailValue: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#333333',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#F9F9F9',
-    borderRadius: 8,
-    padding: 16,
+    marginTop: 8,
   },
   statItem: {
-    alignItems: 'center',
     flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 12,
+    marginHorizontal: 4,
   },
   statValue: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 18,
     color: '#333333',
-    marginTop: 8,
-    marginBottom: 4,
   },
   statLabel: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 12,
     color: '#666666',
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  infoLabel: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#666666',
-    width: 100,
-  },
-  infoValue: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#333333',
-    flex: 1,
-  },
-  customizeButton: {
-    backgroundColor: '#8C52FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  customizeButtonText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 12,
-    color: '#FFFFFF',
+    marginTop: 4,
   },
   editButton: {
     padding: 8,
   },
   petNameInput: {
-    flex: 1,
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
+    fontFamily: 'Caprasimo-Regular',
+    fontSize: 28,
     color: '#333333',
+    textAlign: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: '#8C52FF',
+    paddingBottom: 4,
+    marginBottom: 8,
+    minWidth: 200,
   },
   emptyContainer: {
     flex: 1,
@@ -505,16 +396,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
-  },
-  badgeContainer: {
-    backgroundColor: '#FFD700',
-    borderRadius: 12,
-    padding: 4,
-  },
-  backgroundContainer: {
-    backgroundColor: '#8C52FF',
-    borderRadius: 12,
-    padding: 4,
   },
   sparklesContainer: {
     ...StyleSheet.absoluteFillObject,
