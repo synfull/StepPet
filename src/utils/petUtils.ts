@@ -36,33 +36,118 @@ export const PET_CATEGORIES: Record<PetCategory, {
 };
 
 // Pet Icons mapping
-export const PET_ICONS: Record<PetType, any> = {
+export const PET_ICONS: Record<PetType, Record<GrowthStage, any>> = {
   // Empty string case (for egg)
-  '': require('../../assets/images/pets/icons/default_icon.png'),
+  '': {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/egg.png'),
+    Juvenile: require('../../assets/images/egg.png'),
+    Adult: require('../../assets/images/egg.png'),
+  },
   
   // Mythic Beasts
-  lunacorn: require('../../assets/images/pets/icons/lunacorn_icon.png'),
-  embermane: require('../../assets/images/pets/icons/embermane_icon.png'),
-  aetherfin: require('../../assets/images/pets/icons/aetherfin_icon.png'),
-  crystallisk: require('../../assets/images/pets/icons/crystallisk_icon.png'),
+  lunacorn: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/mythic/lunacorn_baby.png'),
+    Juvenile: require('../../assets/images/pets/mythic/lunacorn_juvenile.png'),
+    Adult: require('../../assets/images/pets/mythic/lunacorn_adult.png'),
+  },
+  embermane: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/mythic/embermane_baby.png'),
+    Juvenile: require('../../assets/images/pets/mythic/embermane_juvenile.png'),
+    Adult: require('../../assets/images/pets/mythic/embermane_adult.png'),
+  },
+  aetherfin: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/mythic/aetherfin_baby.png'),
+    Juvenile: require('../../assets/images/pets/mythic/aetherfin_juvenile.png'),
+    Adult: require('../../assets/images/pets/mythic/aetherfin_adult.png'),
+  },
+  crystallisk: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/mythic/crystallisk_baby.png'),
+    Juvenile: require('../../assets/images/pets/mythic/crystallisk_juvenile.png'),
+    Adult: require('../../assets/images/pets/mythic/crystallisk_adult.png'),
+  },
   
   // Elemental Critters
-  flareep: require('../../assets/images/pets/icons/flareep_icon.png'),
-  aquabub: require('../../assets/images/pets/icons/aquabub_icon.png'),
-  terrabun: require('../../assets/images/pets/icons/terrabun_icon.png'),
-  gustling: require('../../assets/images/pets/icons/gustling_icon.png'),
+  flareep: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/elemental/flareep_baby.png'),
+    Juvenile: require('../../assets/images/pets/elemental/flareep_juvenile.png'),
+    Adult: require('../../assets/images/pets/elemental/flareep_adult.png'),
+  },
+  aquabub: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/elemental/aquabub_baby.png'),
+    Juvenile: require('../../assets/images/pets/elemental/aquabub_juvenile.png'),
+    Adult: require('../../assets/images/pets/elemental/aquabub_adult.png'),
+  },
+  terrabun: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/elemental/terrabun_baby.png'),
+    Juvenile: require('../../assets/images/pets/elemental/terrabun_juvenile.png'),
+    Adult: require('../../assets/images/pets/elemental/terrabun_adult.png'),
+  },
+  gustling: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/elemental/gustling_baby.png'),
+    Juvenile: require('../../assets/images/pets/elemental/gustling_juvenile.png'),
+    Adult: require('../../assets/images/pets/elemental/gustling_adult.png'),
+  },
   
   // Forest Folk
-  mossling: require('../../assets/images/pets/icons/mossling_icon.png'),
-  twiggle: require('../../assets/images/pets/icons/twiggle_icon.png'),
-  thistuff: require('../../assets/images/pets/icons/thistuff_icon.png'),
-  glimmowl: require('../../assets/images/pets/icons/glimmowl_icon.png'),
+  mossling: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/forest/mossling_baby.png'),
+    Juvenile: require('../../assets/images/pets/forest/mossling_juvenile.png'),
+    Adult: require('../../assets/images/pets/forest/mossling_adult.png'),
+  },
+  twiggle: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/forest/twiggle_baby.png'),
+    Juvenile: require('../../assets/images/pets/forest/twiggle_juvenile.png'),
+    Adult: require('../../assets/images/pets/forest/twiggle_adult.png'),
+  },
+  thistuff: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/forest/thistuff_baby.png'),
+    Juvenile: require('../../assets/images/pets/forest/thistuff_juvenile.png'),
+    Adult: require('../../assets/images/pets/forest/thistuff_adult.png'),
+  },
+  glimmowl: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/forest/glimmowl_baby.png'),
+    Juvenile: require('../../assets/images/pets/forest/glimmowl_juvenile.png'),
+    Adult: require('../../assets/images/pets/forest/glimmowl_adult.png'),
+  },
   
   // Shadow Whims
-  wispurr: require('../../assets/images/pets/icons/wispurr_icon.png'),
-  batbun: require('../../assets/images/pets/icons/batbun_icon.png'),
-  noctuff: require('../../assets/images/pets/icons/noctuff_icon.png'),
-  drimkin: require('../../assets/images/pets/icons/drimkin_icon.png'),
+  wispurr: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/shadow/wispurr_baby.png'),
+    Juvenile: require('../../assets/images/pets/shadow/wispurr_juvenile.png'),
+    Adult: require('../../assets/images/pets/shadow/wispurr_adult.png'),
+  },
+  batbun: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/shadow/batbun_baby.png'),
+    Juvenile: require('../../assets/images/pets/shadow/batbun_juvenile.png'),
+    Adult: require('../../assets/images/pets/shadow/batbun_adult.png'),
+  },
+  noctuff: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/shadow/noctuff_baby.png'),
+    Juvenile: require('../../assets/images/pets/shadow/noctuff_juvenile.png'),
+    Adult: require('../../assets/images/pets/shadow/noctuff_adult.png'),
+  },
+  drimkin: {
+    Egg: require('../../assets/images/egg.png'),
+    Baby: require('../../assets/images/pets/shadow/drimkin_baby.png'),
+    Juvenile: require('../../assets/images/pets/shadow/drimkin_juvenile.png'),
+    Adult: require('../../assets/images/pets/shadow/drimkin_adult.png'),
+  },
 };
 
 // Pet Types

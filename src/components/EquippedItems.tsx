@@ -8,21 +8,15 @@ import { ITEM_IMAGES } from '../utils/itemUtils';
 // Define the positioning for each category
 const ITEM_POSITIONS = {
   Hats: {
-    top: -20,
-    left: 0,
-    right: 0,
+    top: -40,
     zIndex: 3,
   },
   Eyewear: {
     top: 20,
-    left: 0,
-    right: 0,
     zIndex: 2,
   },
   Neck: {
     top: 40,
-    left: 0,
-    right: 0,
     zIndex: 1,
   },
 };
@@ -72,6 +66,7 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({ size = 'large' }) => {
     const adjustedPosition = {
       ...position,
       top: position.top * sizeMultiplier,
+      marginLeft: -(itemSize / 2), // Center the item by offsetting it by half its width
     };
 
     // Debug logging
@@ -118,6 +113,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+    left: '50%',
   },
   itemImage: {
     width: '100%',
