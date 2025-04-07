@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,15 @@ import * as Haptics from 'expo-haptics';
 import QRCode from 'react-native-qrcode-svg';
 import Header from '../components/Header';
 import Button from '../components/Button';
-import { DataContext } from '../context/DataContext';
-import { captureRef } from 'react-native-view-shot';
+import { useData } from '../context/DataContext';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { captureRef } from 'react-native-view-shot';
 
 const QRCodeScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { petData } = useContext(DataContext);
-  const qrRef = React.useRef<View>(null);
+  const { petData } = useData();
+  const qrViewRef = React.useRef<View>(null);
 
   // Generate a unique user code
   // In a real app, this would be a user ID from the backend
@@ -49,14 +50,25 @@ const QRCodeScreen: React.FC = () => {
   const handleSaveQR = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    if (!qrRef.current) return;
-
     try {
-      // Capture the QR code as an image
-      const uri = await captureRef(qrRef, {
+      if (!qrViewRef.current) {
+        Alert.alert('Error', 'QR code is not ready. Please try again.');
+        return;
+      }
+
+      // Create a temporary file
+      const fileUri = `${FileSystem.cacheDirectory}qrcode.png`;
+      
+      // Capture the QR code view
+      const uri = await captureRef(qrViewRef, {
         format: 'png',
         quality: 1,
+        result: 'tmpfile',
       });
+
+      if (!uri) {
+        throw new Error('Failed to capture QR code image');
+      }
 
       // Share the image
       if (await Sharing.isAvailableAsync()) {
@@ -69,7 +81,11 @@ const QRCodeScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error saving QR code:', error);
-      Alert.alert('Error', 'There was a problem saving your QR code. Please try again.');
+      Alert.alert(
+        'Error',
+        'There was a problem saving your QR code. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -89,8 +105,8 @@ const QRCodeScreen: React.FC = () => {
           Friends can scan this code to add you to their friends list.
         </Text>
 
-        <View style={styles.qrContainer} ref={qrRef}>
-          <View style={styles.qrBackground}>
+        <View style={styles.qrContainer}>
+          <View style={styles.qrBackground} ref={qrViewRef}>
             <QRCode
               value={userCode}
               size={200}
@@ -99,32 +115,23 @@ const QRCodeScreen: React.FC = () => {
               logoBackgroundColor="#FFFFFF"
             />
           </View>
-          <Text style={styles.usernameText}>
-            {petData?.name || 'StepPetUser'}
-          </Text>
         </View>
 
-        <View style={styles.actionsContainer}>
+        <View style={styles.buttonContainer}>
           <Button
             title="Share QR Code"
             onPress={handleSaveQR}
-            icon={<Ionicons name="share-outline" size={20} color="#FFFFFF" />}
+            type="primary"
+            size="large"
             style={styles.button}
           />
-          
-          <TouchableOpacity
-            style={styles.textShareButton}
+          <Button
+            title="Share Username"
             onPress={handleShare}
-          >
-            <Text style={styles.textShareButtonText}>Share as Text</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoContainer}>
-          <Ionicons name="information-circle-outline" size={20} color="#666666" />
-          <Text style={styles.infoText}>
-            When friends add you, you'll see them in your friends list and weekly leaderboard.
-          </Text>
+            type="secondary"
+            size="large"
+            style={styles.button}
+          />
         </View>
       </View>
     </View>
@@ -173,12 +180,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 16,
   },
-  usernameText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 18,
-    color: '#333333',
-  },
-  actionsContainer: {
+  buttonContainer: {
     width: '100%',
     alignItems: 'center',
     marginBottom: 30,
@@ -186,29 +188,6 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     marginBottom: 16,
-  },
-  textShareButton: {
-    padding: 10,
-  },
-  textShareButtonText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
-    color: '#8C52FF',
-    textDecorationLine: 'underline',
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 12,
-    width: '100%',
-  },
-  infoText: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 14,
-    color: '#666666',
-    flex: 1,
-    marginLeft: 8,
   },
 });
 

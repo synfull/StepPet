@@ -24,6 +24,9 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
 }) => {
   const { equippedItems } = useInventory();
 
+  // Debug log input props
+  console.log('EquippedItems props:', { petType, growthStage, size });
+
   // Skip empty pet type or Egg stage
   if (!petType || growthStage === 'Egg') {
     console.log('Skipping EquippedItems: No pet type or Egg stage');
@@ -34,6 +37,9 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
   const anchorPoints = PET_ANCHOR_POINTS[petType as keyof typeof PET_ANCHOR_POINTS];
   const offsets = PET_OFFSETS[petType as keyof typeof PET_OFFSETS];
   
+  console.log('Anchor points for pet:', petType, anchorPoints);
+  console.log('Offsets for pet:', petType, offsets);
+  
   if (!anchorPoints || !offsets) {
     console.log('Skipping EquippedItems: No anchor points or offsets for pet type:', petType);
     return null;
@@ -42,6 +48,8 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
   // Convert growth stage to lowercase for anchor points
   const stage = growthStage.toLowerCase() as Lowercase<GrowthStage>;
   const anchors = anchorPoints[stage as 'baby' | 'juvenile' | 'adult'];
+
+  console.log('Anchors for stage:', stage, anchors);
 
   if (!anchors) {
     console.log('Skipping EquippedItems: No anchors for growth stage:', stage);

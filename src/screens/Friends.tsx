@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,9 +21,9 @@ import { formatRelativeTime } from '../utils/dateUtils';
 import { PET_ICONS } from '../utils/petUtils';
 import Header from '../components/Header';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 
-type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Friends'>;
 
 type TimePeriod = 'weekly' | 'monthly' | 'allTime';
 
@@ -110,19 +110,18 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeri
         return friend.monthlySteps;
       case 'allTime':
         return friend.allTimeSteps;
-      default:
-        return friend.weeklySteps;
     }
   };
 
-  // Pet image based on type
   const getPetImage = () => {
-    return PET_ICONS[friend.petType];
+    const petIcon = PET_ICONS[friend.petType];
+    if (!petIcon) return require('../../assets/images/egg.png');
+    return petIcon.Adult;
   };
 
   return (
     <TouchableOpacity 
-      style={styles.friendItem} 
+      style={styles.friendItem}
       onPress={handlePress}
       activeOpacity={0.7}
     >
@@ -130,44 +129,34 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeri
         <Text style={styles.rankText}>{rank}</Text>
       </View>
       
-      <View style={styles.petIconContainer}>
-        <Image 
-          source={getPetImage()} 
-          style={styles.petIcon} 
-          resizeMode="contain"
-        />
-        {friend.isCrowned && (
-          <View style={styles.crownBadge}>
-            <Ionicons name="trophy" size={12} color="#FFD700" />
-          </View>
-        )}
-      </View>
+      <Image 
+        source={getPetImage()}
+        style={styles.petImage}
+        resizeMode="contain"
+      />
       
       <View style={styles.friendInfo}>
         <Text style={styles.username}>{friend.username}</Text>
-        <Text style={styles.petInfo}>
-          {friend.petName} • Level {friend.petLevel} {friend.petType}
-        </Text>
+        <Text style={styles.petName}>{friend.petName}</Text>
+        <Text style={styles.stepCount}>{getStepCount().toLocaleString()} steps</Text>
       </View>
       
-      <View style={styles.stepsContainer}>
-        <Text style={styles.stepsCount}>{getStepCount().toLocaleString()}</Text>
-        <Text style={styles.stepsLabel}>steps</Text>
-        <Text style={styles.lastActiveText}>
-          {formatRelativeTime(friend.lastActive)}
-        </Text>
-      </View>
+      {friend.isCrowned && (
+        <View style={styles.crownContainer}>
+          <Ionicons name="trophy" size={24} color="#FFD700" />
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
 
 const Friends: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { petData } = useContext(DataContext);
+  const navigation = useNavigation<FriendsNavigationProp>();
   const insets = useSafeAreaInsets();
+  const { petData } = useData();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTimePeriod, setSelectedTimePeriod] = useState<TimePeriod>('weekly');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
 
   useEffect(() => {
     loadFriends();
@@ -206,27 +195,27 @@ const Friends: React.FC = () => {
   };
 
   const handleFriendPress = (friend: Friend) => {
-    const stepCount = selectedTimePeriod === 'weekly' 
+    const stepCount = timePeriod === 'weekly' 
       ? friend.weeklySteps 
-      : selectedTimePeriod === 'monthly'
+      : timePeriod === 'monthly'
         ? friend.monthlySteps
         : friend.allTimeSteps;
 
     Alert.alert(
       `${friend.username}'s Profile`,
-      `Pet: ${friend.petName}\nType: ${friend.petType}\nLevel: ${friend.petLevel}\n${selectedTimePeriod.charAt(0).toUpperCase() + selectedTimePeriod.slice(1)} Steps: ${stepCount.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.lastActive)}`,
+      `Pet: ${friend.petName}\nType: ${friend.petType}\nLevel: ${friend.petLevel}\n${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Steps: ${stepCount.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.lastActive)}`,
       [{ text: 'OK' }]
     );
   };
 
   const handleTimePeriodChange = (period: TimePeriod) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedTimePeriod(period);
+    setTimePeriod(period);
   };
 
   // Sort friends by selected time period
   const sortedFriends = [...friends].sort((a, b) => {
-    switch (selectedTimePeriod) {
+    switch (timePeriod) {
       case 'weekly':
         return b.weeklySteps - a.weeklySteps;
       case 'monthly':
@@ -252,37 +241,37 @@ const Friends: React.FC = () => {
       <TouchableOpacity
         style={[
           styles.timePeriodButton,
-          selectedTimePeriod === 'weekly' && styles.selectedTimePeriod
+          timePeriod === 'weekly' && styles.selectedTimePeriod
         ]}
         onPress={() => handleTimePeriodChange('weekly')}
       >
         <Text style={[
           styles.timePeriodText,
-          selectedTimePeriod === 'weekly' && styles.selectedTimePeriodText
+          timePeriod === 'weekly' && styles.selectedTimePeriodText
         ]}>Weekly</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
           styles.timePeriodButton,
-          selectedTimePeriod === 'monthly' && styles.selectedTimePeriod
+          timePeriod === 'monthly' && styles.selectedTimePeriod
         ]}
         onPress={() => handleTimePeriodChange('monthly')}
       >
         <Text style={[
           styles.timePeriodText,
-          selectedTimePeriod === 'monthly' && styles.selectedTimePeriodText
+          timePeriod === 'monthly' && styles.selectedTimePeriodText
         ]}>Monthly</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
           styles.timePeriodButton,
-          selectedTimePeriod === 'allTime' && styles.selectedTimePeriod
+          timePeriod === 'allTime' && styles.selectedTimePeriod
         ]}
         onPress={() => handleTimePeriodChange('allTime')}
       >
         <Text style={[
           styles.timePeriodText,
-          selectedTimePeriod === 'allTime' && styles.selectedTimePeriodText
+          timePeriod === 'allTime' && styles.selectedTimePeriodText
         ]}>All Time</Text>
       </TouchableOpacity>
     </View>
@@ -299,9 +288,9 @@ const Friends: React.FC = () => {
       <View style={styles.content}>
         <View style={styles.leaderboardHeader}>
           <Text style={styles.leaderboardTitle}>
-            {selectedTimePeriod === 'weekly' 
+            {timePeriod === 'weekly' 
               ? 'Weekly' 
-              : selectedTimePeriod === 'monthly'
+              : timePeriod === 'monthly'
                 ? 'Monthly'
                 : 'All Time'} Leaderboard
           </Text>
@@ -336,7 +325,7 @@ const Friends: React.FC = () => {
                 friend={item} 
                 rank={index + 1} 
                 onPress={handleFriendPress}
-                timePeriod={selectedTimePeriod}
+                timePeriod={timePeriod}
               />
             )}
             keyExtractor={(item) => item.id}
@@ -468,17 +457,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
   },
-  petIconContainer: {
-    position: 'relative',
+  petImage: {
     width: 40,
     height: 40,
     marginRight: 12,
   },
-  petIcon: {
-    width: '100%',
-    height: '100%',
+  friendInfo: {
+    flex: 1,
   },
-  crownBadge: {
+  username: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#333333',
+  },
+  petName: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#666666',
+  },
+  stepCount: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
+    color: '#8C52FF',
+  },
+  crownContainer: {
     position: 'absolute',
     top: -6,
     right: -6,
@@ -493,38 +495,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1,
     elevation: 2,
-  },
-  friendInfo: {
-    flex: 1,
-  },
-  username: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
-    color: '#333333',
-  },
-  petInfo: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#666666',
-  },
-  stepsContainer: {
-    alignItems: 'flex-end',
-  },
-  stepsCount: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-    color: '#8C52FF',
-  },
-  stepsLabel: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 12,
-    color: '#666666',
-  },
-  lastActiveText: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 12,
-    color: '#909090',
-    marginTop: 4,
   },
 });
 

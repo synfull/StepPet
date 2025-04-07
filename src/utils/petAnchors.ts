@@ -1,6 +1,6 @@
 import { PET_TYPES } from './petUtils';
 
-export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle' | 'lunacorn';
+export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle' | 'lunacorn' | 'embermane' | 'crystallisk' | 'flareep' | 'aquabub';
 export type GrowthStage = 'baby' | 'juvenile' | 'adult';
 
 export type AnchorPoint = {
@@ -28,19 +28,19 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
   aetherfin: {
     baby: {
       head: {
-        x: 50,  // centered
-        y: 2,   // moved up from 5% to 2%
-        scale: 1.2, // slightly larger for baby's proportions
+        x: 60,
+        y: 2,
+        scale: 1.2,
       },
       eyes: {
-        x: 50,  // centered
-        y: 27,  // moved down from 25% to 27%
-        scale: 0.9, // adjusted from 1.0 to 0.9 for better size
+        x: 60,
+        y: 27,
+        scale: 0.9,
       },
       neck: {
-        x: 50,  // centered
-        y: 45,  // moved down from 35% to 45%
-        scale: 0.9, // slightly smaller for baby
+        x: 60,
+        y: 45,
+        scale: 0.9,
       },
     },
     juvenile: {
@@ -81,19 +81,19 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
   wispurr: {
     baby: {
       head: {
-        x: 50,  // centered
-        y: 10,  // starting point for baby Wispurr's head
-        scale: 1.1, // slightly larger for baby's proportions
+        x: 50,
+        y: 10,
+        scale: 1.1,
       },
       eyes: {
-        x: 50,  // centered
-        y: 30,  // position for baby Wispurr's face
-        scale: 0.9, // slightly smaller for baby's face
+        x: 50,
+        y: 30,
+        scale: 0.9,
       },
       neck: {
-        x: 50,  // centered
-        y: 45,  // position for baby Wispurr's neck
-        scale: 0.9, // slightly smaller for baby
+        x: 50,
+        y: 45,
+        scale: 0.9,
       },
     },
     juvenile: {
@@ -105,12 +105,12 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       eyes: {
         x: 50,
         y: 35,
-        scale: 0.95,
+        scale: 0.85,
       },
       neck: {
         x: 50,
         y: 50,
-        scale: 1,
+        scale: 0.95,
       },
     },
     adult: {
@@ -122,11 +122,11 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       eyes: {
         x: 50,
         y: 40,
-        scale: 1,
+        scale: 0.9,
       },
       neck: {
         x: 50,
-        y: 55,
+        y: 60,
         scale: 1,
       },
     },
@@ -290,7 +290,218 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       },
     },
   },
-  // Add other pet types with their stages...
+  embermane: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 15,  // starting point for baby Embermane's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 35,  // position for baby Embermane's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 50,  // position for baby Embermane's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  crystallisk: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 15,  // starting point for baby Crystallisk's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 35,  // position for baby Crystallisk's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 50,  // position for baby Crystallisk's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  flareep: {
+    baby: {
+      head: {
+        x: 55,
+        y: 15,
+        scale: 1.1,
+      },
+      eyes: {
+        x: 71,
+        y: 58,
+        scale: 0.9,
+      },
+      neck: {
+        x: 75,
+        y: 80,
+        scale: 0.9,
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.85,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 0.95,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 0.9,
+      },
+      neck: {
+        x: 50,
+        y: 65,
+        scale: 1,
+      },
+    },
+  },
+  aquabub: {
+    baby: {
+      head: {
+        x: 68,
+        y: 17,
+        scale: 1.1,
+      },
+      eyes: {
+        x: 68,
+        y: 53,
+        scale: 0.9,
+      },
+      neck: {
+        x: 68,
+        y: 78,
+        scale: 0.9,
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
 };
 
 // Additional offsets for specific items if needed
@@ -307,38 +518,14 @@ export type CategoryOffsets = {
 // Fine-tune offsets for each pet type
 export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
   aetherfin: {
-    Hats: {
-      x: 7,    // increased right offset from 5 to 7
-      y: -10,  // increased upward offset from -8 to -10
-      scale: 0.9, // slightly smaller scale
-    },
-    Eyewear: {
-      x: 5,    // added right offset to match hat and bowtie
-      y: -1,   // reduced upward offset from -2 to -1
-      scale: 1.1, // reduced from 1.2 to 1.1 for better size
-    },
-    Neck: {
-      x: 5,    // added right offset
-      y: 0,    // removed the -5 offset to keep bowtie lower
-      scale: 1,
-    },
+    Hats: { x: 0, y: 0, scale: 1 },
+    Eyewear: { x: 0, y: 0, scale: 1 },
+    Neck: { x: 0, y: 0, scale: 1 },
   },
   wispurr: {
-    Hats: {
-      x: 5,    // Keeping current right offset
-      y: -35,  // Keeping current upward offset
-      scale: 1,
-    },
-    Eyewear: {
-      x: -2,   // Keeping current horizontal position
-      y: -15,  // Keeping current vertical position
-      scale: 1.8,  // Keeping current scale
-    },
-    Neck: {
-      x: 3,    // Added slight right offset
-      y: 3,    // Added slight downward offset
-      scale: 1,
-    },
+    Hats: { x: 0, y: 0, scale: 1 },
+    Eyewear: { x: 0, y: 0, scale: 1 },
+    Neck: { x: 0, y: 0, scale: 1 },
   },
   terrabun: {
     Hats: {
@@ -410,6 +597,74 @@ export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
     Neck: {
       x: 23,    // keeping same position
       y: 37,    // keeping same position
+      scale: 1,
+    },
+  },
+  embermane: {
+    Hats: {
+      x: 25,    // keeping same position
+      y: 5,     // keeping same position
+      scale: 1.2,
+    },
+    Eyewear: {
+      x: 25,    // increased right offset from 22 to 25
+      y: 25,    // keeping same position
+      scale: 1.1,
+    },
+    Neck: {
+      x: 25,    // keeping same position
+      y: 35,    // keeping same position
+      scale: 1,
+    },
+  },
+  crystallisk: {
+    Hats: {
+      x: 25,    // keeping same position
+      y: 5,     // keeping same position
+      scale: 0.9,
+    },
+    Eyewear: {
+      x: 24,    // increased from 23 to 24
+      y: 22,    // keeping same position
+      scale: 1.3,
+    },
+    Neck: {
+      x: 25,    // keeping same position
+      y: 35,    // keeping same position
+      scale: 1,
+    },
+  },
+  flareep: {
+    Hats: {
+      x: 25,
+      y: 0,
+      scale: 1,
+    },
+    Eyewear: {
+      x: 21,
+      y: 22,
+      scale: 1,
+    },
+    Neck: {
+      x: 25,
+      y: 35,
+      scale: 1,
+    },
+  },
+  aquabub: {
+    Hats: {
+      x: 28,
+      y: 2,
+      scale: 1,
+    },
+    Eyewear: {
+      x: 28,
+      y: 18,
+      scale: 1,
+    },
+    Neck: {
+      x: 28,
+      y: 33,
       scale: 1,
     },
   },

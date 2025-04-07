@@ -14,14 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
-import { Milestone } from '../types/petTypes';
+import { Milestone, PetData } from '../types/petTypes';
 import { savePetData } from '../utils/petUtils';
 import ProgressBar from '../components/ProgressBar';
 
-type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;
 
 interface MilestoneItemProps {
   milestone: Milestone;
@@ -138,12 +138,15 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 
 const Milestones: React.FC = () => {
   const navigation = useNavigation<MilestonesNavigationProp>();
-  const { petData, setPetData } = useContext(DataContext);
-  const { dailySteps } = useContext(PedometerContext);
+  const { petData, setPetData } = useData();
+  const pedometerContext = useContext(PedometerContext);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#34C759');
   const [currentMilestoneId, setCurrentMilestoneId] = useState<string | null>(null);
+  
+  // Use totalSteps from pedometer context, default to 0 if not available
+  const totalSteps = pedometerContext?.totalSteps || 0;
   
   useEffect(() => {
     if (petData) {
@@ -175,7 +178,8 @@ const Milestones: React.FC = () => {
     
     // Close color picker and navigate to milestone unlocked screen
     setShowColorPicker(false);
-    navigation.navigate('MilestoneUnlocked', { milestoneId: currentMilestoneId });
+    const milestone = updatedPet.milestones[milestoneIndex];
+    navigation.navigate('MilestoneUnlocked', { milestone });
   };
   
   const handleClaimMilestone = async (milestoneId: string) => {
@@ -244,9 +248,50 @@ const Milestones: React.FC = () => {
     setPetData(updatedPet);
     
     // Navigate to milestone unlocked screen
-    navigation.navigate('MilestoneUnlocked', { milestoneId });
+    navigation.navigate('MilestoneUnlocked', { milestone });
   };
   
+  const handleAddMilestone = () => {
+    if (!petData) return;
+    
+    const newMilestone: Milestone = {
+      id: Date.now().toString(),
+      steps: 1000,
+      reward: 'xp',
+      rewardDetails: '100 XP',
+      claimed: false
+    };
+
+    const updatedMilestones = [...milestones, newMilestone];
+    setMilestones(updatedMilestones);
+    setPetData({ ...petData, milestones: updatedMilestones });
+  };
+
+  const handleEditMilestone = (milestone: Milestone) => {
+    navigation.navigate('MilestoneUnlocked', { milestone });
+  };
+
+  const handleDeleteMilestone = (milestoneId: string) => {
+    if (!petData) return;
+    
+    const updatedMilestones = milestones.filter((m: Milestone) => m.id !== milestoneId);
+    setMilestones(updatedMilestones);
+    setPetData({ ...petData, milestones: updatedMilestones });
+  };
+
+  const handleToggleComplete = (milestoneId: string) => {
+    if (!petData) return;
+    
+    const updatedMilestones = milestones.map((m: Milestone) => {
+      if (m.id === milestoneId) {
+        return { ...m, claimed: !m.claimed };
+      }
+      return m;
+    });
+    setMilestones(updatedMilestones);
+    setPetData({ ...petData, milestones: updatedMilestones });
+  };
+
   // If no pet data, show empty state
   if (!petData) {
     return (
@@ -276,7 +321,7 @@ const Milestones: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{dailySteps.toLocaleString()}</Text>
+            <Text style={styles.statValue}>{totalSteps.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Total Steps</Text>
           </View>
           
@@ -297,7 +342,7 @@ const Milestones: React.FC = () => {
             <MilestoneItem
               key={milestone.id}
               milestone={milestone}
-              totalSteps={dailySteps}
+              totalSteps={totalSteps}
               onClaim={handleClaimMilestone}
             />
           ))}

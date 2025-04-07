@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
 
@@ -25,14 +25,14 @@ type MilestoneUnlockedNavigationProp = NativeStackNavigationProp<RootStackParamL
 const { width, height } = Dimensions.get('window');
 
 const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
-  const { milestoneId } = route.params;
+  const { milestone } = route.params;
   const navigation = useNavigation<MilestoneUnlockedNavigationProp>();
-  const { petData } = useContext(DataContext);
+  const { petData } = useData();
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [showSpecialAnimation, setShowSpecialAnimation] = useState(false);
   
   // Find the milestone
-  const milestone = petData?.milestones.find(m => m.id === milestoneId);
+  const milestoneData = petData?.milestones.find(m => m.id === milestone.id);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(width)).current;
@@ -51,7 +51,7 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
     startAnimations();
     
     // Trigger special animation for 200-step milestone
-    if (milestoneId === '200_steps') {
+    if (milestone.id === '200_steps') {
       setShowSpecialAnimation(true);
     }
     
@@ -104,11 +104,10 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
   };
   
   const handleSkip = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('Main', { screen: 'Home' });
+    navigation.navigate('Main');
   };
   
-  if (!petData) {
+  if (!petData || !milestoneData) {
     return null;
   }
   
@@ -116,84 +115,54 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Stars animation */}
-      <Animated.View
-        style={[
-          styles.starsContainer,
-          { opacity: starsOpacity }
-        ]}
-      >
+      {/* Stars background animation */}
+      <Animated.View style={[styles.starsContainer, { opacity: starsOpacity }]}>
         <LottieView
           source={require('../../assets/animations/stars.json')}
           autoPlay
           loop
-          style={styles.stars}
+          style={styles.starsAnimation}
         />
       </Animated.View>
       
+      {/* Main content */}
       <Animated.View
         style={[
           styles.content,
           {
             transform: [
               { translateX: slideAnim },
+              { scale: scaleAnim },
             ],
+            opacity: opacityAnim,
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>Milestone Unlocked!</Text>
         
-        <Animated.View
-          style={[
-            styles.petContainer,
-            {
-              transform: [
-                { scale: scaleAnim },
-              ],
-            },
-          ]}
-        >
+        <View style={styles.petContainer}>
           <PetDisplay
             petType={petData.type}
             growthStage={petData.growthStage}
-            level={petData.level}
-            mainColor={petData.appearance.mainColor}
-            accentColor={petData.appearance.accentColor}
-            hasCustomization={petData.appearance.hasCustomization}
             size="xlarge"
-            interactive={false}
-            specialAnimation={showSpecialAnimation}
+            showEquippedItems
           />
-        </Animated.View>
+        </View>
         
-        <Animated.View
-          style={[
-            styles.infoContainer,
-            { opacity: opacityAnim },
-          ]}
-        >
-          <Text style={styles.congratsText}>Milestone Unlocked!</Text>
-          <Text style={styles.milestoneText}>
-            {milestone?.steps.toLocaleString()} Steps Reached
-          </Text>
-          <Text style={styles.descriptionText}>
-            {milestone?.reward === 'animation' ? 
+        <View style={styles.milestoneInfo}>
+          <Text style={styles.milestoneName}>{milestoneData.steps.toLocaleString()} Steps Reached</Text>
+          <Text style={styles.milestoneDescription}>
+            {milestoneData.reward === 'animation' ? 
               "Your pet can now perform a special animation! Try tapping on your pet." :
               "Congratulations on reaching this milestone!"}
           </Text>
-          
-          <Button
-            title="Continue"
-            onPress={handleSkip}
-            type="primary"
-            size="large"
-          />
-        </Animated.View>
+        </View>
+        
+        <Button
+          title="Claim Reward"
+          onPress={handleSkip}
+          style={styles.button}
+        />
       </Animated.View>
     </View>
   );
@@ -208,7 +177,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
-  stars: {
+  starsAnimation: {
     width: '100%',
     height: '100%',
   },
@@ -219,16 +188,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 2,
   },
-  skipButton: {
-    position: 'absolute',
-    top: 48,
-    right: 20,
-    padding: 10,
-  },
-  skipText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
+  title: {
+    fontFamily: 'Caprasimo-Regular',
+    fontSize: 28,
     color: '#FFFFFF',
+    marginBottom: 8,
   },
   petContainer: {
     width: 150,
@@ -249,31 +213,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
-  infoContainer: {
+  milestoneInfo: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
   },
-  congratsText: {
-    fontFamily: 'Caprasimo-Regular',
-    fontSize: 28,
-    color: '#333333',
-    marginBottom: 8,
-  },
-  milestoneText: {
+  milestoneName: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 20,
     color: '#333333',
     marginBottom: 24,
   },
-  descriptionText: {
+  milestoneDescription: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 15,
     color: '#333333',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  button: {
+    marginTop: 24,
   },
 });
 
