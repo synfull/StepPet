@@ -1,45 +1,60 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useInventory } from '../context/InventoryContext';
 import type { ItemCategory } from '../context/InventoryContext';
 import { ITEM_IMAGES } from '../utils/itemUtils';
+import { PET_ANCHOR_POINTS, PET_OFFSETS, PetAnchors } from '../utils/petAnchors';
+import type { PetType } from '../types/petTypes';
+import type { GrowthStage } from '../types/petTypes';
 
-// Define the positioning for each category
-const ITEM_POSITIONS = {
-  Hats: {
-    top: -40,
-    zIndex: 3,
-  },
-  Eyewear: {
-    top: 20,
-    zIndex: 2,
-  },
-  Neck: {
-    top: 40,
-    zIndex: 1,
-  },
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BASE_SIZE = SCREEN_WIDTH * 0.8; // 80% of screen width
 
 interface EquippedItemsProps {
+  petType: PetType;
+  growthStage: GrowthStage;
   size?: 'small' | 'medium' | 'large' | 'xlarge';
 }
 
-const EquippedItems: React.FC<EquippedItemsProps> = ({ size = 'large' }) => {
+const EquippedItems: React.FC<EquippedItemsProps> = ({
+  petType,
+  growthStage,
+  size = 'medium',
+}) => {
   const { equippedItems } = useInventory();
 
-  // Debug logging
-  console.log('Equipped Items:', equippedItems);
+  // Skip empty pet type or Egg stage
+  if (!petType || growthStage === 'Egg') {
+    console.log('Skipping EquippedItems: No pet type or Egg stage');
+    return null;
+  }
+
+  // Skip if pet type is not in PET_ANCHOR_POINTS or PET_OFFSETS
+  const anchorPoints = PET_ANCHOR_POINTS[petType as keyof typeof PET_ANCHOR_POINTS];
+  const offsets = PET_OFFSETS[petType as keyof typeof PET_OFFSETS];
+  
+  if (!anchorPoints || !offsets) {
+    console.log('Skipping EquippedItems: No anchor points or offsets for pet type:', petType);
+    return null;
+  }
+
+  // Convert growth stage to lowercase for anchor points
+  const stage = growthStage.toLowerCase() as Lowercase<GrowthStage>;
+  const anchors = anchorPoints[stage as 'baby' | 'juvenile' | 'adult'];
+
+  if (!anchors) {
+    console.log('Skipping EquippedItems: No anchors for growth stage:', stage);
+    return null;
+  }
 
   // Get size multiplier based on prop
   const getSizeMultiplier = () => {
     switch (size) {
       case 'small':
-        return 0.5;
-      case 'medium':
-        return 0.75;
+        return 0.8;
       case 'large':
-        return 1;
+        return 1.2;
       case 'xlarge':
         return 1.5;
       default:
@@ -49,52 +64,79 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({ size = 'large' }) => {
 
   const sizeMultiplier = getSizeMultiplier();
 
-  const renderEquippedItem = (category: ItemCategory) => {
-    const itemId = equippedItems[category];
-    // Debug logging
-    console.log('Rendering item for category:', category, 'itemId:', itemId);
+  // Map item categories to anchor point names
+  const categoryToAnchorMap: Record<ItemCategory, keyof PetAnchors> = {
+    'Hats': 'head',
+    'Eyewear': 'eyes',
+    'Neck': 'neck'
+  };
+
+  // Get anchor point for an item category
+  const getAnchorPoint = (category: ItemCategory) => {
+    const anchorName = categoryToAnchorMap[category];
+    const anchorPoint = anchors[anchorName];
     
-    if (!itemId || !ITEM_IMAGES[category][itemId]) {
-      console.log('No item found for category:', category);
+    if (!anchorPoint) {
+      console.log('No anchor point found for category:', category, 'anchor name:', anchorName);
       return null;
     }
 
-    const baseSize = category === 'Hats' ? 80 : 60; // Hats are slightly larger
-    const itemSize = baseSize * sizeMultiplier;
+    const offset = offsets[category];
+    if (!offset) {
+      console.log('No offset found for category:', category);
+      return null;
+    }
 
-    const position = ITEM_POSITIONS[category];
-    const adjustedPosition = {
-      ...position,
-      top: position.top * sizeMultiplier,
-      marginLeft: -(itemSize / 2), // Center the item by offsetting it by half its width
+    const baseSize = category === 'Hats' ? 80 : 60;
+    const itemSize = baseSize * sizeMultiplier * (anchorPoint.scale || 1) * (offset.scale || 1);
+
+    return {
+      ...anchorPoint,
+      ...offset,
+      size: itemSize,
     };
-
-    // Debug logging
-    console.log('Rendering item with size:', itemSize, 'position:', adjustedPosition);
-
-    return (
-      <View
-        key={category}
-        style={[
-          styles.itemContainer,
-          adjustedPosition,
-          { width: itemSize, height: itemSize },
-        ]}
-      >
-        <Image
-          source={ITEM_IMAGES[category][itemId]}
-          style={styles.itemImage}
-          contentFit="contain"
-        />
-      </View>
-    );
   };
+
+  // Debug log equipped items
+  console.log('Equipped items:', equippedItems);
 
   return (
     <View style={styles.container}>
-      {Object.keys(ITEM_POSITIONS).map((category) => 
-        renderEquippedItem(category as ItemCategory)
-      )}
+      {Object.entries(equippedItems).map(([category, item]) => {
+        if (!item) {
+          console.log('Skipping empty item for category:', category);
+          return null;
+        }
+
+        const anchorPoint = getAnchorPoint(category as ItemCategory);
+        if (!anchorPoint) {
+          console.log('No anchor point found for equipped item:', category, item);
+          return null;
+        }
+
+        const itemStyle = {
+          position: 'absolute' as const,
+          width: anchorPoint.size,
+          height: anchorPoint.size,
+          left: (BASE_SIZE * anchorPoint.x) / 100,
+          top: (BASE_SIZE * anchorPoint.y) / 100,
+          transform: [
+            { translateX: -anchorPoint.size / 2 },
+            { translateY: -anchorPoint.size / 2 },
+          ],
+        };
+
+        console.log('Rendering item:', category, item, 'with style:', itemStyle);
+
+        return (
+          <Image
+            key={`${category}-${item}`}
+            source={ITEM_IMAGES[category as ItemCategory][item]}
+            style={itemStyle}
+            contentFit="contain"
+          />
+        );
+      })}
     </View>
   );
 };
@@ -106,18 +148,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    left: '50%',
-  },
-  itemImage: {
-    width: '100%',
-    height: '100%',
   },
 });
 

@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { PedometerContext } from '@context/PedometerContext';
-import { DataContext } from '@context/DataContext';
+import { DataProvider } from '@context/DataContext';
 import { GemProvider } from '@context/GemContext';
 import { InventoryProvider } from '@context/InventoryContext';
 import MainNavigator from '@navigation/MainNavigator';
@@ -53,7 +53,7 @@ export default function App() {
         setIsOnboardingComplete(isComplete);
         setHasCheckedOnboarding(true);
 
-        // Only load pet data and initialize pedometer if onboarding is complete
+        // Only initialize pedometer if onboarding is complete
         if (isComplete) {
           // Initialize pedometer
           const available = await pedoInit();
@@ -63,25 +63,10 @@ export default function App() {
             const daily = await fetchDailySteps();
             const weekly = await fetchWeeklySteps();
             
-            // Load pet data
-            const storedPetData = await AsyncStorage.getItem('@pet_data');
-            if (storedPetData) {
-              const parsedPetData = JSON.parse(storedPetData);
-              setPetData(parsedPetData);
-              
-              // Calculate relative steps
-              const startingStepCount = parsedPetData.startingStepCount || 0;
-              const relativeDaily = Math.max(0, daily - startingStepCount);
-              const relativeWeekly = Math.max(0, weekly - startingStepCount);
-              
-              setDailySteps(relativeDaily);
-              setWeeklySteps(relativeWeekly);
-              
-              // Get total steps from storage
-              const storedTotal = await AsyncStorage.getItem('@total_steps');
-              if (storedTotal) {
-                setTotalSteps(parseInt(storedTotal, 10));
-              }
+            // Get total steps from storage
+            const storedTotal = await AsyncStorage.getItem('@total_steps');
+            if (storedTotal) {
+              setTotalSteps(parseInt(storedTotal, 10));
             }
           }
         }
@@ -133,12 +118,6 @@ export default function App() {
     setTotalSteps,
   };
 
-  // Set up data context value
-  const dataValue = {
-    petData,
-    setPetData,
-  };
-  
   // Handle layout effect for hiding splash screen
   const onLayoutRootView = React.useCallback(async () => {
     if (fontsLoaded && hasCheckedOnboarding && !loading) {
@@ -170,31 +149,22 @@ export default function App() {
   return (
     <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
       <StatusBar style="dark" />
-      <NavigationContainer
-        onStateChange={(state) => {
-          // Force any modals to be cleaned up when navigation state changes
-          requestAnimationFrame(() => {
-            if (state?.routes) {
-              // No-op, just ensuring state updates are processed
-            }
-          });
-        }}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
-          <PedometerContext.Provider value={pedometerValue}>
-            <DataContext.Provider value={dataValue}>
-              <GemProvider>
-                <InventoryProvider>
+      <NavigationContainer>
+        <PedometerContext.Provider value={pedometerValue}>
+          <DataProvider>
+            <GemProvider>
+              <InventoryProvider>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
                   {isOnboardingComplete ? (
                     <MainNavigator />
                   ) : (
                     <Onboarding completeOnboarding={completeOnboarding} />
                   )}
-                </InventoryProvider>
-              </GemProvider>
-            </DataContext.Provider>
-          </PedometerContext.Provider>
-        </SafeAreaView>
+                </SafeAreaView>
+              </InventoryProvider>
+            </GemProvider>
+          </DataProvider>
+        </PedometerContext.Provider>
       </NavigationContainer>
     </SafeAreaProvider>
   );

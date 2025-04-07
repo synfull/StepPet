@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGems } from './GemContext';
+import { useData } from './DataContext';
 
 export type ItemCategory = 'Hats' | 'Eyewear' | 'Neck';
 
@@ -27,11 +28,19 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 const INVENTORY_KEY = '@inventory_items';
 const EQUIPPED_ITEMS_KEY = '@equipped_items';
 
+// Default items for development mode
+const DEFAULT_ITEMS = {
+  Hats: 'top_hat',
+  Eyewear: 'sunglasses',
+  Neck: 'bow_tie'
+};
+
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [ownedItems, setOwnedItems] = useState<string[]>([]);
   const [equippedItems, setEquippedItems] = useState<EquippedItems>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { deductGems } = useGems();
+  const { isDevelopmentMode } = useData();
 
   // Load inventory and equipped items from storage on mount
   useEffect(() => {
@@ -42,11 +51,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           AsyncStorage.getItem(EQUIPPED_ITEMS_KEY),
         ]);
 
-        if (storedItems !== null) {
-          setOwnedItems(JSON.parse(storedItems));
-        }
-        if (storedEquippedItems !== null) {
-          setEquippedItems(JSON.parse(storedEquippedItems));
+        if (isDevelopmentMode) {
+          // In development mode, use default items
+          const defaultItemIds = Object.values(DEFAULT_ITEMS);
+          setOwnedItems(defaultItemIds);
+          setEquippedItems(DEFAULT_ITEMS);
+          // Save the default items
+          await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(defaultItemIds));
+          await AsyncStorage.setItem(EQUIPPED_ITEMS_KEY, JSON.stringify(DEFAULT_ITEMS));
+        } else {
+          // Normal mode, load from storage
+          if (storedItems !== null) {
+            setOwnedItems(JSON.parse(storedItems));
+          }
+          if (storedEquippedItems !== null) {
+            setEquippedItems(JSON.parse(storedEquippedItems));
+          }
         }
       } catch (error) {
         console.error('Error loading inventory data:', error);
@@ -56,7 +76,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     loadData();
-  }, []);
+  }, [isDevelopmentMode]);
 
   const isItemOwned = (itemId: string): boolean => {
     return ownedItems.includes(itemId);

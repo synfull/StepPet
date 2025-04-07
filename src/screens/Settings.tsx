@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Alert,
   Share,
   BackHandler,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -16,21 +18,26 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import { RootStackParamList } from '../types/navigationTypes';
 import { savePetData } from '../utils/petUtils';
+import { PET_CATEGORIES, PET_TYPES } from '../utils/petUtils';
+import type { PetType } from '../types/petTypes';
+import type { GrowthStage } from '../types/petTypes';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Settings: React.FC = () => {
   const navigation = useNavigation<SettingsNavigationProp>();
-  const { petData, setPetData } = useContext(DataContext);
+  const { petData, setPetData, isDevelopmentMode, setIsDevelopmentMode } = useData();
   
   // Settings state
   const [notifications, setNotifications] = useState(true);
   const [soundEffects, setSoundEffects] = useState(true);
   const [hapticFeedback, setHapticFeedback] = useState(true);
+  const [showPetSelector, setShowPetSelector] = useState(false);
+  const [showGrowthStageSelector, setShowGrowthStageSelector] = useState(false);
   
   // Toggle handlers
   const toggleNotifications = () => {
@@ -140,9 +147,43 @@ const Settings: React.FC = () => {
     }
   };
   
+  // Handle navigation
   const handleNavigate = (screen: 'AboutApp' | 'AddFriend' | 'QRCode' | 'Settings' | 'PetDetails') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate(screen);
+    navigation.navigate(screen as never);
+  };
+  
+  // Handle pet type selection
+  const handlePetTypeSelect = async (selectedType: PetType) => {
+    if (!petData) return;
+    
+    const updatedPet = {
+      ...petData,
+      type: selectedType,
+      category: PET_TYPES[selectedType].category,
+      // Preserve equipped items
+      equippedItems: petData.equippedItems || {},
+    };
+    
+    await savePetData(updatedPet);
+    setPetData(updatedPet);
+    setShowPetSelector(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  
+  // Handle growth stage selection
+  const handleGrowthStageSelect = async (selectedStage: GrowthStage) => {
+    if (!petData) return;
+    
+    const updatedPet = {
+      ...petData,
+      growthStage: selectedStage,
+    };
+    
+    await savePetData(updatedPet);
+    setPetData(updatedPet);
+    setShowGrowthStageSelector(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   
   // Render a settings item with a toggle switch
@@ -237,6 +278,61 @@ const Settings: React.FC = () => {
           )}
         </View>
         
+        {/* Development Section (Hidden by default) */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.settingItem}
+            onPress={() => setIsDevelopmentMode(!isDevelopmentMode)}
+          >
+            <View style={[styles.settingIconContainer, { backgroundColor: '#FF3B3020' }]}>
+              <Ionicons name="code-working" size={22} color="#FF3B30" />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>Development Mode</Text>
+              <Text style={styles.settingDescription}>Enable development features</Text>
+            </View>
+            <Switch
+              value={isDevelopmentMode}
+              onValueChange={() => setIsDevelopmentMode(!isDevelopmentMode)}
+              trackColor={{ false: '#D0D0D0', true: '#FFB0B0' }}
+              thumbColor={isDevelopmentMode ? '#FF3B30' : '#F4F4F4'}
+              ios_backgroundColor="#D0D0D0"
+            />
+          </TouchableOpacity>
+
+          {isDevelopmentMode && (
+            <>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => setShowPetSelector(true)}
+              >
+                <View style={[styles.settingIconContainer, { backgroundColor: '#8C52FF20' }]}>
+                  <Ionicons name="paw" size={22} color="#8C52FF" />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingTitle}>Select Pet Type</Text>
+                  <Text style={styles.settingDescription}>Current: {petData?.type || 'None'}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#909090" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => setShowGrowthStageSelector(true)}
+              >
+                <View style={[styles.settingIconContainer, { backgroundColor: '#8C52FF20' }]}>
+                  <Ionicons name="leaf" size={22} color="#8C52FF" />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingTitle}>Select Growth Stage</Text>
+                  <Text style={styles.settingDescription}>Current: {petData?.growthStage || 'None'}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#909090" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+        
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -282,6 +378,95 @@ const Settings: React.FC = () => {
           <Text style={styles.copyrightText}>© 2025 StepPet Team</Text>
         </View>
       </ScrollView>
+
+      {/* Pet Type Selector Modal */}
+      <Modal
+        visible={showPetSelector}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPetSelector(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Pet Type</Text>
+              <TouchableOpacity
+                onPress={() => setShowPetSelector(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#333333" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={Object.entries(PET_CATEGORIES)}
+              keyExtractor={(item) => item[0]}
+              renderItem={({ item: [category, data] }) => (
+                <View style={styles.categorySection}>
+                  <Text style={styles.categoryTitle}>{data.name}</Text>
+                  {data.pets.map((petType) => (
+                    <TouchableOpacity
+                      key={petType}
+                      style={[
+                        styles.petOption,
+                        petData?.type === petType && styles.selectedPetOption
+                      ]}
+                      onPress={() => handlePetTypeSelect(petType)}
+                    >
+                      <Text style={[
+                        styles.petOptionText,
+                        petData?.type === petType && styles.selectedPetOptionText
+                      ]}>
+                        {PET_TYPES[petType].name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Growth Stage Selector Modal */}
+      <Modal
+        visible={showGrowthStageSelector}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGrowthStageSelector(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Growth Stage</Text>
+              <TouchableOpacity
+                onPress={() => setShowGrowthStageSelector(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#333333" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.growthStageOptions}>
+              {['Baby', 'Juvenile', 'Adult'].map((stage) => (
+                <TouchableOpacity
+                  key={stage}
+                  style={[
+                    styles.growthStageOption,
+                    petData?.growthStage === stage && styles.selectedGrowthStageOption
+                  ]}
+                  onPress={() => handleGrowthStageSelect(stage as GrowthStage)}
+                >
+                  <Text style={[
+                    styles.growthStageOptionText,
+                    petData?.growthStage === stage && styles.selectedGrowthStageOptionText
+                  ]}>
+                    {stage}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -349,6 +534,85 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Regular',
     fontSize: 12,
     color: '#909090',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#333333',
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  categorySection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  categoryTitle: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 12,
+  },
+  petOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#F8F8F8',
+  },
+  selectedPetOption: {
+    backgroundColor: '#8C52FF20',
+  },
+  petOptionText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 16,
+    color: '#333333',
+  },
+  selectedPetOptionText: {
+    color: '#8C52FF',
+  },
+  growthStageOptions: {
+    padding: 20,
+  },
+  growthStageOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: '#F8F8F8',
+  },
+  selectedGrowthStageOption: {
+    backgroundColor: '#8C52FF20',
+  },
+  growthStageOptionText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 16,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  selectedGrowthStageOptionText: {
+    color: '#8C52FF',
   },
 });
 

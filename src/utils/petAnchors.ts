@@ -1,6 +1,6 @@
 import { PET_TYPES } from './petUtils';
 
-export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle';
+export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle' | 'lunacorn';
 export type GrowthStage = 'baby' | 'juvenile' | 'adult';
 
 export type AnchorPoint = {
@@ -237,6 +237,59 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       },
     },
   },
+  lunacorn: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 10,  // starting point for baby Lunacorn's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 30,  // position for baby Lunacorn's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 45,  // position for baby Lunacorn's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 15,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 35,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 50,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+  },
   // Add other pet types with their stages...
 };
 
@@ -340,6 +393,23 @@ export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
     Neck: {
       x: 0,
       y: 15,   // Keeping current downward offset
+      scale: 1,
+    },
+  },
+  lunacorn: {
+    Hats: {
+      x: 25,    // keeping same position
+      y: 5,     // keeping same position
+      scale: 1.2,
+    },
+    Eyewear: {
+      x: 22,    // keeping same position
+      y: 23,    // decreased downward offset from 25 to 23
+      scale: 1.1,
+    },
+    Neck: {
+      x: 23,    // keeping same position
+      y: 37,    // keeping same position
       scale: 1,
     },
   },

@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
 import { updatePetWithSteps, createNewPet, savePetData, PET_TYPES } from '../utils/petUtils';
@@ -33,7 +33,7 @@ type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Home: React.FC = () => {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { petData, setPetData } = useContext(DataContext);
+  const { petData, setPetData, isDevelopmentMode } = useData();
   const { 
     isAvailable, 
     dailySteps, 
@@ -53,7 +53,7 @@ const Home: React.FC = () => {
   
   // Pedometer subscription
   useEffect(() => {
-    if (isAvailable && petData) {
+    if (isAvailable && petData && !isDevelopmentMode) {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
       const subscription = subscribeToPedometer((steps) => {
@@ -74,16 +74,22 @@ const Home: React.FC = () => {
               if (newXP >= petData.xpToNextLevel) {
                 // Handle level up through updatePetWithSteps
                 updatePetWithSteps(petData, newXP - petData.xp).then(({ updatedPet, leveledUp }) => {
-                  setPetData(updatedPet);
+                  // Preserve type and growth stage after level up
+                  const preservedPet = {
+                    ...updatedPet,
+                    type: petData.type,
+                    growthStage: petData.growthStage,
+                  };
+                  setPetData(preservedPet);
                   if (leveledUp) {
                     navigation.navigate('PetLevelUp', {
-                      level: updatedPet.level,
-                      petType: updatedPet.type
+                      level: preservedPet.level,
+                      petType: preservedPet.type
                     });
                   }
                 });
               } else {
-                // Just update XP without level up
+                // Just update XP without level up, preserving type and growth stage
                 const updatedPet: PetData = {
                   ...petData,
                   xp: newXP
@@ -105,7 +111,7 @@ const Home: React.FC = () => {
         }
       };
     }
-  }, [isAvailable, petData?.id, petData?.stepsSinceHatched, petData?.xpToNextLevel]);
+  }, [isAvailable, petData?.id, petData?.stepsSinceHatched, petData?.xpToNextLevel, isDevelopmentMode]);
   
   // Refresh data periodically
   useEffect(() => {
@@ -171,21 +177,29 @@ const Home: React.FC = () => {
           const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
           const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
           
-          // Update pet with new XP
-          const updatedPet = { ...petData };
-          updatedPet.xp = newXP;
-          updatedPet.totalSteps = daily;
+          // Update pet with new XP, preserving type and growth stage
+          const updatedPet = { 
+            ...petData,
+            xp: newXP,
+            totalSteps: daily,
+          };
           
           // Check for level up
           if (newXP >= petData.xpToNextLevel) {
             const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(updatedPet, 0);
-            setPetData(leveledPet);
-            setTotalSteps(leveledPet.totalSteps);
+            // Preserve type and growth stage after level up
+            const preservedPet = {
+              ...leveledPet,
+              type: petData.type,
+              growthStage: petData.growthStage,
+            };
+            setPetData(preservedPet);
+            setTotalSteps(preservedPet.totalSteps);
             
             if (leveledUp) {
               navigation.navigate('PetLevelUp', { 
-                level: leveledPet.level,
-                petType: leveledPet.type 
+                level: preservedPet.level,
+                petType: preservedPet.type 
               });
             }
           } else {
@@ -195,20 +209,25 @@ const Home: React.FC = () => {
             setTotalSteps(updatedPet.totalSteps);
           }
         } else {
-          // For eggs, just update total steps
+          // For eggs, just update total steps while preserving type
           const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
-          setPetData(updatedPet);
-          setTotalSteps(updatedPet.totalSteps);
+          // Preserve type if it exists
+          const preservedPet = {
+            ...updatedPet,
+            type: petData.type || updatedPet.type,
+          };
+          setPetData(preservedPet);
+          setTotalSteps(preservedPet.totalSteps);
           
           if (leveledUp) {
             navigation.navigate('PetLevelUp', { 
-              level: updatedPet.level,
-              petType: updatedPet.type 
+              level: preservedPet.level,
+              petType: preservedPet.type 
             });
           }
           
           if (milestoneReached) {
-            const milestone = updatedPet.milestones.find(m => m.id === milestoneReached);
+            const milestone = preservedPet.milestones.find(m => m.id === milestoneReached);
             if (milestone) {
               navigation.navigate('MilestoneUnlocked', { 
                 milestone: milestone 
@@ -617,6 +636,13 @@ const Home: React.FC = () => {
 
   const progressData = getProgress();
   
+  // Update the pet data update logic to handle null cases
+  const updatePetData = async (newPetData: PetData | null) => {
+    if (!newPetData) return;
+    setPetData(newPetData);
+    await savePetData(newPetData);
+  };
+  
   // If no pet data, show pet selection screen
   if (!petData) {
     return (
@@ -673,6 +699,7 @@ const Home: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            tintColor="#8C52FF"
           />
         }
       >
@@ -725,10 +752,6 @@ const Home: React.FC = () => {
               <PetDisplay
                 petType={petData.type}
                 growthStage={petData.growthStage}
-                level={petData.level}
-                mainColor={petData.appearance.mainColor}
-                accentColor={petData.appearance.accentColor}
-                hasCustomization={petData.appearance.hasCustomization}
                 size="xlarge"
                 showEquippedItems={true}
               />

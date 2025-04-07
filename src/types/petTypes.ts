@@ -65,6 +65,11 @@ export interface PetData {
   miniGames: MiniGames;
   milestones: Milestone[];
   created: string;
+  equippedItems?: {
+    Hats?: string;
+    Eyewear?: string;
+    Neck?: string;
+  };
 }
 
 export interface Friend {
