@@ -33,6 +33,11 @@ const QRCodeScreen: React.FC = () => {
 
   const userCode = generateUserCode();
 
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
+
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -95,6 +100,7 @@ const QRCodeScreen: React.FC = () => {
       <Header
         title="Your QR Code"
         showBackButton
+        onBackPress={handleBack}
       />
 
       <View style={styles.content}>

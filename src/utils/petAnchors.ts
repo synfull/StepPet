@@ -1,6 +1,6 @@
 import { PET_TYPES } from './petUtils';
 
-export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle' | 'lunacorn' | 'embermane' | 'crystallisk' | 'flareep' | 'aquabub';
+export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle' | 'lunacorn' | 'embermane' | 'crystallisk' | 'flareep' | 'aquabub' | 'gustling' | 'mossling' | 'thistuff' | 'glimmowl' | 'batbun';
 export type GrowthStage = 'baby' | 'juvenile' | 'adult';
 
 export type AnchorPoint = {
@@ -81,17 +81,17 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
   wispurr: {
     baby: {
       head: {
-        x: 50,
+        x: 70,  // increased from 50 to 70
         y: 10,
         scale: 1.1,
       },
       eyes: {
-        x: 50,
+        x: 70,  // increased from 50 to 70
         y: 30,
         scale: 0.9,
       },
       neck: {
-        x: 50,
+        x: 70,  // increased from 50 to 70
         y: 45,
         scale: 0.9,
       },
@@ -134,19 +134,19 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
   noctuff: {
     baby: {
       head: {
-        x: 50,  // centered
-        y: 15,  // initial position for baby Noctuff's head
-        scale: 1.1, // slightly larger for baby's proportions
+        x: 70,  // increased from 50 to 70
+        y: 15,
+        scale: 1.2, // increased from 1.1 to 1.2
       },
       eyes: {
-        x: 50,  // centered
-        y: 35,  // initial position for baby Noctuff's face
-        scale: 0.9, // slightly smaller for baby's face
+        x: 70,  // increased from 50 to 70
+        y: 35,
+        scale: 0.9,
       },
       neck: {
-        x: 50,  // centered
-        y: 50,  // initial position for baby Noctuff's neck
-        scale: 0.9, // slightly smaller for baby
+        x: 70,  // increased from 50 to 70
+        y: 50,
+        scale: 0.9,
       },
     },
     juvenile: {
@@ -187,19 +187,19 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
   twiggle: {
     baby: {
       head: {
-        x: 50,  // centered
-        y: 15,  // initial position for baby Twiggle's head
-        scale: 1.1, // slightly larger for baby's proportions
+        x: 70,  // increased from 50 to 70
+        y: 15,
+        scale: 1.1,
       },
       eyes: {
-        x: 50,  // centered
-        y: 35,  // initial position for baby Twiggle's face
-        scale: 0.9, // slightly smaller for baby's face
+        x: 70,  // increased from 50 to 70
+        y: 35,
+        scale: 0.9,
       },
       neck: {
-        x: 50,  // centered
-        y: 50,  // initial position for baby Twiggle's neck
-        scale: 0.9, // slightly smaller for baby
+        x: 70,  // increased from 50 to 70
+        y: 50,
+        scale: 0.9,
       },
     },
     juvenile: {
@@ -502,6 +502,377 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       },
     },
   },
+  terrabun: {
+    baby: {
+      head: {
+        x: 75,
+        y: 15,
+        scale: 1.2,
+      },
+      eyes: {
+        x: 75,
+        y: 35,
+        scale: 0.9,
+      },
+      neck: {
+        x: 82,
+        y: 85,
+        scale: 0.85,
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  gustling: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 15,  // initial position for baby Gustling's head
+        scale: 1.2, // larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 35,  // position for baby Gustling's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 50,  // position for baby Gustling's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  mossling: {
+    baby: {
+      head: {
+        x: 70,  // slightly to the right
+        y: 15,  // higher up for baby's proportions
+        scale: 1.2, // larger for baby's head
+      },
+      eyes: {
+        x: 70,  // aligned with head
+        y: 35,  // positioned for baby's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 70,  // aligned with head
+        y: 50,  // middle position for neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  thistuff: {
+    baby: {
+      head: {
+        x: 70,  // slightly to the right
+        y: 15,  // higher up for baby's proportions
+        scale: 1.2, // larger for baby's head
+      },
+      eyes: {
+        x: 70,  // aligned with head
+        y: 35,  // positioned for baby's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 70,  // aligned with head
+        y: 50,  // middle position for neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  glimmowl: {
+    baby: {
+      head: {
+        x: 70,  // slightly to the right
+        y: 15,  // higher up for baby's proportions
+        scale: 1.2, // larger for baby's head
+      },
+      eyes: {
+        x: 70,  // aligned with head
+        y: 35,  // positioned for baby's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 70,  // aligned with head
+        y: 50,  // middle position for neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  batbun: {
+    baby: {
+      head: {
+        x: 70,  // slightly to the right
+        y: 15,  // higher up for baby's proportions
+        scale: 1.2, // larger for baby's head
+      },
+      eyes: {
+        x: 70,  // aligned with head
+        y: 35,  // positioned for baby's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 70,  // aligned with head
+        y: 50,  // middle position for neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  drimkin: {
+    baby: {
+      head: {
+        x: 70,  // slightly to the right
+        y: 15,  // higher up for baby's proportions
+        scale: 1.2, // larger for baby's head
+      },
+      eyes: {
+        x: 70,  // aligned with head
+        y: 35,  // positioned for baby's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 70,  // aligned with head
+        y: 50,  // middle position for neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
 };
 
 // Additional offsets for specific items if needed
@@ -515,157 +886,282 @@ export type CategoryOffsets = {
   [category: string]: ItemOffset;
 };
 
-// Fine-tune offsets for each pet type
-export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
+export type StageOffsets = {
+  [stage in GrowthStage]: CategoryOffsets;
+};
+
+// Fine-tune offsets for each pet type and growth stage
+export const PET_OFFSETS: Record<PetType, StageOffsets> = {
   aetherfin: {
-    Hats: { x: 0, y: 0, scale: 1 },
-    Eyewear: { x: 0, y: 0, scale: 1 },
-    Neck: { x: 0, y: 0, scale: 1 },
+    baby: {
+      Hats: { x: 29, y: 8, scale: 0.6 },
+      Eyewear: { x: 28, y: 22, scale: 0.7 },
+      Neck: { x: 28, y: 32, scale: 0.6 },
+    },
+    juvenile: {
+      Hats: { x: 26, y: 10, scale: 0.6 },
+      Eyewear: { x: 24, y: 21, scale: 0.6 },
+      Neck: { x: 25.5, y: 30, scale: 0.6 },
+    },
+    adult: {
+      Hats: { x: 23, y: 5.9, scale: 0.4 },
+      Eyewear: { x: 21, y: 15, scale: 0.4 },
+      Neck: { x: 24, y: 22, scale: 0.4 },
+    },
   },
   wispurr: {
-    Hats: { x: 0, y: 0, scale: 1 },
-    Eyewear: { x: 0, y: 0, scale: 1 },
-    Neck: { x: 0, y: 0, scale: 1 },
+    baby: {
+      Hats: { x: 27, y: 2, scale: 1 },
+      Eyewear: { x: 25, y: 21, scale: 1.2 },
+      Neck: { x: 25, y: 35, scale: 1 },
+    },
+    juvenile: {
+      Hats: { x: 17, y: 3, scale: 0.9 },
+      Eyewear: { x: 16, y: 19, scale: 0.9 },
+      Neck: { x: 20, y: 31, scale: 0.9 },
+    },
+    adult: {
+      Hats: { x: 15, y: 3, scale: 0.75 },
+      Eyewear: { x: 16, y: 16, scale: 0.75 },
+      Neck: { x: 15, y: 27, scale: 0.75 },
+    },
   },
   terrabun: {
-    Hats: {
-      x: 0,
-      y: -10,
-      scale: 1,
+    baby: {
+      Hats: { x: 30, y: 6, scale: 0.9 },
+      Eyewear: { x: 32, y: 23, scale: 1 },
+      Neck: { x: 32, y: 35, scale: 1 },
     },
-    Eyewear: {
-      x: 5,
-      y: 0,
-      scale: 1,
+    juvenile: {
+      Hats: { x: 33, y: 14, scale: 0.65 },
+      Eyewear: { x: 36, y: 25, scale: 0.7 },
+      Neck: { x: 36, y: 35, scale: 0.6 },
     },
-    Neck: {
-      x: 0,
-      y: 5,
-      scale: 1,
+    adult: {
+      Hats: { x: 25, y: 16, scale: 0.6 },
+      Eyewear: { x: 22.7, y: 25.5, scale: 0.6 },
+      Neck: { x: 23, y: 37, scale: 0.6 },
     },
   },
   drimkin: {
-    Hats: { x: 0, y: 0, scale: 1 },
-    Eyewear: { x: 0, y: 0, scale: 1 },
-    Neck: { x: 0, y: 0, scale: 1 },
+    baby: {
+      Hats: { x: 27, y: 9, scale: 0.8 },
+      Eyewear: { x: 29, y: 25, scale: 0.9 },
+      Neck: { x: 29, y: 35.5, scale: 0.8 },
+    },
+    juvenile: {
+      Hats: { x: 16, y: 15, scale: 0.7 },
+      Eyewear: { x: 13, y: 26, scale: 0.7 },
+      Neck: { x: 17, y: 36, scale: 0.7 },
+    },
+    adult: {
+      Hats: { x: 19, y: 6, scale: 0.6 },
+      Eyewear: { x: 15, y: 15, scale: 0.6 },
+      Neck: { x: 17, y: 25, scale: 0.6 },
+    },
   },
   noctuff: {
-    Hats: {
-      x: 5,     // Added right offset
-      y: -15,   // Increased upward offset from -5 to -15
-      scale: 1,
+    baby: {
+      Hats: { x: 28, y: 10, scale: 0.8 },
+      Eyewear: { x: 27, y: 29, scale: 1 },
+      Neck: { x: 27.5, y: 40, scale: 0.9 },
     },
-    Eyewear: {
-      x: 3,     // Keeping current horizontal position
-      y: 3,     // Decreased downward offset from 5 to 3
-      scale: 1.4, // Keeping current scale
+    juvenile: {
+      Hats: { x: 29, y: 8, scale: 0.7 },
+      Eyewear: { x: 27, y: 19, scale: 0.75 },
+      Neck: { x: 27, y: 29, scale: 0.7 },
     },
-    Neck: {
-      x: 3,    // Keeping current right offset
-      y: 15,   // Keeping current downward offset
-      scale: 1,
+    adult: {
+      Hats: { x: 28, y: 5, scale: 0.8 },
+      Eyewear: { x: 27, y: 18, scale: 0.8 },
+      Neck: { x: 27, y: 28, scale: 0.8 },
     },
   },
   twiggle: {
-    Hats: {
-      x: 0,
-      y: -25,  // Keeping current upward offset
-      scale: 1,
+    baby: {
+      Hats: { x: 23, y: 7, scale: 1 },
+      Eyewear: { x: 22, y: 25, scale: 1.2 },
+      Neck: { x: 24, y: 38, scale: 1 },
     },
-    Eyewear: {
-      x: -5,    // Keeping current left offset
-      y: -8,    // Increased upward offset from -5 to -8
-      scale: 1.6, // Keeping current scale
+    juvenile: {
+      Hats: { x: 21, y: 7, scale: 0.7 },
+      Eyewear: { x: 17, y: 18, scale: 0.75 },
+      Neck: { x: 19, y: 30, scale: 0.7 },
     },
-    Neck: {
-      x: 0,
-      y: 15,   // Keeping current downward offset
-      scale: 1,
+    adult: {
+      Hats: { x: 17, y: 6, scale: 0.7 },
+      Eyewear: { x: 14, y: 16, scale: 0.6 },
+      Neck: { x: 16.5, y: 27, scale: 0.7 },
     },
   },
   lunacorn: {
-    Hats: {
-      x: 25,    // keeping same position
-      y: 5,     // keeping same position
-      scale: 1.2,
+    baby: {
+      Hats: { x: 25, y: 4.7, scale: 0.9 },
+      Eyewear: { x: 22, y: 23, scale: 1.1 },
+      Neck: { x: 23, y: 37, scale: 1 },
     },
-    Eyewear: {
-      x: 22,    // keeping same position
-      y: 23,    // decreased downward offset from 25 to 23
-      scale: 1.1,
+    juvenile: {
+      Hats: { x: 15, y: 0, scale: 0.7 },
+      Eyewear: { x: 14, y: 17, scale: 0.7 },
+      Neck: { x: 18, y: 27, scale: 0.7 },
     },
-    Neck: {
-      x: 23,    // keeping same position
-      y: 37,    // keeping same position
-      scale: 1,
+    adult: {
+      Hats: { x: 20, y: 5, scale: 0.6 },
+      Eyewear: { x: 20, y: 15, scale: 0.6 },
+      Neck: { x: 20, y: 27, scale: 0.6 },
     },
   },
   embermane: {
-    Hats: {
-      x: 25,    // keeping same position
-      y: 5,     // keeping same position
-      scale: 1.2,
+    baby: {
+      Hats: { x: 25, y: 5, scale: 1.2 },
+      Eyewear: { x: 25, y: 25, scale: 1.1 },
+      Neck: { x: 25, y: 35, scale: 1 },
     },
-    Eyewear: {
-      x: 25,    // increased right offset from 22 to 25
-      y: 25,    // keeping same position
-      scale: 1.1,
+    juvenile: {
+      Hats: { x: 25, y: 7, scale: 0.8 },
+      Eyewear: { x: 22.5, y: 23, scale: 0.8 },
+      Neck: { x: 23.5, y: 35, scale: 0.8 },
     },
-    Neck: {
-      x: 25,    // keeping same position
-      y: 35,    // keeping same position
-      scale: 1,
+    adult: {
+      Hats: { x: 19, y: 5, scale: 0.8 },
+      Eyewear: { x: 16, y: 18, scale: 0.8 },
+      Neck: { x: 18, y: 37, scale: 0.8 },
     },
   },
   crystallisk: {
-    Hats: {
-      x: 25,    // keeping same position
-      y: 5,     // keeping same position
-      scale: 0.9,
+    baby: {
+      Hats: { x: 25, y: 5, scale: 0.9 },
+      Eyewear: { x: 24, y: 22, scale: 1.3 },
+      Neck: { x: 25, y: 35, scale: 1 },
     },
-    Eyewear: {
-      x: 24,    // increased from 23 to 24
-      y: 22,    // keeping same position
-      scale: 1.3,
+    juvenile: {
+      Hats: { x: 22, y: 8, scale: 0.8 },
+      Eyewear: { x: 20, y: 21, scale: 1.2 },
+      Neck: { x: 23, y: 35, scale: 0.8 },
     },
-    Neck: {
-      x: 25,    // keeping same position
-      y: 35,    // keeping same position
-      scale: 1,
+    adult: {
+      Hats: { x: 20, y: 5, scale: 0.6 },
+      Eyewear: { x: 17, y: 14, scale: 0.6 },
+      Neck: { x: 18, y: 27, scale: 0.6 },
     },
   },
   flareep: {
-    Hats: {
-      x: 25,
-      y: 0,
-      scale: 1,
+    baby: {
+      Hats: { x: 25, y: 0, scale: 1 },
+      Eyewear: { x: 21, y: 22, scale: 1 },
+      Neck: { x: 25, y: 35, scale: 1 },
     },
-    Eyewear: {
-      x: 21,
-      y: 22,
-      scale: 1,
+    juvenile: {
+      Hats: { x: 23.5, y: 3, scale: 0.8 },
+      Eyewear: { x: 19.5, y: 21, scale: 0.9 },
+      Neck: { x: 20, y: 34, scale: 0.8 },
     },
-    Neck: {
-      x: 25,
-      y: 35,
-      scale: 1,
+    adult: {
+      Hats: { x: 23, y: 2, scale: 0.8 },
+      Eyewear: { x: 20, y: 20, scale: 0.8 },
+      Neck: { x: 22, y: 33, scale: 0.8 },
     },
   },
   aquabub: {
-    Hats: {
-      x: 28,
-      y: 2,
-      scale: 1,
+    baby: {
+      Hats: { x: 28, y: 2, scale: 1 },
+      Eyewear: { x: 28, y: 18, scale: 1 },
+      Neck: { x: 28, y: 33, scale: 1 },
     },
-    Eyewear: {
-      x: 28,
-      y: 18,
-      scale: 1,
+    juvenile: {
+      Hats: { x: 27, y: 5, scale: 0.7 },
+      Eyewear: { x: 25, y: 15, scale: 0.8 },
+      Neck: { x: 25, y: 27, scale: 0.7 },
     },
-    Neck: {
-      x: 28,
-      y: 33,
-      scale: 1,
+    adult: {
+      Hats: { x: 26, y: 3, scale: 0.6 },
+      Eyewear: { x: 29, y: 11, scale: 0.5 },
+      Neck: { x: 28, y: 23, scale: 0.6 },
+    },
+  },
+  gustling: {
+    baby: {
+      Hats: { x: 24, y: 4, scale: 0.9 },
+      Eyewear: { x: 22, y: 21, scale: 1 },
+      Neck: { x: 22, y: 34, scale: 1 },
+    },
+    juvenile: {
+      Hats: { x: 18, y: 13, scale: 0.7 },
+      Eyewear: { x: 13, y: 24, scale: 0.6 },
+      Neck: { x: 17, y: 34, scale: 0.6 },
+    },
+    adult: {
+      Hats: { x: 15, y: 8, scale: 0.7 },
+      Eyewear: { x: 11, y: 18, scale: 0.5 },
+      Neck: { x: 14, y: 30, scale: 0.7 },
+    },
+  },
+  mossling: {
+    baby: {
+      Hats: { x: 25, y: 8, scale: 1 },
+      Eyewear: { x: 25, y: 27, scale: 1 },
+      Neck: { x: 25, y: 38, scale: 1 },
+    },
+    juvenile: {
+      Hats: { x: 28, y: 2, scale: 1 },
+      Eyewear: { x: 25, y: 20, scale: 1 },
+      Neck: { x: 26.4, y: 35.5, scale: 0.8 },
+    },
+    adult: {
+      Hats: { x: 26, y: 7, scale: 0.6 },
+      Eyewear: { x: 25, y: 17, scale: 0.6 },
+      Neck: { x: 25.6, y: 28, scale: 0.6 },
+    },
+  },
+  thistuff: {
+    baby: {
+      Hats: { x: 27, y: 3, scale: 1 },
+      Eyewear: { x: 25, y: 28, scale: 1.3 },
+      Neck: { x: 25, y: 45, scale: 1 },
+    },
+    juvenile: {
+      Hats: { x: 22, y: 12, scale: 0.8 },
+      Eyewear: { x: 17, y: 30.5, scale: 0.9 },
+      Neck: { x: 18, y: 45, scale: 0.8 },
+    },
+    adult: {
+      Hats: { x: 17, y: 13, scale: 0.7 },
+      Eyewear: { x: 13, y: 23, scale: 0.7 },
+      Neck: { x: 15, y: 37, scale: 0.7 },
+    },
+  },
+  glimmowl: {
+    baby: {
+      Hats: { x: 29, y: 0, scale: 1 },
+      Eyewear: { x: 25, y: 21, scale: 1.3 },
+      Neck: { x: 25, y: 35, scale: 1 },
+    },
+    juvenile: {
+      Hats: { x: 28, y: 5, scale: 0.9 },
+      Eyewear: { x: 27.8, y: 18.5, scale: 0.85 },
+      Neck: { x: 27, y: 29, scale: 0.8 },
+    },
+    adult: {
+      Hats: { x: 29, y: 6, scale: 0.8 },
+      Eyewear: { x: 29, y: 20, scale: 0.8 },
+      Neck: { x: 29, y: 31, scale: 0.8 },
+    },
+  },
+  batbun: {
+    baby: {
+      Hats: { x: 28.25, y: 11, scale: 0.75 },
+      Eyewear: { x: 29.5, y: 25, scale: 0.9 },
+      Neck: { x: 30, y: 35, scale: 0.8 },
+    },
+    juvenile: {
+      Hats: { x: 27, y: 13, scale: 0.7 },
+      Eyewear: { x: 30, y: 24.5, scale: 0.7 },
+      Neck: { x: 30, y: 34, scale: 0.7 },
+    },
+    adult: {
+      Hats: { x: 27, y: 15, scale: 0.6 },
+      Eyewear: { x: 30, y: 24, scale: 0.6 },
+      Neck: { x: 30, y: 32, scale: 0.6 },
     },
   },
 }; 

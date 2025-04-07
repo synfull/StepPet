@@ -46,8 +46,8 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
   }
 
   // Convert growth stage to lowercase for anchor points
-  const stage = growthStage.toLowerCase() as Lowercase<GrowthStage>;
-  const anchors = anchorPoints[stage as 'baby' | 'juvenile' | 'adult'];
+  const stage = growthStage.toLowerCase() as 'baby' | 'juvenile' | 'adult';
+  const anchors = anchorPoints[stage];
 
   console.log('Anchors for stage:', stage, anchors);
 
@@ -89,7 +89,13 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
       return null;
     }
 
-    const offset = offsets[category];
+    const stageOffsets = offsets[stage];
+    if (!stageOffsets) {
+      console.log('No offsets found for stage:', stage);
+      return null;
+    }
+
+    const offset = stageOffsets[category];
     if (!offset) {
       console.log('No offset found for category:', category);
       return null;

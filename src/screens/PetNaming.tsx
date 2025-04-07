@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
-import { DataContext } from '../context/DataContext';
+import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { createNewPet, savePetData, getRandomPetType, PET_COLORS } from '../utils/petUtils';
 import { PetCategory, GrowthStage } from '../types/petTypes';
@@ -32,7 +32,7 @@ const PetNaming: React.FC = () => {
   const [petName, setPetName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const { setPetData, petData } = useContext(DataContext);
+  const { setPetData, petData } = useData();
   const { totalSteps } = useContext(PedometerContext);
   
   // Pet category based on pet type
@@ -149,11 +149,8 @@ const PetNaming: React.FC = () => {
           <PetDisplay
             petType={petType}
             growthStage="Baby"
-            level={1}
-            mainColor={PET_COLORS[petType as keyof typeof PET_COLORS].mainColor}
-            accentColor={PET_COLORS[petType as keyof typeof PET_COLORS].accentColor}
-            hasCustomization={false}
             size="xlarge"
+            showEquippedItems={false}
           />
           <Text style={styles.title}>What would you like to name your pet?</Text>
           <TextInput

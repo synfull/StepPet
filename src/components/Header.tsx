@@ -91,8 +91,8 @@ const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 48,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
@@ -111,12 +111,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   leftContainer: {
-    width: 40,
+    width: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
   backButton: {
-    padding: 4,
+    padding: 8,
+    marginLeft: 4,
   },
   titleContainer: {
     flex: 1,
