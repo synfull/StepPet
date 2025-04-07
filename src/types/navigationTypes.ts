@@ -4,7 +4,7 @@ import { PetType, Milestone } from './petTypes';
 export type RootStackParamList = {
   Main: undefined;
   Home: undefined;
-  Store: undefined;
+  Store: { initialTab?: 'gems' | 'hats' | 'neck' | 'eyewear' };
   StoreHats: undefined;
   StoreNeck: undefined;
   StoreEyewear: undefined;

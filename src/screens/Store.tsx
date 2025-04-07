@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { hatItems } from './StoreHats';
 import { neckItems } from './StoreNeck';
 import { eyewearItems } from './StoreEyewear';
+import { useGems } from '../context/GemContext';
 
 type StoreNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Store'>;
+type StoreRouteProp = RouteProp<RootStackParamList, 'Store'>;
 
 type GemPackage = {
   id: string;
@@ -164,6 +166,23 @@ const ItemsTab = () => {
 };
 
 const GemsTab = () => {
+  const { addGems } = useGems();
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+
+  const handlePurchase = async (pack: GemPackage) => {
+    setIsProcessing(pack.id);
+    try {
+      await addGems(pack.gems + pack.bonus);
+      // In a real app, you would integrate with a payment system here
+      // For now, we'll just add the gems directly
+    } catch (error) {
+      console.error('Purchase failed:', error);
+      // Handle error appropriately
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   return (
     <ScrollView 
       style={styles.scrollView} 
@@ -172,14 +191,58 @@ const GemsTab = () => {
     >
       <Text style={styles.sectionTitle}>Select Gem Package</Text>
       {gemPackages.map((pack) => (
-        <GemPackageCard key={pack.id} pack={pack} />
+        <TouchableOpacity 
+          key={pack.id} 
+          style={styles.gemPackage}
+          onPress={() => handlePurchase(pack)}
+          disabled={isProcessing === pack.id}
+        >
+          <View style={styles.gemInfo}>
+            <View style={styles.leftContent}>
+              <Image source={pack.image} style={styles.gemImage} />
+            </View>
+            <View style={styles.rightContent}>
+              <View style={styles.priceContainer}>
+                <Text style={styles.price}>${pack.price.toFixed(2)}</Text>
+                <Text style={styles.priceLabel}>USD</Text>
+              </View>
+              <View style={styles.gemsContainer}>
+                <Text style={styles.gemsAmount}>{pack.gems}</Text>
+                {pack.bonus > 0 && (
+                  <Text style={styles.gemsBonus}>+{pack.bonus} Bonus</Text>
+                )}
+              </View>
+            </View>
+          </View>
+          {isProcessing === pack.id && (
+            <View style={styles.loadingOverlay}>
+              <Text style={styles.loadingText}>Processing...</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );
 };
 
 const Store = () => {
+  const route = useRoute<StoreRouteProp>();
   const [activeTab, setActiveTab] = useState<'Gems' | 'Items' | 'All'>('Gems');
+
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      switch (route.params.initialTab) {
+        case 'gems':
+          setActiveTab('Gems');
+          break;
+        case 'hats':
+        case 'neck':
+        case 'eyewear':
+          setActiveTab('Items');
+          break;
+      }
+    }
+  }, [route.params?.initialTab]);
 
   return (
     <View style={styles.container}>
@@ -503,6 +566,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     fontSize: 12,
     color: '#8C52FF',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8C52FF',
+    fontWeight: 'bold',
   },
 });
 

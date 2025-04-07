@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { PedometerContext } from '@context/PedometerContext';
 import { DataContext } from '@context/DataContext';
+import { GemProvider } from '@context/GemContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
 import { View, ActivityIndicator, Text, Platform } from 'react-native';
@@ -181,11 +182,13 @@ export default function App() {
         <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
           <PedometerContext.Provider value={pedometerValue}>
             <DataContext.Provider value={dataValue}>
-              {isOnboardingComplete ? (
-                <MainNavigator />
-              ) : (
-                <Onboarding completeOnboarding={completeOnboarding} />
-              )}
+              <GemProvider>
+                {isOnboardingComplete ? (
+                  <MainNavigator />
+                ) : (
+                  <Onboarding completeOnboarding={completeOnboarding} />
+                )}
+              </GemProvider>
             </DataContext.Provider>
           </PedometerContext.Provider>
         </SafeAreaView>
