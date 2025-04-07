@@ -81,6 +81,7 @@ const Home: React.FC = () => {
                     growthStage: petData.growthStage,
                   };
                   setPetData(preservedPet);
+                  setTotalSteps(preservedPet.totalSteps);
                   if (leveledUp) {
                     navigation.navigate('PetLevelUp', {
                       level: preservedPet.level,
@@ -92,15 +93,16 @@ const Home: React.FC = () => {
                 // Just update XP without level up, preserving type and growth stage
                 const updatedPet: PetData = {
                   ...petData,
-                  xp: newXP
+                  xp: newXP,
+                  totalSteps: petData.totalSteps + (newXP - petData.xp)
                 };
                 setPetData(updatedPet);
+                setTotalSteps(updatedPet.totalSteps);
                 // Save the updated pet
                 savePetData(updatedPet);
               }
             }
           }
-          setTotalSteps(petData.totalSteps);
         }
       }, petCreationTime);
       
