@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 type GemPackage = {
@@ -7,6 +7,7 @@ type GemPackage = {
   price: number;
   gems: number;
   bonus: number;
+  image: any;
 };
 
 const gemPackages: GemPackage[] = [
@@ -15,47 +16,64 @@ const gemPackages: GemPackage[] = [
     price: 1.99,
     gems: 100,
     bonus: 0,
+    image: require('../../assets/images/store/gems/gems_100.png'),
   },
   {
     id: 'basic',
     price: 4.99,
     gems: 300,
     bonus: 50,
+    image: require('../../assets/images/store/gems/gems_350.png'),
   },
   {
     id: 'popular',
     price: 9.99,
     gems: 650,
     bonus: 150,
+    image: require('../../assets/images/store/gems/gems_800.png'),
   },
   {
     id: 'value',
     price: 19.99,
     gems: 1300,
     bonus: 400,
+    image: require('../../assets/images/store/gems/gems_1700.png'),
   },
   {
     id: 'premium',
     price: 49.99,
     gems: 3300,
     bonus: 1200,
+    image: require('../../assets/images/store/gems/gems_4500.png'),
   },
 ];
 
 const GemPackageCard: React.FC<{ pack: GemPackage }> = ({ pack }) => (
   <TouchableOpacity style={styles.gemPackage}>
     <View style={styles.gemInfo}>
-      <View style={styles.priceContainer}>
-        <Text style={styles.price}>${pack.price.toFixed(2)}</Text>
-        <Text style={styles.priceLabel}>USD</Text>
+      <View style={styles.leftContent}>
+        <Image source={pack.image} style={styles.gemImage} />
       </View>
-      <View style={styles.gemsContainer}>
-        <Text style={styles.gemsAmount}>{pack.gems}</Text>
-        {pack.bonus > 0 && (
-          <Text style={styles.gemsBonus}>+{pack.bonus} Bonus</Text>
-        )}
+      <View style={styles.rightContent}>
+        <View style={styles.priceContainer}>
+          <Text style={styles.price}>${pack.price.toFixed(2)}</Text>
+          <Text style={styles.priceLabel}>USD</Text>
+        </View>
+        <View style={styles.gemsContainer}>
+          <Text style={styles.gemsAmount}>{pack.gems}</Text>
+          {pack.bonus > 0 && (
+            <Text style={styles.gemsBonus}>+{pack.bonus} Bonus</Text>
+          )}
+        </View>
       </View>
     </View>
+  </TouchableOpacity>
+);
+
+const ItemCategory: React.FC<{ title: string; onPress: () => void }> = ({ title, onPress }) => (
+  <TouchableOpacity style={styles.itemCategory} onPress={onPress}>
+    <Text style={styles.categoryTitle}>{title}</Text>
+    <Text style={styles.comingSoonLabel}>Coming Soon!</Text>
   </TouchableOpacity>
 );
 
@@ -76,12 +94,17 @@ const GemsTab = () => {
 
 const ItemsTab = () => {
   return (
-    <View style={styles.screen}>
-      <Text style={styles.comingSoonText}>Items Coming Soon!</Text>
-      <Text style={styles.subText}>
-        Browse and purchase items to customize your pets.
-      </Text>
-    </View>
+    <ScrollView 
+      style={styles.scrollView} 
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={styles.sectionTitle}>Shop by Category</Text>
+      <ItemCategory title="Body" onPress={() => {}} />
+      <ItemCategory title="Eyewear" onPress={() => {}} />
+      <ItemCategory title="Hats" onPress={() => {}} />
+      <ItemCategory title="Neck" onPress={() => {}} />
+    </ScrollView>
   );
 };
 
@@ -209,13 +232,23 @@ const styles = StyleSheet.create({
   },
   gemInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  leftContent: {
+    marginRight: 16,
+  },
+  rightContent: {
+    flex: 1,
+  },
+  gemImage: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    marginBottom: 4,
   },
   price: {
     fontFamily: 'Montserrat-Bold',
@@ -229,7 +262,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   gemsContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
   gemsAmount: {
     fontFamily: 'Montserrat-Bold',
@@ -252,6 +285,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
+  },
+  itemCategory: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#333333',
+    marginBottom: 4,
+  },
+  comingSoonLabel: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#666666',
   },
 });
 
