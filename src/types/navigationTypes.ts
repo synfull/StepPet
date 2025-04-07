@@ -22,6 +22,7 @@ export type RootStackParamList = {
   Milestones: undefined;
   Friends: undefined;
   Challenge: undefined;
+  Inventory: undefined;
 };
 
 export type TabParamList = {
@@ -30,4 +31,5 @@ export type TabParamList = {
   Friends: undefined;
   Challenge: undefined;
   Store: undefined;
+  Inventory: undefined;
 }; 

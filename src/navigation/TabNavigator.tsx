@@ -8,6 +8,7 @@ import Milestones from '../screens/Milestones';
 import Friends from '../screens/Friends';
 import Challenge from '../screens/Challenge';
 import Store from '../screens/Store';
+import Inventory from '../screens/Inventory';
 import { TabParamList } from '../types/navigationTypes';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -41,6 +42,8 @@ const TabNavigator = () => {
             iconName = focused ? 'flag' : 'flag-outline';
           } else if (route.name === 'Store') {
             iconName = focused ? 'cart' : 'cart-outline';
+          } else if (route.name === 'Inventory') {
+            iconName = focused ? 'bag' : 'bag-outline';
           }
 
           return (
@@ -84,6 +87,13 @@ const TabNavigator = () => {
         component={Store} 
         options={{
           tabBarLabel: 'Store',
+        }}
+      />
+      <Tab.Screen 
+        name="Inventory" 
+        component={Inventory} 
+        options={{
+          tabBarLabel: 'Inventory',
         }}
       />
     </Tab.Navigator>
