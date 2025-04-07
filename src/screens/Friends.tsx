@@ -278,7 +278,7 @@ const Friends: React.FC = () => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <StatusBar style="dark" />
       <Header 
         title="Friends"
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   leaderboardHeader: {
-    paddingVertical: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
     marginBottom: 8,
@@ -357,19 +357,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     fontSize: 18,
     color: '#333333',
+    marginBottom: 2,
   },
   leaderboardSubtitle: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
     color: '#666666',
-    marginTop: 2,
   },
   timePeriodSelector: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   timePeriodButton: {
     flex: 1,
