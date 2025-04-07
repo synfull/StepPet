@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import Home from '../screens/Home';
@@ -24,6 +24,7 @@ const TabNavigator = () => {
   const [isPurchaseModalVisible, setIsPurchaseModalVisible] = useState(false);
   const { gemBalance } = useGems();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute();
   
   const handleGemPress = () => {
     navigation.navigate('Store', { initialTab: 'gems' });
@@ -112,7 +113,7 @@ const TabNavigator = () => {
         />
       </Tab.Navigator>
 
-      <View style={[styles.gemContainer, { top: insets.top }]}>
+      <View style={styles.gemContainer}>
         <TouchableOpacity 
           style={styles.gemButton}
           onPress={handleGemPress}
@@ -154,7 +155,8 @@ const styles = StyleSheet.create({
   },
   gemContainer: {
     position: 'absolute',
-    right: 16,
+    right: 48,
+    top: 8,
     zIndex: 1000,
   },
   gemButton: {
