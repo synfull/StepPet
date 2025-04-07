@@ -24,7 +24,7 @@ import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
 import EvolutionChain from '../components/EvolutionChain';
-import { PET_TYPES } from '../utils/petUtils';
+import { PET_TYPES, PET_CATEGORIES } from '../utils/petUtils';
 import { PetType, GrowthStage } from '../types/petTypes';
 
 type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
@@ -212,6 +212,21 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           <Text style={styles.petType}>
             {PET_TYPES[petData.type].name}
           </Text>
+          <View style={styles.categoryContainer}>
+            <Ionicons 
+              name={
+                petData.category === 'forest' ? 'leaf' :
+                petData.category === 'mythic' ? 'star' :
+                petData.category === 'elemental' ? 'flame' :
+                'moon'  // for shadow category
+              } 
+              size={16} 
+              color="#8C52FF" 
+            />
+            <Text style={styles.categoryText}>
+              {PET_CATEGORIES[petData.category].name}
+            </Text>
+          </View>
         </View>
         
         {/* Evolution Chain */}
@@ -317,6 +332,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 18,
     color: '#666666',
+    marginBottom: 4,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3EDFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  categoryText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#8C52FF',
+    marginLeft: 6,
   },
   petInfo: {
     fontFamily: 'Montserrat-SemiBold',
