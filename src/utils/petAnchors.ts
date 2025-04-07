@@ -1,6 +1,6 @@
 import { PET_TYPES } from './petUtils';
 
-export type PetType = 'terrabun' | 'aetherfin' | 'drimkin';
+export type PetType = 'terrabun' | 'aetherfin' | 'drimkin' | 'wispurr' | 'noctuff' | 'twiggle';
 export type GrowthStage = 'baby' | 'juvenile' | 'adult';
 
 export type AnchorPoint = {
@@ -78,6 +78,165 @@ export const PET_ANCHOR_POINTS: PetAnchorPoints = {
       },
     },
   },
+  wispurr: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 10,  // starting point for baby Wispurr's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 30,  // position for baby Wispurr's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 45,  // position for baby Wispurr's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 15,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 35,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 50,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+  },
+  noctuff: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 15,  // initial position for baby Noctuff's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 35,  // initial position for baby Noctuff's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 50,  // initial position for baby Noctuff's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
+  twiggle: {
+    baby: {
+      head: {
+        x: 50,  // centered
+        y: 15,  // initial position for baby Twiggle's head
+        scale: 1.1, // slightly larger for baby's proportions
+      },
+      eyes: {
+        x: 50,  // centered
+        y: 35,  // initial position for baby Twiggle's face
+        scale: 0.9, // slightly smaller for baby's face
+      },
+      neck: {
+        x: 50,  // centered
+        y: 50,  // initial position for baby Twiggle's neck
+        scale: 0.9, // slightly smaller for baby
+      },
+    },
+    juvenile: {
+      head: {
+        x: 50,
+        y: 20,
+        scale: 1.05,
+      },
+      eyes: {
+        x: 50,
+        y: 40,
+        scale: 0.95,
+      },
+      neck: {
+        x: 50,
+        y: 55,
+        scale: 1,
+      },
+    },
+    adult: {
+      head: {
+        x: 50,
+        y: 25,
+        scale: 1,
+      },
+      eyes: {
+        x: 50,
+        y: 45,
+        scale: 1,
+      },
+      neck: {
+        x: 50,
+        y: 60,
+        scale: 1,
+      },
+    },
+  },
   // Add other pet types with their stages...
 };
 
@@ -111,6 +270,23 @@ export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
       scale: 1,
     },
   },
+  wispurr: {
+    Hats: {
+      x: 5,    // Keeping current right offset
+      y: -35,  // Keeping current upward offset
+      scale: 1,
+    },
+    Eyewear: {
+      x: -2,   // Keeping current horizontal position
+      y: -15,  // Keeping current vertical position
+      scale: 1.8,  // Keeping current scale
+    },
+    Neck: {
+      x: 3,    // Added slight right offset
+      y: 3,    // Added slight downward offset
+      scale: 1,
+    },
+  },
   terrabun: {
     Hats: {
       x: 0,
@@ -132,5 +308,39 @@ export const PET_OFFSETS: Record<PetType, CategoryOffsets> = {
     Hats: { x: 0, y: 0, scale: 1 },
     Eyewear: { x: 0, y: 0, scale: 1 },
     Neck: { x: 0, y: 0, scale: 1 },
+  },
+  noctuff: {
+    Hats: {
+      x: 5,     // Added right offset
+      y: -15,   // Increased upward offset from -5 to -15
+      scale: 1,
+    },
+    Eyewear: {
+      x: 3,     // Keeping current horizontal position
+      y: 3,     // Decreased downward offset from 5 to 3
+      scale: 1.4, // Keeping current scale
+    },
+    Neck: {
+      x: 3,    // Keeping current right offset
+      y: 15,   // Keeping current downward offset
+      scale: 1,
+    },
+  },
+  twiggle: {
+    Hats: {
+      x: 0,
+      y: -25,  // Keeping current upward offset
+      scale: 1,
+    },
+    Eyewear: {
+      x: -5,    // Keeping current left offset
+      y: -8,    // Increased upward offset from -5 to -8
+      scale: 1.6, // Keeping current scale
+    },
+    Neck: {
+      x: 0,
+      y: 15,   // Keeping current downward offset
+      scale: 1,
+    },
   },
 }; 
