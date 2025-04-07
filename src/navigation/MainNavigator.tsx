@@ -9,6 +9,10 @@ import QRCode from '../screens/QRCode';
 import Settings from '../screens/Settings';
 import PetDetails from '../screens/PetDetails';
 import Share from '../screens/Share';
+import Store from '../screens/Store';
+import StoreHats from '../screens/StoreHats';
+import StoreNeck from '../screens/StoreNeck';
+import StoreEyewear from '../screens/StoreEyewear';
 import MilestoneUnlocked from '../screens/MilestoneUnlocked';
 import AboutApp from '../screens/AboutApp';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -95,6 +99,38 @@ const MainNavigator = () => {
         options={{
           presentation: 'transparentModal',
           animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="Store" 
+        component={Store}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreHats" 
+        component={StoreHats}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreNeck" 
+        component={StoreNeck}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="StoreEyewear" 
+        component={StoreEyewear}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
         }}
       />
       <Stack.Screen 

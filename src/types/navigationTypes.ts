@@ -2,22 +2,26 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { PetType, Milestone } from './petTypes';
 
 export type RootStackParamList = {
+  Main: undefined;
   Home: undefined;
-  PetDetails: { petId: string; showSpecialAnimation?: boolean };
-  PetHatching: { petType: PetType };
+  Store: undefined;
+  StoreHats: undefined;
+  StoreNeck: undefined;
+  StoreEyewear: undefined;
   PetNaming: { petType: PetType };
-  PetSelection: undefined;
+  PetHatching: { petType: PetType };
   PetLevelUp: { level: number; petType: PetType };
-  MilestoneUnlocked: { milestone: Milestone };
-  Milestones: undefined;
-  Friends: undefined;
   AddFriend: undefined;
-  Challenge: undefined;
-  Share: undefined;
   QRCode: undefined;
   Settings: undefined;
+  PetDetails: { petId: string; showSpecialAnimation?: boolean };
+  Share: undefined;
+  MilestoneUnlocked: { milestone: Milestone };
   AboutApp: undefined;
-  Onboarding: undefined;
+  PetSelection: undefined;
+  Milestones: undefined;
+  Friends: undefined;
+  Challenge: undefined;
 };
 
 export type TabParamList = {
@@ -25,4 +29,5 @@ export type TabParamList = {
   Milestones: undefined;
   Friends: undefined;
   Challenge: undefined;
+  Store: undefined;
 }; 
