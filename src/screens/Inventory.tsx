@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useInventory } from '../context/InventoryContext';
+import { useInventory, ItemCategory } from '../context/InventoryContext';
 import { hatItems, StoreItem } from './StoreHats';
 import { eyewearItems } from './StoreEyewear';
 import { neckItems } from './StoreNeck';
 
-type Category = 'Hats' | 'Eyewear' | 'Neck';
+type Category = ItemCategory;
 
 interface InventoryItem extends StoreItem {
   category: Category;
@@ -19,11 +19,12 @@ const CATEGORIES: Category[] = ['Hats', 'Eyewear', 'Neck'];
 const InventoryItemCard: React.FC<{ 
   item: InventoryItem;
   onPress: () => void;
-}> = ({ item, onPress }) => (
+  isEquipped: boolean;
+}> = ({ item, onPress, isEquipped }) => (
   <TouchableOpacity style={styles.itemCard} onPress={onPress}>
     <View style={styles.itemImageContainer}>
       <Image source={item.image} style={styles.itemImage} />
-      {item.isEquipped && (
+      {isEquipped && (
         <View style={styles.equippedBadge}>
           <Text style={styles.equippedText}>Equipped</Text>
         </View>
@@ -38,12 +39,14 @@ const InventoryItemCard: React.FC<{
 const Inventory = () => {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<Category>('Hats');
-  const { ownedItems, isLoading } = useInventory();
-  const [equippedItems, setEquippedItems] = useState<Record<Category, string | null>>({
-    Hats: null,
-    Eyewear: null,
-    Neck: null,
-  });
+  const { 
+    ownedItems, 
+    isLoading, 
+    equippedItems, 
+    equipItem, 
+    unequipItem,
+    isItemEquipped 
+  } = useInventory();
 
   // Combine all store items
   const allStoreItems = {
@@ -60,15 +63,16 @@ const Inventory = () => {
       .map(item => ({
         ...item,
         category,
-        isEquipped: equippedItems[category] === item.id,
       }));
   };
 
-  const handleEquipItem = (item: InventoryItem) => {
-    setEquippedItems(prev => ({
-      ...prev,
-      [item.category]: prev[item.category] === item.id ? null : item.id,
-    }));
+  const handleEquipItem = async (item: InventoryItem) => {
+    const isCurrentlyEquipped = isItemEquipped(item.id);
+    if (isCurrentlyEquipped) {
+      await unequipItem(item.category);
+    } else {
+      await equipItem(item.id, item.category);
+    }
   };
 
   const filteredItems = getOwnedItemsForCategory(selectedCategory);
@@ -85,7 +89,7 @@ const Inventory = () => {
       <View style={styles.equippedSection}>
         <Text style={styles.sectionTitle}>Currently Equipped</Text>
         <View style={styles.equippedItems}>
-          {Object.entries(equippedItems).some(([_, itemId]) => itemId !== null) ? (
+          {Object.values(equippedItems).some(itemId => itemId !== undefined) ? (
             <View style={styles.equippedGrid}>
               {Object.entries(equippedItems).map(([category, itemId]) => {
                 if (!itemId) return null;
@@ -151,6 +155,7 @@ const Inventory = () => {
                 key={item.id} 
                 item={item}
                 onPress={() => handleEquipItem(item)}
+                isEquipped={isItemEquipped(item.id)}
               />
             ))}
           </View>

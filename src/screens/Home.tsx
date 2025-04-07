@@ -730,6 +730,7 @@ const Home: React.FC = () => {
                 accentColor={petData.appearance.accentColor}
                 hasCustomization={petData.appearance.hasCustomization}
                 size="xlarge"
+                showEquippedItems={true}
               />
             </TouchableOpacity>
           </Animated.View>
