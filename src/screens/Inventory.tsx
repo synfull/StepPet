@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GemBalance } from '../components/GemBalance';
+import { useInventory } from '../context/InventoryContext';
+import { hatItems, StoreItem } from './StoreHats';
+import { eyewearItems } from './StoreEyewear';
+import { neckItems } from './StoreNeck';
 
-type Category = 'Hats' | 'Eyewear' | 'Body' | 'Neck';
+type Category = 'Hats' | 'Eyewear' | 'Neck';
 
-type InventoryItem = {
-  id: string;
-  name: string;
+interface InventoryItem extends StoreItem {
   category: Category;
-  image: any;
   isEquipped?: boolean;
-};
+}
 
-const CATEGORIES: Category[] = ['Hats', 'Eyewear', 'Body', 'Neck'];
+const CATEGORIES: Category[] = ['Hats', 'Eyewear', 'Neck'];
 
-const InventoryItemCard: React.FC<{ item: InventoryItem }> = ({ item }) => (
-  <TouchableOpacity style={styles.itemCard}>
+const InventoryItemCard: React.FC<{ 
+  item: InventoryItem;
+  onPress: () => void;
+}> = ({ item, onPress }) => (
+  <TouchableOpacity style={styles.itemCard} onPress={onPress}>
     <View style={styles.itemImageContainer}>
       <Image source={item.image} style={styles.itemImage} />
       {item.isEquipped && (
@@ -35,11 +38,40 @@ const InventoryItemCard: React.FC<{ item: InventoryItem }> = ({ item }) => (
 const Inventory = () => {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<Category>('Hats');
-  
-  // Temporary data structure - will be replaced with context
-  const inventoryItems: InventoryItem[] = [];
+  const { ownedItems, isLoading } = useInventory();
+  const [equippedItems, setEquippedItems] = useState<Record<Category, string | null>>({
+    Hats: null,
+    Eyewear: null,
+    Neck: null,
+  });
 
-  const filteredItems = inventoryItems.filter(item => item.category === selectedCategory);
+  // Combine all store items
+  const allStoreItems = {
+    Hats: hatItems,
+    Eyewear: eyewearItems,
+    Neck: neckItems,
+  };
+
+  // Filter owned items for the selected category
+  const getOwnedItemsForCategory = (category: Category) => {
+    const categoryItems = allStoreItems[category];
+    return categoryItems
+      .filter(item => ownedItems.includes(item.id))
+      .map(item => ({
+        ...item,
+        category,
+        isEquipped: equippedItems[category] === item.id,
+      }));
+  };
+
+  const handleEquipItem = (item: InventoryItem) => {
+    setEquippedItems(prev => ({
+      ...prev,
+      [item.category]: prev[item.category] === item.id ? null : item.id,
+    }));
+  };
+
+  const filteredItems = getOwnedItemsForCategory(selectedCategory);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -53,38 +85,54 @@ const Inventory = () => {
       <View style={styles.equippedSection}>
         <Text style={styles.sectionTitle}>Currently Equipped</Text>
         <View style={styles.equippedItems}>
-          {/* This will be populated with equipped items */}
-          <Text style={styles.emptyStateText}>No items equipped</Text>
+          {Object.entries(equippedItems).some(([_, itemId]) => itemId !== null) ? (
+            <View style={styles.equippedGrid}>
+              {Object.entries(equippedItems).map(([category, itemId]) => {
+                if (!itemId) return null;
+                const item = allStoreItems[category as Category].find((i: StoreItem) => i.id === itemId);
+                if (!item) return null;
+                return (
+                  <View key={itemId} style={styles.equippedItem}>
+                    <Image source={item.image} style={styles.equippedItemImage} />
+                    <Text style={styles.equippedItemText}>{item.name}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.emptyStateText}>No items equipped</Text>
+          )}
         </View>
       </View>
 
       {/* Category Tabs */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryTabs}
-        contentContainerStyle={styles.categoryTabsContent}
-      >
-        {CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryTab,
-              selectedCategory === category && styles.categoryTabActive
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text 
+      <View style={styles.categoryTabsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryTabsContent}
+        >
+          {CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category}
               style={[
-                styles.categoryTabText,
-                selectedCategory === category && styles.categoryTabTextActive
+                styles.categoryTab,
+                selectedCategory === category && styles.categoryTabActive
               ]}
+              onPress={() => setSelectedCategory(category)}
             >
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text 
+                style={[
+                  styles.categoryTabText,
+                  selectedCategory === category && styles.categoryTabTextActive
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Items Grid */}
       <ScrollView 
@@ -92,10 +140,18 @@ const Inventory = () => {
         contentContainerStyle={styles.gridContent}
         showsVerticalScrollIndicator={false}
       >
-        {filteredItems.length > 0 ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>Loading...</Text>
+          </View>
+        ) : filteredItems.length > 0 ? (
           <View style={styles.grid}>
             {filteredItems.map((item) => (
-              <InventoryItemCard key={item.id} item={item} />
+              <InventoryItemCard 
+                key={item.id} 
+                item={item}
+                onPress={() => handleEquipItem(item)}
+              />
             ))}
           </View>
         ) : (
@@ -127,6 +183,7 @@ const styles = StyleSheet.create({
   },
   equippedSection: {
     padding: 16,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E0E0E0',
   },
@@ -134,14 +191,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     fontSize: 18,
     color: '#333333',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   equippedItems: {
-    minHeight: 80,
+    minHeight: 60,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  categoryTabs: {
+  equippedGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  equippedItem: {
+    alignItems: 'center',
+    width: 80,
+  },
+  equippedItemImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+  equippedItemText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  categoryTabsContainer: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E0E0E0',
   },
@@ -167,7 +244,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   gridContent: {
     padding: 16,
@@ -222,7 +298,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 16,
   },
   emptyStateText: {
     fontFamily: 'Montserrat-Medium',
