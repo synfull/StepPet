@@ -174,14 +174,20 @@ export const createNewPet = async (currentSteps: number, type?: PetType | '', ca
     totalSteps: 0,
     startingStepCount: currentSteps,
     appearance: type ? {
-      ...PET_COLORS[type as PetType],
+      ...PET_COLORS[type as keyof typeof PET_COLORS],
       hasCustomization: false,
-      customizationApplied: false
+      customizationApplied: false,
+      hasEliteBadge: false,
+      hasAnimatedBackground: false,
+      backgroundTheme: '#FFFFFF'
     } : {
       mainColor: '#8C8C8C',
       accentColor: '#E0E0E0',
       hasCustomization: false,
-      customizationApplied: false
+      customizationApplied: false,
+      hasEliteBadge: false,
+      hasAnimatedBackground: false,
+      backgroundTheme: '#FFFFFF'
     },
     miniGames: {
       feed: {
@@ -288,4 +294,13 @@ export const updatePetWithSteps = async (
   await savePetData(updatedPet);
   
   return { updatedPet, leveledUp, milestoneReached };
+};
+
+const getPetCategory = (type: PetType): string => {
+  for (const [category, types] of Object.entries(PET_CATEGORIES)) {
+    if (types.includes(type)) {
+      return category;
+    }
+  }
+  return '';
 }; 

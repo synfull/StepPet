@@ -225,9 +225,15 @@ const Milestones: React.FC = () => {
         );
         break;
       case 'badge':
+        updatedPet.appearance.hasEliteBadge = true;
+        updatedPet.appearance.hasAnimatedBackground = true;
+        // Set a default animated background theme if none is set
+        if (!updatedPet.appearance.backgroundTheme) {
+          updatedPet.appearance.backgroundTheme = 'rgba(90, 200, 250, 0.2)';
+        }
         Alert.alert(
           'Milestone Reward',
-          'You earned the "Step Champion" badge and an animated background!',
+          'You earned the "Elite Badge" and an animated background!',
           [{ text: 'Amazing!' }]
         );
         break;

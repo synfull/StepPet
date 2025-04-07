@@ -316,7 +316,15 @@ const Home: React.FC = () => {
         );
       }
     } else {
-      navigation.navigate('PetDetails');
+      // Check if 200-step milestone is claimed
+      const has200StepMilestone = petData?.milestones.some(m => m.id === '200_steps' && m.claimed);
+      if (has200StepMilestone) {
+        // Trigger special animation
+        navigation.navigate('PetDetails', { showSpecialAnimation: true });
+      } else {
+        // Regular navigation without special animation
+        navigation.navigate('PetDetails');
+      }
     }
   };
   
@@ -723,6 +731,9 @@ const Home: React.FC = () => {
             <Text style={styles.petName}>{petData.name}</Text>
             <Text style={styles.petType}>
               Level {petData.level} {petData.growthStage === 'Egg' ? 'Egg' : petData.type}
+              {petData.appearance.hasEliteBadge && (
+                <Ionicons name="shield-checkmark" size={20} color="#8C52FF" style={styles.badgeIcon} />
+              )}
             </Text>
             <View style={styles.progressContainer}>
               <ProgressBar
@@ -731,7 +742,7 @@ const Home: React.FC = () => {
                 fillColor="#8C52FF"
                 backgroundColor="#E0E0E0"
                 borderRadius={6}
-                animated
+                animated={petData.appearance.hasAnimatedBackground}
                 showLabel
                 labelStyle="outside"
                 labelFormat="fraction"
@@ -969,6 +980,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-SemiBold',
     textAlign: 'center',
+  },
+  badgeIcon: {
+    marginLeft: 4,
   },
 });
 

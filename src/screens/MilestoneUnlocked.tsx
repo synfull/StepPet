@@ -17,6 +17,7 @@ import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { DataContext } from '../context/DataContext';
 import Button from '../components/Button';
+import PetDisplay from '../components/PetDisplay';
 
 type MilestoneUnlockedProps = NativeStackScreenProps<RootStackParamList, 'MilestoneUnlocked'>;
 type MilestoneUnlockedNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -28,6 +29,7 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
   const navigation = useNavigation<MilestoneUnlockedNavigationProp>();
   const { petData } = useContext(DataContext);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [showSpecialAnimation, setShowSpecialAnimation] = useState(false);
   
   // Find the milestone
   const milestone = petData?.milestones.find(m => m.id === milestoneId);
@@ -47,6 +49,11 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
     
     // Start animations
     startAnimations();
+    
+    // Trigger special animation for 200-step milestone
+    if (milestoneId === '200_steps') {
+      setShowSpecialAnimation(true);
+    }
     
     return () => {
       // Clean up sound
@@ -96,70 +103,17 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
     ]).start();
   };
   
-  const handleContinue = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Navigate to the Share screen if the user wants to share
-    navigation.navigate('Share', {
-      type: 'milestone',
-      data: {
-        milestoneId,
-        steps: milestone?.steps,
-        reward: milestone?.reward,
-        rewardDetails: milestone?.rewardDetails,
-      },
-    });
-  };
-  
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('Main');
+    navigation.navigate('Main', { screen: 'Home' });
   };
   
-  // Get milestone icon
-  const getMilestoneIcon = () => {
-    if (!milestone) return 'trophy-outline';
-    
-    switch (milestone.reward) {
-      case 'xp':
-        return 'flash-outline';
-      case 'appearance':
-        return 'color-palette-outline';
-      case 'background':
-        return 'image-outline';
-      case 'animation':
-        return 'sparkles-outline';
-      case 'badge':
-        return 'shield-checkmark-outline';
-      default:
-        return 'trophy-outline';
-    }
-  };
-  
-  // Determine milestone color
-  const getMilestoneColor = () => {
-    if (!milestone) return '#8C52FF';
-    
-    switch (milestone.reward) {
-      case 'xp':
-        return '#FF9500';
-      case 'appearance':
-        return '#FF2D55';
-      case 'background':
-        return '#34C759';
-      case 'animation':
-        return '#5856D6';
-      case 'badge':
-        return '#FF9500';
-      default:
-        return '#8C52FF';
-    }
-  };
-  
-  const milestoneColor = getMilestoneColor();
+  if (!petData) {
+    return null;
+  }
   
   return (
-    <View style={[styles.container, { backgroundColor: milestoneColor }]}>
+    <View style={styles.container}>
       <StatusBar style="light" />
       
       {/* Stars animation */}
@@ -196,16 +150,25 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
         
         <Animated.View
           style={[
-            styles.iconContainer,
+            styles.petContainer,
             {
               transform: [
                 { scale: scaleAnim },
               ],
-              backgroundColor: milestoneColor,
             },
           ]}
         >
-          <Ionicons name={getMilestoneIcon() as any} size={80} color="#FFFFFF" />
+          <PetDisplay
+            petType={petData.type}
+            growthStage={petData.growthStage}
+            level={petData.level}
+            mainColor={petData.appearance.mainColor}
+            accentColor={petData.appearance.accentColor}
+            hasCustomization={petData.appearance.hasCustomization}
+            size="xlarge"
+            interactive={false}
+            specialAnimation={showSpecialAnimation}
+          />
         </Animated.View>
         
         <Animated.View
@@ -218,60 +181,18 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
           <Text style={styles.milestoneText}>
             {milestone?.steps.toLocaleString()} Steps Reached
           </Text>
-          
-          <View style={styles.rewardContainer}>
-            <Text style={styles.rewardTitle}>Your Reward:</Text>
-            <Text style={[styles.rewardText, { color: milestoneColor }]}>
-              {milestone?.rewardDetails}
-            </Text>
-            
-            <View style={styles.rewardDescription}>
-              {milestone?.reward === 'xp' && (
-                <Text style={styles.descriptionText}>
-                  You've earned a significant XP boost to help level up your pet faster!
-                </Text>
-              )}
-              
-              {milestone?.reward === 'appearance' && (
-                <Text style={styles.descriptionText}>
-                  Your pet now has a special appearance upgrade! Check it out in the Pet Details.
-                </Text>
-              )}
-              
-              {milestone?.reward === 'background' && (
-                <Text style={styles.descriptionText}>
-                  You've unlocked a special themed background for your pet's home!
-                </Text>
-              )}
-              
-              {milestone?.reward === 'animation' && (
-                <Text style={styles.descriptionText}>
-                  Your pet can now perform a unique animation! Try tapping on your pet.
-                </Text>
-              )}
-              
-              {milestone?.reward === 'badge' && (
-                <Text style={styles.descriptionText}>
-                  You've earned an elite badge and animated background for your exceptional walking achievements!
-                </Text>
-              )}
-            </View>
-          </View>
+          <Text style={styles.descriptionText}>
+            {milestone?.reward === 'animation' ? 
+              "Your pet can now perform a special animation! Try tapping on your pet." :
+              "Congratulations on reaching this milestone!"}
+          </Text>
           
           <Button
-            title="Share Your Achievement"
-            onPress={handleContinue}
-            size="large"
-            style={styles.button}
-            icon={<Ionicons name="share-social-outline" size={20} color="#FFFFFF" />}
-          />
-          
-          <TouchableOpacity
+            title="Continue"
             onPress={handleSkip}
-            style={styles.continueButton}
-          >
-            <Text style={styles.continueText}>Continue without sharing</Text>
-          </TouchableOpacity>
+            type="primary"
+            size="large"
+          />
         </Animated.View>
       </Animated.View>
     </View>
@@ -309,7 +230,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
   },
-  iconContainer: {
+  petContainer: {
     width: 150,
     height: 150,
     borderRadius: 75,
@@ -347,47 +268,12 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 24,
   },
-  rewardContainer: {
-    width: '100%',
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  rewardTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-    color: '#333333',
-    marginBottom: 8,
-  },
-  rewardText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 22,
-    marginBottom: 16,
-  },
-  rewardDescription: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 16,
-    width: '100%',
-  },
   descriptionText: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 15,
     color: '#333333',
     textAlign: 'center',
     lineHeight: 22,
-  },
-  button: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  continueButton: {
-    padding: 10,
-  },
-  continueText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#666666',
-    textDecorationLine: 'underline',
   },
 });
 

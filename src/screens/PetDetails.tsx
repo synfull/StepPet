@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import LottieView from 'lottie-react-native';
+import { RootStackParamList } from '../types/navigationTypes';
 import { DataContext } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { formatSimpleDate } from '../utils/dateUtils';
@@ -19,12 +23,28 @@ import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
 
-const PetDetails: React.FC = () => {
-  const navigation = useNavigation();
+type PetDetailsProps = NativeStackScreenProps<RootStackParamList, 'PetDetails'>;
+type PetDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PetDetails'>;
+type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
+
+const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
+  const { showSpecialAnimation } = route.params || {};
+  const navigation = useNavigation<PetDetailsNavigationProp>();
   const { petData, setPetData } = useContext(DataContext);
   const { dailySteps, weeklySteps, totalSteps } = useContext(PedometerContext);
   const [isEditing, setIsEditing] = useState(false);
   const [petName, setPetName] = useState(petData?.name || '');
+  const [showSpecialAnim, setShowSpecialAnim] = useState(showSpecialAnimation || false);
+  
+  // Reset special animation after it plays
+  useEffect(() => {
+    if (showSpecialAnim) {
+      const timer = setTimeout(() => {
+        setShowSpecialAnim(false);
+      }, 2000); // Animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [showSpecialAnim]);
   
   if (!petData) {
     return (
@@ -99,22 +119,46 @@ const PetDetails: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <Header
-        title="Pet Details"
-        showBackButton
-        rightComponent={
-          <TouchableOpacity onPress={toggleEditMode} style={styles.editButton}>
+      
+      {petData.appearance.hasAnimatedBackground && (
+        <View style={styles.sparklesContainer}>
+          <LottieView
+            source={require('../../assets/animations/stars.json')}
+            autoPlay
+            loop
+            style={styles.sparkles}
+            speed={0.5}
+          />
+        </View>
+      )}
+      
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={24} color="#000000" />
+          </TouchableOpacity>
+          
+          <Text style={styles.title}>Pet Details</Text>
+          
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={toggleEditMode}
+          >
             <Ionicons 
-              name={isEditing ? 'close-outline' : 'pencil-outline'} 
+              name={isEditing ? "close" : "create-outline"} 
               size={24} 
-              color="#8C52FF" 
+              color="#000000" 
             />
           </TouchableOpacity>
-        }
-      />
-      
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.petSection}>
+        </View>
+        
+        <View style={styles.petContainer}>
           <PetDisplay
             petType={petData.type}
             growthStage={petData.growthStage}
@@ -123,56 +167,57 @@ const PetDetails: React.FC = () => {
             accentColor={petData.appearance.accentColor}
             hasCustomization={petData.appearance.hasCustomization}
             size="xlarge"
+            specialAnimation={showSpecialAnim}
           />
-          
-          {/* Pet Name (editable or static) */}
-          {isEditing ? (
-            <View style={styles.editNameContainer}>
-              <TouchableOpacity 
-                style={styles.nameInput}
-                onPress={() => {
-                  Alert.prompt(
-                    'Update Pet Name',
-                    'Enter a new name for your pet:',
-                    [
-                      {
-                        text: 'Cancel',
-                        onPress: () => {},
-                        style: 'cancel',
-                      },
-                      {
-                        text: 'Update',
-                        onPress: (newName) => {
-                          if (newName) {
-                            setPetName(newName);
-                            handleUpdateName();
-                          }
-                        },
-                      },
-                    ],
-                    'plain-text',
-                    petName,
-                  );
-                }}
-              >
-                <Text style={styles.nameInputText}>{petName}</Text>
-                <Ionicons name="pencil" size={16} color="#8C52FF" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleUpdateName}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <Text style={styles.petName}>{petData.name}</Text>
-          )}
-          
-          <Text style={styles.petInfo}>
-            Level {petData.level} {petData.type} • {petData.growthStage}
-          </Text>
         </View>
+        
+        {/* Pet Name (editable or static) */}
+        {isEditing ? (
+          <View style={styles.editNameContainer}>
+            <TouchableOpacity 
+              style={styles.nameInput}
+              onPress={() => {
+                Alert.prompt(
+                  'Update Pet Name',
+                  'Enter a new name for your pet:',
+                  [
+                    {
+                      text: 'Cancel',
+                      onPress: () => {},
+                      style: 'cancel',
+                    },
+                    {
+                      text: 'Update',
+                      onPress: (newName) => {
+                        if (newName) {
+                          setPetName(newName);
+                          handleUpdateName();
+                        }
+                      },
+                    },
+                  ],
+                  'plain-text',
+                  petName,
+                );
+              }}
+            >
+              <Text style={styles.nameInputText}>{petName}</Text>
+              <Ionicons name="pencil" size={16} color="#8C52FF" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={handleUpdateName}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.petName}>{petData.name}</Text>
+        )}
+        
+        <Text style={styles.petInfo}>
+          Level {petData.level} {petData.type} • {petData.growthStage}
+        </Text>
         
         {/* Progress Section */}
         <View style={styles.section}>
@@ -275,6 +320,26 @@ const PetDetails: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
+          
+          {petData.appearance.hasEliteBadge && (
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Elite Badge</Text>
+              <Text style={styles.infoValue}>Unlocked</Text>
+              <View style={styles.badgeContainer}>
+                <Ionicons name="shield-checkmark" size={24} color="#8C52FF" />
+              </View>
+            </View>
+          )}
+          
+          {petData.appearance.hasAnimatedBackground && (
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Animated Background</Text>
+              <Text style={styles.infoValue}>Enabled</Text>
+              <View style={styles.backgroundContainer}>
+                <Ionicons name="sparkles" size={24} color="#8C52FF" />
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -286,11 +351,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#333333',
+    marginLeft: 16,
+  },
   content: {
     padding: 20,
     paddingBottom: 40,
   },
-  petSection: {
+  petContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -459,6 +538,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
+  },
+  badgeContainer: {
+    backgroundColor: '#FFD700',
+    borderRadius: 12,
+    padding: 4,
+  },
+  backgroundContainer: {
+    backgroundColor: '#8C52FF',
+    borderRadius: 12,
+    padding: 4,
+  },
+  sparklesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+    opacity: 0.3,
+  },
+  sparkles: {
+    width: '100%',
+    height: '100%',
   },
 });
 

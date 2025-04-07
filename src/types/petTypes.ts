@@ -19,6 +19,8 @@ export interface PetAppearance {
   hasCustomization: boolean;
   customizationApplied: boolean;
   backgroundTheme: string;
+  hasEliteBadge: boolean;
+  hasAnimatedBackground: boolean;
 }
 
 export interface MiniGameStatus {

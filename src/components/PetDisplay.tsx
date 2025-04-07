@@ -22,6 +22,7 @@ interface PetDisplayProps {
   animationSpeed?: number;
   size?: 'small' | 'medium' | 'large' | 'xlarge';
   interactive?: boolean;
+  specialAnimation?: boolean;
 }
 
 const PetDisplay: React.FC<PetDisplayProps> = ({
@@ -36,10 +37,12 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
   animationSpeed = 1,
   size = 'large',
   interactive = true,
+  specialAnimation = false,
 }) => {
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const specialAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (growthStage === 'Egg') {
@@ -48,6 +51,12 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
       startPetAnimations();
     }
   }, [growthStage, animationSpeed]);
+
+  useEffect(() => {
+    if (specialAnimation) {
+      startSpecialAnimation();
+    }
+  }, [specialAnimation]);
 
   const startEggAnimations = () => {
     // For the egg, we do a gentle bounce animation
@@ -85,16 +94,71 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
     ).start();
   };
 
+  const startSpecialAnimation = () => {
+    // Reset any ongoing animations
+    bounceAnim.stopAnimation();
+    rotateAnim.stopAnimation();
+    scaleAnim.stopAnimation();
+    
+    // Start special animation sequence - more dramatic
+    Animated.sequence([
+      // Bounce up higher
+      Animated.timing(bounceAnim, {
+        toValue: -30,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Rotate and scale more dramatically
+      Animated.parallel([
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1.3,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Bounce down and reset
+      Animated.parallel([
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      // Restart regular animations
+      if (growthStage === 'Egg') {
+        startEggAnimations();
+      } else {
+        startPetAnimations();
+      }
+    });
+  };
+
   const handlePress = () => {
     if (!interactive) return;
     
     // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Animation on press
+    // Regular tap animation - more subtle
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 1.2,
+        toValue: 1.1,
         duration: 100,
         useNativeDriver: true,
       }),
@@ -105,9 +169,9 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
       }),
     ]).start();
     
-    // Random rotation on press
+    // Random rotation on press - more subtle
     Animated.timing(rotateAnim, {
-      toValue: Math.random() > 0.5 ? 0.05 : -0.05,
+      toValue: Math.random() > 0.5 ? 0.02 : -0.02,
       duration: 100,
       useNativeDriver: true,
     }).start(() => {
