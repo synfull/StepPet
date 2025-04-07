@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { PedometerContext } from '@context/PedometerContext';
 import { DataContext } from '@context/DataContext';
 import { GemProvider } from '@context/GemContext';
+import { InventoryProvider } from '@context/InventoryContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
 import { View, ActivityIndicator, Text, Platform } from 'react-native';
@@ -183,11 +184,13 @@ export default function App() {
           <PedometerContext.Provider value={pedometerValue}>
             <DataContext.Provider value={dataValue}>
               <GemProvider>
-                {isOnboardingComplete ? (
-                  <MainNavigator />
-                ) : (
-                  <Onboarding completeOnboarding={completeOnboarding} />
-                )}
+                <InventoryProvider>
+                  {isOnboardingComplete ? (
+                    <MainNavigator />
+                  ) : (
+                    <Onboarding completeOnboarding={completeOnboarding} />
+                  )}
+                </InventoryProvider>
               </GemProvider>
             </DataContext.Provider>
           </PedometerContext.Provider>

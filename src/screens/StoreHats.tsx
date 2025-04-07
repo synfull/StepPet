@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { StoreItemCard } from '../components/StoreItemCard';
 
-type StoreItem = {
+export type StoreItem = {
   id: string;
   name: string;
   price: number;
@@ -40,18 +41,6 @@ export const hatItems: StoreItem[] = [
     description: 'A mystical hat imbued with magical properties',
   },
 ];
-
-const StoreItemCard: React.FC<{ item: StoreItem }> = ({ item }) => (
-  <TouchableOpacity style={styles.itemCard}>
-    <View style={styles.itemImageContainer}>
-      {item.image && <Image source={item.image} style={styles.itemImage} />}
-    </View>
-    <View style={styles.itemInfo}>
-      <Text style={styles.itemName}>{item.name}</Text>
-      <Text style={styles.itemPrice}>{item.price} Gems</Text>
-    </View>
-  </TouchableOpacity>
-);
 
 const StoreHats = () => {
   return (
@@ -99,45 +88,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
-  itemCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: '48%',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  itemImageContainer: {
-    aspectRatio: 1,
-    backgroundColor: '#F8F8F8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemImage: {
-    width: '80%',
-    height: '80%',
-    resizeMode: 'contain',
-  },
-  itemInfo: {
-    padding: 12,
-  },
-  itemName: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#333333',
-    marginBottom: 4,
-  },
-  itemPrice: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#8C52FF',
   },
 });
 
