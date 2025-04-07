@@ -15,18 +15,37 @@ import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { RootStackParamList } from '../types/navigationTypes';
 import { PetType } from '../types/petTypes';
+import { PET_TYPES } from '../utils/petUtils';
 import Button from '../components/Button';
 
 // Pet baby images mapping
-const PET_BABY_IMAGES: { [key in Exclude<PetType, ''>]: ImageSourcePropType } = {
-  Dragon: require('../../assets/images/pets/dragon_baby.png'),
-  Wolf: require('../../assets/images/pets/wolf_baby.png'),
-  Eagle: require('../../assets/images/pets/eagle_baby.png'),
-  Unicorn: require('../../assets/images/pets/unicorn_baby.png'),
-  WaterTurtle: require('../../assets/images/pets/waterturtle_baby.png'),
-  FireLizard: require('../../assets/images/pets/firelizard_baby.png'),
-  RobotDog: require('../../assets/images/pets/robotdog_baby.png'),
-  ClockworkBunny: require('../../assets/images/pets/clockworkbunny_baby.png'),
+const PET_BABY_IMAGES: { [key in PetType]: ImageSourcePropType } = {
+  // Empty string case (for egg)
+  '': require('../../assets/images/egg.png'),
+  
+  // Mythic Beasts
+  lunacorn: require('../../assets/images/pets/mythic/lunacorn_baby.png'),
+  embermane: require('../../assets/images/pets/mythic/embermane_baby.png'),
+  aetherfin: require('../../assets/images/pets/mythic/aetherfin_baby.png'),
+  crystallisk: require('../../assets/images/pets/mythic/crystallisk_baby.png'),
+  
+  // Elemental Critters
+  flareep: require('../../assets/images/pets/elemental/flareep_baby.png'),
+  aquabub: require('../../assets/images/pets/elemental/aquabub_baby.png'),
+  terrabun: require('../../assets/images/pets/elemental/terrabun_baby.png'),
+  gustling: require('../../assets/images/pets/elemental/gustling_baby.png'),
+  
+  // Forest Folk
+  mossling: require('../../assets/images/pets/forest/mossling_baby.png'),
+  twiggle: require('../../assets/images/pets/forest/twiggle_baby.png'),
+  thistuff: require('../../assets/images/pets/forest/thistuff_baby.png'),
+  glimmowl: require('../../assets/images/pets/forest/glimmowl_baby.png'),
+  
+  // Shadow Whims
+  wispurr: require('../../assets/images/pets/shadow/wispurr_baby.png'),
+  batbun: require('../../assets/images/pets/shadow/batbun_baby.png'),
+  noctuff: require('../../assets/images/pets/shadow/noctuff_baby.png'),
+  drimkin: require('../../assets/images/pets/shadow/drimkin_baby.png'),
 };
 
 type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -109,12 +128,12 @@ const PetHatching: React.FC = () => {
         return (
           <>
             <Image
-              source={petType && petType in PET_BABY_IMAGES ? PET_BABY_IMAGES[petType as keyof typeof PET_BABY_IMAGES] : require('../../assets/images/egg.png')}
+              source={PET_BABY_IMAGES[petType]}
               style={styles.petImage}
               resizeMode="contain"
             />
             <Text style={styles.text}>
-              It's a {petType === '' ? 'Mystery Pet' : petType.replace(/([A-Z])/g, ' $1').trim()}!
+              It's a {petType === '' ? 'Mystery Pet' : PET_TYPES[petType].name}!
             </Text>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: '#8C52FF', padding: 16, borderRadius: 30 }]}

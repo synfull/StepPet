@@ -36,15 +36,17 @@ const PetNaming: React.FC = () => {
   const { totalSteps } = useContext(PedometerContext);
   
   // Pet category based on pet type
-  const getPetCategory = () => {
-    if (['Dragon', 'Unicorn'].includes(petType)) {
-      return 'Fantasy';
-    } else if (['Wolf', 'Eagle'].includes(petType)) {
-      return 'Animals';
-    } else if (['FireLizard', 'WaterTurtle'].includes(petType)) {
-      return 'Elemental';
+  const getPetCategory = (): PetCategory => {
+    if (['lunacorn', 'embermane', 'aetherfin', 'crystallisk'].includes(petType)) {
+      return 'mythic';
+    } else if (['flareep', 'aquabub', 'terrabun', 'gustling'].includes(petType)) {
+      return 'elemental';
+    } else if (['mossling', 'twiggle', 'thistuff', 'glimmowl'].includes(petType)) {
+      return 'forest';
+    } else if (['wispurr', 'batbun', 'noctuff', 'drimkin'].includes(petType)) {
+      return 'shadow';
     } else {
-      return 'Quirky';
+      return 'mythic'; // Default to mythic if type is not recognized
     }
   };
 
@@ -71,12 +73,15 @@ const PetNaming: React.FC = () => {
         ...petData,
         name: petName.trim(),
         type: petType,
-        category: getPetCategory() as PetCategory,
+        category: getPetCategory(),
         growthStage: 'Baby' as GrowthStage,
         appearance: {
           ...PET_COLORS[petType as keyof typeof PET_COLORS],
           hasCustomization: false,
-          customizationApplied: false
+          customizationApplied: false,
+          backgroundTheme: '#FFFFFF',
+          hasEliteBadge: false,
+          hasAnimatedBackground: false
         }
       };
       
@@ -97,31 +102,32 @@ const PetNaming: React.FC = () => {
     }
   };
 
+  // Name suggestions based on pet category
   const generateRandomName = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Different name sets based on pet type
-    const fantasyNames = ['Luna', 'Nova', 'Zephyr', 'Ember', 'Frost', 'Nimbus', 'Orion', 'Aurora', 'Storm'];
-    const animalNames = ['Shadow', 'Echo', 'Sierra', 'Blaze', 'Scout', 'Ranger', 'Sky', 'Rusty', 'Rocky'];
+    const mythicNames = ['Luna', 'Nova', 'Zephyr', 'Ember', 'Frost', 'Nimbus', 'Orion', 'Aurora', 'Storm'];
     const elementalNames = ['Pyro', 'Aqua', 'Terra', 'Aero', 'Bolt', 'Flare', 'Tide', 'Spark', 'Crystal'];
-    const quirkyNames = ['Gizmo', 'Sprocket', 'Widget', 'Cog', 'Bolt', 'Tinker', 'Pixel', 'Glitch', 'Gadget'];
+    const forestNames = ['Moss', 'Twig', 'Leaf', 'Bloom', 'Fern', 'Petal', 'Root', 'Seed', 'Sprout'];
+    const shadowNames = ['Noct', 'Wisp', 'Shade', 'Dusk', 'Gloom', 'Mist', 'Veil', 'Echo', 'Rune'];
     
-    let nameOptions: string[] = [];
+    let nameOptions: string[];
+    
     switch (getPetCategory()) {
-      case 'Fantasy':
-        nameOptions = fantasyNames;
+      case 'mythic':
+        nameOptions = mythicNames;
         break;
-      case 'Animals':
-        nameOptions = animalNames;
-        break;
-      case 'Elemental':
+      case 'elemental':
         nameOptions = elementalNames;
         break;
-      case 'Quirky':
-        nameOptions = quirkyNames;
+      case 'forest':
+        nameOptions = forestNames;
+        break;
+      case 'shadow':
+        nameOptions = shadowNames;
         break;
       default:
-        nameOptions = [...fantasyNames, ...animalNames, ...elementalNames, ...quirkyNames];
+        nameOptions = [...mythicNames, ...elementalNames, ...forestNames, ...shadowNames];
     }
     
     const randomName = nameOptions[Math.floor(Math.random() * nameOptions.length)];

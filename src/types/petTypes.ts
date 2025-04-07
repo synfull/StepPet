@@ -1,15 +1,9 @@
-export type PetCategory = 'Fantasy' | 'Animals' | 'Elemental' | 'Quirky' | '';
+export type PetCategory = 'mythic' | 'elemental' | 'forest' | 'shadow';
 
-export type PetType = 
-  | 'Dragon' 
-  | 'Unicorn' 
-  | 'Wolf' 
-  | 'Eagle' 
-  | 'FireLizard' 
-  | 'WaterTurtle' 
-  | 'RobotDog' 
-  | 'ClockworkBunny'
-  | '';
+export type PetType = '' | 'lunacorn' | 'embermane' | 'aetherfin' | 'crystallisk' |
+  'flareep' | 'aquabub' | 'terrabun' | 'gustling' |
+  'mossling' | 'twiggle' | 'thistuff' | 'glimmowl' |
+  'wispurr' | 'batbun' | 'noctuff' | 'drimkin';
 
 export type GrowthStage = 'Egg' | 'Baby' | 'Juvenile' | 'Adult';
 

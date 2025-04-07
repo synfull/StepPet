@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
 import { Friend } from '../types/petTypes';
 import { formatRelativeTime } from '../utils/dateUtils';
+import { PET_ICONS } from '../utils/petUtils';
 import Header from '../components/Header';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DataContext } from '../context/DataContext';
@@ -32,7 +33,7 @@ const SAMPLE_FRIENDS: Friend[] = [
     id: 'f1',
     username: 'walker123',
     petName: 'Blaze',
-    petType: 'Dragon',
+    petType: 'lunacorn',
     petLevel: 3,
     weeklySteps: 42500,
     monthlySteps: 168000,
@@ -44,7 +45,7 @@ const SAMPLE_FRIENDS: Friend[] = [
     id: 'f2',
     username: 'stepmaster',
     petName: 'Luna',
-    petType: 'Unicorn',
+    petType: 'embermane',
     petLevel: 4,
     weeklySteps: 38700,
     monthlySteps: 155000,
@@ -56,7 +57,7 @@ const SAMPLE_FRIENDS: Friend[] = [
     id: 'f3',
     username: 'fitnessbuddy',
     petName: 'Shadow',
-    petType: 'Wolf',
+    petType: 'wispurr',
     petLevel: 3,
     weeklySteps: 35200,
     monthlySteps: 142000,
@@ -68,7 +69,7 @@ const SAMPLE_FRIENDS: Friend[] = [
     id: 'f4',
     username: 'strollerpro',
     petName: 'Sparky',
-    petType: 'FireLizard',
+    petType: 'flareep',
     petLevel: 2,
     weeklySteps: 28100,
     monthlySteps: 112000,
@@ -79,7 +80,7 @@ const SAMPLE_FRIENDS: Friend[] = [
     id: 'f5',
     username: 'hikerhero',
     petName: 'Aqua',
-    petType: 'WaterTurtle',
+    petType: 'aquabub',
     petLevel: 2,
     weeklySteps: 24800,
     monthlySteps: 98000,
@@ -116,17 +117,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeri
 
   // Pet image based on type
   const getPetImage = () => {
-    switch (friend.petType) {
-      case 'Dragon':
-        return require('../../assets/images/pets/dragon_icon.png');
-      case 'Unicorn':
-        return require('../../assets/images/pets/unicorn_icon.png');
-      case 'Wolf':
-        return require('../../assets/images/pets/wolf_icon.png');
-      // Add other pet types here
-      default:
-        return require('../../assets/images/pets/default_icon.png');
-    }
+    return PET_ICONS[friend.petType];
   };
 
   return (

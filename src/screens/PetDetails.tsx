@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Animated,
+  TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -22,19 +23,25 @@ import { savePetData } from '../utils/petUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
+import { PET_TYPES } from '../utils/petUtils';
 
 type PetDetailsProps = NativeStackScreenProps<RootStackParamList, 'PetDetails'>;
 type PetDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PetDetails'>;
 type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
 
+interface PetDetailsRouteParams {
+  petId: string;
+  showSpecialAnimation?: boolean;
+}
+
 const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
-  const { showSpecialAnimation } = route.params || {};
   const navigation = useNavigation<PetDetailsNavigationProp>();
   const { petData, setPetData } = useContext(DataContext);
   const { dailySteps, weeklySteps, totalSteps } = useContext(PedometerContext);
   const [isEditing, setIsEditing] = useState(false);
   const [petName, setPetName] = useState(petData?.name || '');
-  const [showSpecialAnim, setShowSpecialAnim] = useState(showSpecialAnimation || false);
+  const [showSpecialAnim, setShowSpecialAnim] = useState(route.params?.showSpecialAnimation || false);
+  const [editedName, setEditedName] = useState(petData?.name || '');
   
   // Reset special animation after it plays
   useEffect(() => {
@@ -63,7 +70,7 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   
   // Handle pet name update
   const handleUpdateName = async () => {
-    if (!petName.trim()) {
+    if (!editedName.trim()) {
       Alert.alert('Error', 'Pet name cannot be empty');
       return;
     }
@@ -71,7 +78,7 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
-      const updatedPet = { ...petData, name: petName.trim() };
+      const updatedPet = { ...petData, name: editedName.trim() };
       await savePetData(updatedPet);
       setPetData(updatedPet);
       setIsEditing(false);
@@ -88,7 +95,7 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     if (isEditing) {
-      setPetName(petData.name); // Reset to original name
+      setEditedName(petData.name); // Reset to original name
     }
     
     setIsEditing(!isEditing);
@@ -171,52 +178,28 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           />
         </View>
         
-        {/* Pet Name (editable or static) */}
-        {isEditing ? (
-          <View style={styles.editNameContainer}>
-            <TouchableOpacity 
-              style={styles.nameInput}
-              onPress={() => {
-                Alert.prompt(
-                  'Update Pet Name',
-                  'Enter a new name for your pet:',
-                  [
-                    {
-                      text: 'Cancel',
-                      onPress: () => {},
-                      style: 'cancel',
-                    },
-                    {
-                      text: 'Update',
-                      onPress: (newName) => {
-                        if (newName) {
-                          setPetName(newName);
-                          handleUpdateName();
-                        }
-                      },
-                    },
-                  ],
-                  'plain-text',
-                  petName,
-                );
-              }}
-            >
-              <Text style={styles.nameInputText}>{petName}</Text>
-              <Ionicons name="pencil" size={16} color="#8C52FF" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.saveButton}
-              onPress={handleUpdateName}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <Text style={styles.petName}>{petData.name}</Text>
-        )}
+        <View style={styles.petInfoContainer}>
+          <Text style={styles.petName}>
+            {isEditing ? (
+              <TextInput
+                style={styles.petNameInput}
+                value={editedName}
+                onChangeText={setEditedName}
+                maxLength={20}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            ) : (
+              petData.name
+            )}
+          </Text>
+          <Text style={styles.petType}>
+            Level {petData.level} {PET_TYPES[petData.type].name}
+          </Text>
+        </View>
         
         <Text style={styles.petInfo}>
-          Level {petData.level} {petData.type} • {petData.growthStage}
+          {petData.growthStage}
         </Text>
         
         {/* Progress Section */}
@@ -288,12 +271,12 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Type</Text>
-            <Text style={styles.infoValue}>{petData.type}</Text>
+            <Text style={styles.infoValue}>{PET_TYPES[petData.type].name}</Text>
           </View>
           
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Category</Text>
-            <Text style={styles.infoValue}>{petData.category}</Text>
+            <Text style={styles.infoValue}>{PET_TYPES[petData.type].category.charAt(0).toUpperCase() + PET_TYPES[petData.type].category.slice(1)}</Text>
           </View>
           
           <View style={styles.infoItem}>
@@ -373,12 +356,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  petInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   petName: {
     fontFamily: 'Caprasimo-Regular',
     fontSize: 28,
     color: '#333333',
     marginTop: 16,
     marginBottom: 4,
+  },
+  petType: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#666666',
   },
   petInfo: {
     fontFamily: 'Montserrat-SemiBold',
@@ -495,37 +488,11 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
   },
-  editNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  nameInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3EDFF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-  },
-  nameInputText: {
+  petNameInput: {
+    flex: 1,
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
     color: '#333333',
-    marginRight: 8,
-  },
-  saveButton: {
-    backgroundColor: '#8C52FF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  saveButtonText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
-    color: '#FFFFFF',
   },
   emptyContainer: {
     flex: 1,

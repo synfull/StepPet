@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { DataContext } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
-import { updatePetWithSteps, createNewPet, savePetData } from '../utils/petUtils';
+import { updatePetWithSteps, createNewPet, savePetData, PET_TYPES } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
 import { isSameDay } from '../utils/dateUtils';
 import PetDisplay from '../components/PetDisplay';
@@ -208,9 +208,12 @@ const Home: React.FC = () => {
           }
           
           if (milestoneReached) {
-            navigation.navigate('MilestoneUnlocked', { 
-              milestoneId: milestoneReached 
-            });
+            const milestone = updatedPet.milestones.find(m => m.id === milestoneReached);
+            if (milestone) {
+              navigation.navigate('MilestoneUnlocked', { 
+                milestone: milestone 
+              });
+            }
           }
         }
       }
@@ -318,12 +321,17 @@ const Home: React.FC = () => {
     } else {
       // Check if 200-step milestone is claimed
       const has200StepMilestone = petData?.milestones.some(m => m.id === '200_steps' && m.claimed);
-      if (has200StepMilestone) {
+      if (has200StepMilestone && petData) {
         // Trigger special animation
-        navigation.navigate('PetDetails', { showSpecialAnimation: true });
-      } else {
+        navigation.navigate('PetDetails', { 
+          petId: petData.id,
+          showSpecialAnimation: true 
+        });
+      } else if (petData) {
         // Regular navigation without special animation
-        navigation.navigate('PetDetails');
+        navigation.navigate('PetDetails', { 
+          petId: petData.id 
+        });
       }
     }
   };
@@ -730,7 +738,7 @@ const Home: React.FC = () => {
           <View style={styles.petInfo}>
             <Text style={styles.petName}>{petData.name}</Text>
             <Text style={styles.petType}>
-              Level {petData.level} {petData.growthStage === 'Egg' ? 'Egg' : petData.type}
+              Level {petData.level} {petData.growthStage === 'Egg' ? 'Egg' : PET_TYPES[petData.type].name}
               {petData.appearance.hasEliteBadge && (
                 <Ionicons name="shield-checkmark" size={20} color="#8C52FF" style={styles.badgeIcon} />
               )}
