@@ -58,6 +58,7 @@ const PetHatching: React.FC = () => {
   const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
   const [hatchingSound, setHatchingSound] = useState<Audio.Sound>();
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const [shakeIntensity, setShakeIntensity] = useState(1);
 
   // Load hatching sound
   useEffect(() => {
@@ -78,6 +79,7 @@ const PetHatching: React.FC = () => {
   // Start hatching automatically
   useEffect(() => {
     startHatchingAnimation();
+    startShakeAnimation();
   }, []);
 
   // Play hatching sound
@@ -93,14 +95,43 @@ const PetHatching: React.FC = () => {
     }
   };
 
+  const startShakeAnimation = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, {
+        toValue: -0.3 * shakeIntensity,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0.3 * shakeIntensity,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      if (animationState === 'cracking') {
+        setTimeout(startShakeAnimation, 1000);
+      }
+    });
+  };
+
   const startHatchingAnimation = async () => {
     // Play hatching sound
     await playHatchingSound();
 
-    // Start cracking animation
+    // Gradually increase shake intensity
+    setTimeout(() => setShakeIntensity(1.2), 2000); // At 2 seconds
+    setTimeout(() => setShakeIntensity(1.5), 4000); // At 4 seconds
+    setTimeout(() => setShakeIntensity(1.8), 6000); // At 6 seconds
+
+    // Complete hatching after 7 seconds
     setTimeout(() => {
       setAnimationState('hatched');
-    }, 3000);
+    }, 7000);
   };
 
   const handleContinue = () => {
@@ -116,9 +147,21 @@ const PetHatching: React.FC = () => {
       case 'cracking':
         return (
           <>
-            <Image
+            <Animated.Image
               source={require('../../assets/images/egg.png')}
-              style={styles.eggImage}
+              style={[
+                styles.eggImage,
+                {
+                  transform: [
+                    { 
+                      rotate: shakeAnim.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: [`${-25 * shakeIntensity}deg`, `${25 * shakeIntensity}deg`]
+                      })
+                    }
+                  ],
+                },
+              ]}
               resizeMode="contain"
             />
             <Text style={styles.text}>Your egg is hatching!</Text>
