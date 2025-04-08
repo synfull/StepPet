@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,6 +31,9 @@ type StoreItem = {
 type CategorizedItem = StoreItem & {
   category: string;
 };
+
+// Mock purchase states
+type PurchaseState = 'idle' | 'confirming' | 'processing' | 'success' | 'failed';
 
 const gemPackages: GemPackage[] = [
   {
@@ -167,20 +170,82 @@ const ItemsTab = () => {
 
 const GemsTab = () => {
   const { addGems } = useGems();
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [purchaseState, setPurchaseState] = useState<PurchaseState>('idle');
+  const [selectedPackage, setSelectedPackage] = useState<GemPackage | null>(null);
 
-  const handlePurchase = async (pack: GemPackage) => {
-    setIsProcessing(pack.id);
+  const handlePurchaseAttempt = (pack: GemPackage) => {
+    setSelectedPackage(pack);
+    Alert.alert(
+      'Confirm Purchase',
+      `Would you like to purchase ${pack.gems + pack.bonus} gems for $${pack.price.toFixed(2)}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setSelectedPackage(null);
+            setPurchaseState('idle');
+          },
+        },
+        {
+          text: 'Purchase',
+          onPress: () => processPurchase(pack),
+        },
+      ]
+    );
+  };
+
+  const processPurchase = async (pack: GemPackage) => {
+    setPurchaseState('processing');
+    
     try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock purchase success (this will be replaced with real StoreKit logic)
       await addGems(pack.gems + pack.bonus);
-      // In a real app, you would integrate with a payment system here
-      // For now, we'll just add the gems directly
+      setPurchaseState('success');
+      
+      Alert.alert(
+        'Purchase Successful!',
+        `${pack.gems + pack.bonus} gems have been added to your account.`,
+        [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
+      );
     } catch (error) {
       console.error('Purchase failed:', error);
-      // Handle error appropriately
+      setPurchaseState('failed');
+      
+      Alert.alert(
+        'Purchase Failed',
+        'There was an error processing your purchase. Please try again.',
+        [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
+      );
     } finally {
-      setIsProcessing(null);
+      setSelectedPackage(null);
     }
+  };
+
+  const renderPurchaseButton = (pack: GemPackage) => {
+    const isProcessing = purchaseState === 'processing' && selectedPackage?.id === pack.id;
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.purchaseButton,
+          isProcessing && styles.purchaseButtonDisabled
+        ]}
+        onPress={() => handlePurchaseAttempt(pack)}
+        disabled={purchaseState !== 'idle'}
+      >
+        {isProcessing ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.purchaseButtonText}>
+            Purchase
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -189,14 +254,15 @@ const GemsTab = () => {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
+      <View style={styles.devWarning}>
+        <Text style={styles.devWarningText}>
+          Development Mode: Purchases are simulated and gems are added instantly.
+        </Text>
+      </View>
+      
       <Text style={styles.sectionTitle}>Select Gem Package</Text>
       {gemPackages.map((pack) => (
-        <TouchableOpacity 
-          key={pack.id} 
-          style={styles.gemPackage}
-          onPress={() => handlePurchase(pack)}
-          disabled={isProcessing === pack.id}
-        >
+        <View key={pack.id} style={styles.gemPackage}>
           <View style={styles.gemInfo}>
             <View style={styles.leftContent}>
               <Image source={pack.image} style={styles.gemImage} />
@@ -214,12 +280,8 @@ const GemsTab = () => {
               </View>
             </View>
           </View>
-          {isProcessing === pack.id && (
-            <View style={styles.loadingOverlay}>
-              <Text style={styles.loadingText}>Processing...</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          {renderPurchaseButton(pack)}
+        </View>
       ))}
     </ScrollView>
   );
@@ -582,6 +644,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8C52FF',
     fontWeight: 'bold',
+  },
+  purchaseButton: {
+    backgroundColor: '#8C52FF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  purchaseButtonDisabled: {
+    backgroundColor: '#B8B8B8',
+  },
+  purchaseButtonText: {
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
+  },
+  devWarning: {
+    backgroundColor: '#FFF3CD',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE69C',
+  },
+  devWarningText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
   },
 });
 
