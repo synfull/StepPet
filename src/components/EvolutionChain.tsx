@@ -14,6 +14,7 @@ interface EvolutionChainProps {
 interface StageDisplayProps {
   petType: PetType;
   stage: GrowthStage;
+  currentStage: GrowthStage;
   isCurrentStage: boolean;
   label: string;
 }
@@ -21,6 +22,7 @@ interface StageDisplayProps {
 const StageDisplay: React.FC<StageDisplayProps> = ({
   petType,
   stage,
+  currentStage,
   isCurrentStage,
   label,
 }) => {
@@ -37,8 +39,12 @@ const StageDisplay: React.FC<StageDisplayProps> = ({
     
     // Only blur if this is a future stage
     if (stage === 'Egg' || !evolutionOrder[stage]) return false;
-    const currentStageOrder = evolutionOrder[isCurrentStage ? stage : 'Adult'];
+    
+    // Get the order of the current stage from props
+    const currentStageOrder = evolutionOrder[currentStage as Exclude<GrowthStage, 'Egg'>];
     const thisStageOrder = evolutionOrder[stage];
+    
+    // Blur if this stage comes after the current stage
     return thisStageOrder > currentStageOrder;
   };
 
@@ -86,6 +92,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Baby"
+              currentStage={currentStage}
               isCurrentStage={true}
               label="Baby"
             />
@@ -93,6 +100,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Juvenile"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Juvenile"
             />
@@ -100,6 +108,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Adult"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Adult"
             />
@@ -111,6 +120,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Baby"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Baby"
             />
@@ -118,6 +128,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Juvenile"
+              currentStage={currentStage}
               isCurrentStage={true}
               label="Juvenile"
             />
@@ -125,6 +136,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Adult"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Adult"
             />
@@ -136,6 +148,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Baby"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Baby"
             />
@@ -143,6 +156,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Juvenile"
+              currentStage={currentStage}
               isCurrentStage={false}
               label="Juvenile"
             />
@@ -150,6 +164,7 @@ const EvolutionChain: React.FC<EvolutionChainProps> = ({
             <StageDisplay
               petType={petType}
               stage="Adult"
+              currentStage={currentStage}
               isCurrentStage={true}
               label="Adult"
             />
