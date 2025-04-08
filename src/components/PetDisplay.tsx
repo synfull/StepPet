@@ -36,16 +36,11 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
     }
   };
 
-  // Skip empty pet type
-  if (!petType) {
-    return null;
-  }
-
   // Normalize growth stage to match PET_ICONS keys
   const normalizedGrowthStage = growthStage.charAt(0).toUpperCase() + growthStage.slice(1).toLowerCase() as GrowthStage;
 
   // Get the image source safely
-  const petImages = PET_ICONS[petType];
+  const petImages = PET_ICONS[petType] || PET_ICONS[''];
   if (!petImages || !petImages[normalizedGrowthStage]) {
     console.error('Could not find image for pet:', petType, normalizedGrowthStage);
     return null;

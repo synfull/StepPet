@@ -20,6 +20,9 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { Milestone, PetData } from '../types/petTypes';
 import { savePetData } from '../utils/petUtils';
 import ProgressBar from '../components/ProgressBar';
+import { getRandomMilestoneAccessory } from '../utils/petUtils';
+import { useInventory } from '../context/InventoryContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;
 
@@ -140,6 +143,7 @@ const Milestones: React.FC = () => {
   const navigation = useNavigation<MilestonesNavigationProp>();
   const { petData, setPetData } = useData();
   const pedometerContext = useContext(PedometerContext);
+  const { purchaseItem } = useInventory();
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#34C759');
@@ -215,9 +219,19 @@ const Milestones: React.FC = () => {
         break;
       case 'appearance':
         updatedPet.appearance.hasCustomization = true;
+        // Get random accessory
+        const { category, accessory } = getRandomMilestoneAccessory();
+        // Initialize equippedItems if it doesn't exist
+        if (!updatedPet.equippedItems) {
+          updatedPet.equippedItems = {};
+        }
+        // Assign the accessory and add it to inventory
+        updatedPet.equippedItems[category] = accessory;
+        await purchaseItem(accessory, 0); // Add to inventory for free
+        
         Alert.alert(
           'Milestone Reward',
-          'Your pet has a new appearance option! Check it out in the Pet Details screen.',
+          `Your pet received a ${accessory.replace('_', ' ')}! Check it out in the Pet Details screen.`,
           [{ text: 'Nice!' }]
         );
         break;

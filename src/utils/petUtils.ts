@@ -408,6 +408,26 @@ export const DEFAULT_MILESTONES: Milestone[] = [
   }
 ];
 
+// Available accessories for milestone rewards
+export const MILESTONE_ACCESSORIES = {
+  Eyewear: ['sunglasses'],
+  Hats: ['top_hat'],
+  Neck: ['bow_tie']
+};
+
+// Get a random accessory for milestone reward
+export const getRandomMilestoneAccessory = () => {
+  const categories = Object.keys(MILESTONE_ACCESSORIES) as (keyof typeof MILESTONE_ACCESSORIES)[];
+  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+  const accessories = MILESTONE_ACCESSORIES[randomCategory];
+  const randomAccessory = accessories[Math.floor(Math.random() * accessories.length)];
+  
+  return {
+    category: randomCategory,
+    accessory: randomAccessory
+  };
+};
+
 // Custom UUID generation function that works in React Native
 const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
