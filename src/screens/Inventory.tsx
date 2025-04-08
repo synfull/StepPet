@@ -6,6 +6,7 @@ import { useInventory, ItemCategory } from '../context/InventoryContext';
 import { hatItems, StoreItem } from './StoreHats';
 import { eyewearItems } from './StoreEyewear';
 import { neckItems } from './StoreNeck';
+import { ITEM_IMAGES } from '../utils/itemUtils';
 
 type Category = ItemCategory;
 
@@ -23,7 +24,7 @@ const InventoryItemCard: React.FC<{
 }> = ({ item, onPress, isEquipped }) => (
   <TouchableOpacity style={styles.itemCard} onPress={onPress}>
     <View style={styles.itemImageContainer}>
-      <Image source={item.image} style={styles.itemImage} />
+      <Image source={ITEM_IMAGES[item.category][item.id]} style={styles.itemImage} />
       {isEquipped && (
         <View style={styles.equippedBadge}>
           <Text style={styles.equippedText}>Equipped</Text>
@@ -97,7 +98,7 @@ const Inventory = () => {
                 if (!item) return null;
                 return (
                   <View key={itemId} style={styles.equippedItem}>
-                    <Image source={item.image} style={styles.equippedItemImage} />
+                    <Image source={ITEM_IMAGES[category as Category][itemId]} style={styles.equippedItemImage} />
                     <Text style={styles.equippedItemText}>{item.name}</Text>
                   </View>
                 );
