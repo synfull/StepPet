@@ -15,7 +15,15 @@ export type RootStackParamList = {
   QRCode: undefined;
   Settings: undefined;
   PetDetails: { petId: string; showSpecialAnimation?: boolean };
-  Share: undefined;
+  Share: { 
+    type: 'levelUp' | 'milestone';
+    data: {
+      level?: number;
+      petType?: PetType;
+      steps?: number;
+      rewardDetails?: string;
+    };
+  };
   MilestoneUnlocked: { milestone: Milestone };
   AboutApp: undefined;
   PetSelection: undefined;

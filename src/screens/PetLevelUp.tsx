@@ -13,26 +13,24 @@ import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-naviga
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
-import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
 import PetDisplay from '../components/PetDisplay';
 import Button from '../components/Button';
+import { useData } from '../context/DataContext';
 
 type PetLevelUpProps = NativeStackScreenProps<RootStackParamList, 'PetLevelUp'>;
-type PetLevelUpNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
+const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   const { level, petType } = route.params;
-  const navigation = useNavigation<PetLevelUpNavigationProp>();
+  const { petData } = useData();
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(width)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const confettiOpacity = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     // Play haptic feedback
@@ -65,14 +63,7 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
   };
   
   const startAnimations = () => {
-    // Show confetti first
-    Animated.timing(confettiOpacity, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-    
-    // Then slide in the content
+    // Slide in the content
     Animated.sequence([
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -94,10 +85,8 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
   
   const handleContinue = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Navigate to the Share screen if the user wants to share
     navigation.navigate('Share', {
-      type: 'levelUp',
+      type: 'levelUp' as const,
       data: {
         level,
         petType,
@@ -107,7 +96,7 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
   
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('Main', { screen: 'Home' });
+    navigation.navigate('Main');
   };
   
   // Get growth stage based on level
@@ -118,50 +107,9 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
     return 'Adult';
   };
   
-  // Get colors based on pet type
-  const getPetColors = () => {
-    switch (petType) {
-      case 'Dragon':
-        return { main: '#8C52FF', accent: '#5EFFA9' };
-      case 'Unicorn':
-        return { main: '#FF9EDB', accent: '#F5F68C' };
-      case 'Wolf':
-        return { main: '#607D8B', accent: '#CFD8DC' };
-      case 'Eagle':
-        return { main: '#795548', accent: '#FFEB3B' };
-      case 'FireLizard':
-        return { main: '#FF5722', accent: '#FFC107' };
-      case 'WaterTurtle':
-        return { main: '#2196F3', accent: '#4CAF50' };
-      case 'RobotDog':
-        return { main: '#9E9E9E', accent: '#00BCD4' };
-      case 'ClockworkBunny':
-        return { main: '#FF9800', accent: '#9C27B0' };
-      default:
-        return { main: '#8C52FF', accent: '#5EFFA9' };
-    }
-  };
-  
-  const colors = getPetColors();
-  
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
-      {/* Confetti animation */}
-      <Animated.View
-        style={[
-          styles.confettiContainer,
-          { opacity: confettiOpacity }
-        ]}
-      >
-        <LottieView
-          source={require('../../assets/animations/confetti.json')}
-          autoPlay
-          loop
-          style={styles.confetti}
-        />
-      </Animated.View>
       
       <Animated.View
         style={[
@@ -193,11 +141,8 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
           <PetDisplay
             petType={petType}
             growthStage={getGrowthStage()}
-            level={level}
-            mainColor={colors.main}
-            accentColor={colors.accent}
             size="xlarge"
-            interactive={false}
+            showEquippedItems={true}
           />
         </Animated.View>
         
@@ -208,44 +153,7 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route }) => {
           ]}
         >
           <Text style={styles.congratsText}>Level Up!</Text>
-          <Text style={styles.levelText}>Your pet reached level {level}!</Text>
-          
-          <View style={styles.featuresContainer}>
-            <Text style={styles.newFeaturesTitle}>What's New:</Text>
-            
-            {level === 2 && (
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-                <Text style={styles.featureText}>Your egg hatched into a {petType}!</Text>
-              </View>
-            )}
-            
-            {level === 3 && (
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-                <Text style={styles.featureText}>Your pet evolved to Juvenile stage!</Text>
-              </View>
-            )}
-            
-            {level === 4 && (
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-                <Text style={styles.featureText}>Your pet reached Adult stage!</Text>
-              </View>
-            )}
-            
-            <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-              <Text style={styles.featureText}>Increased XP gain from activities</Text>
-            </View>
-            
-            {level % 2 === 0 && (
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-                <Text style={styles.featureText}>New visual features unlocked!</Text>
-              </View>
-            )}
-          </View>
+          <Text style={styles.levelText}>{petData?.name} has reached level {level}!</Text>
           
           <Button
             title="Share Your Achievement"
@@ -272,20 +180,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#8C52FF',
   },
-  confettiContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  confetti: {
-    width: '100%',
-    height: '100%',
-  },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    zIndex: 2,
   },
   skipButton: {
     position: 'absolute',
@@ -319,28 +218,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#333333',
     marginBottom: 24,
-  },
-  featuresContainer: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  newFeaturesTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-    color: '#333333',
-    marginBottom: 12,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  featureText: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 15,
-    color: '#333333',
-    marginLeft: 10,
-    flex: 1,
   },
   button: {
     width: '100%',
