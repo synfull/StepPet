@@ -511,6 +511,14 @@ export const loadPetData = async (): Promise<PetData | null> => {
   }
 };
 
+// Update growth stage based on level
+const updateGrowthStage = (pet: PetData): GrowthStage => {
+  if (pet.growthStage === 'Egg') return 'Egg';
+  if (pet.level >= 4) return 'Adult';
+  if (pet.level >= 3) return 'Juvenile';
+  return 'Baby';
+};
+
 // Update pet with new steps
 export const updatePetWithSteps = async (
   pet: PetData,
@@ -544,19 +552,15 @@ export const updatePetWithSteps = async (
       updatedPet.level += 1;
       updatedPet.xp = updatedPet.xp - updatedPet.xpToNextLevel;
       
-      // Update growth stage
-      if (updatedPet.level === 3 && updatedPet.growthStage === 'Baby') {
-        updatedPet.growthStage = 'Juvenile';
-      } else if (updatedPet.level === 4 && updatedPet.growthStage === 'Juvenile') {
-        updatedPet.growthStage = 'Adult';
-      }
-      
       // Update XP to next level
       const nextLevelIndex = Math.min(updatedPet.level - 1, LEVEL_REQUIREMENTS.length - 1);
       updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[nextLevelIndex];
       
       leveledUp = true;
     }
+    
+    // Always update growth stage based on current level
+    updatedPet.growthStage = updateGrowthStage(updatedPet);
   }
   
   // Check for milestones

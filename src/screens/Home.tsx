@@ -74,11 +74,10 @@ const Home: React.FC = () => {
               if (newXP >= petData.xpToNextLevel) {
                 // Handle level up through updatePetWithSteps
                 updatePetWithSteps(petData, newXP - petData.xp).then(({ updatedPet, leveledUp }) => {
-                  // Preserve type and growth stage after level up
+                  // Preserve only the type after level up
                   const preservedPet = {
                     ...updatedPet,
-                    type: petData.type,
-                    growthStage: petData.growthStage,
+                    type: petData.type
                   };
                   setPetData(preservedPet);
                   setTotalSteps(preservedPet.totalSteps);
@@ -90,8 +89,8 @@ const Home: React.FC = () => {
                   }
                 });
               } else {
-                // Just update XP without level up, preserving type and growth stage
-                const updatedPet: PetData = {
+                // Just update XP without level up
+                const updatedPet = {
                   ...petData,
                   xp: newXP,
                   totalSteps: petData.totalSteps + (newXP - petData.xp)
@@ -114,6 +113,16 @@ const Home: React.FC = () => {
       };
     }
   }, [isAvailable, petData?.id, petData?.stepsSinceHatched, petData?.xpToNextLevel, isDevelopmentMode]);
+  
+  // Force update growth stage on mount
+  useEffect(() => {
+    if (petData && petData.growthStage !== 'Egg') {
+      // Force an update through updatePetWithSteps to correct growth stage
+      updatePetWithSteps(petData, 0).then(({ updatedPet }) => {
+        setPetData(updatedPet);
+      });
+    }
+  }, []); // Run once on mount
   
   // Refresh data periodically
   useEffect(() => {
@@ -179,21 +188,13 @@ const Home: React.FC = () => {
           const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
           const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
           
-          // Update pet with new XP, preserving type and growth stage
-          const updatedPet = { 
-            ...petData,
-            xp: newXP,
-            totalSteps: daily,
-          };
-          
           // Check for level up
           if (newXP >= petData.xpToNextLevel) {
-            const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(updatedPet, 0);
-            // Preserve type and growth stage after level up
+            const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(petData, 0);
+            // Preserve only the type after level up
             const preservedPet = {
               ...leveledPet,
-              type: petData.type,
-              growthStage: petData.growthStage,
+              type: petData.type
             };
             setPetData(preservedPet);
             setTotalSteps(preservedPet.totalSteps);
@@ -206,6 +207,11 @@ const Home: React.FC = () => {
             }
           } else {
             // Just update XP without level up
+            const updatedPet = {
+              ...petData,
+              xp: newXP,
+              totalSteps: daily
+            };
             await savePetData(updatedPet);
             setPetData(updatedPet);
             setTotalSteps(updatedPet.totalSteps);

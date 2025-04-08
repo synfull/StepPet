@@ -27,6 +27,21 @@ const StageDisplay: React.FC<StageDisplayProps> = ({
   const petImages = PET_ICONS[petType];
   const imageSource = petImages[stage];
 
+  // Determine if this stage should be blurred based on evolution order
+  const shouldBlur = () => {
+    const evolutionOrder: Record<Exclude<GrowthStage, 'Egg'>, number> = {
+      'Baby': 1,
+      'Juvenile': 2,
+      'Adult': 3
+    };
+    
+    // Only blur if this is a future stage
+    if (stage === 'Egg' || !evolutionOrder[stage]) return false;
+    const currentStageOrder = evolutionOrder[isCurrentStage ? stage : 'Adult'];
+    const thisStageOrder = evolutionOrder[stage];
+    return thisStageOrder > currentStageOrder;
+  };
+
   return (
     <View style={styles.stageContainer}>
       <View style={styles.imageContainer}>
@@ -35,7 +50,7 @@ const StageDisplay: React.FC<StageDisplayProps> = ({
           style={styles.petImage}
           contentFit="contain"
         />
-        {!isCurrentStage && (
+        {shouldBlur() && (
           <BlurView 
             intensity={8}
             style={StyleSheet.absoluteFill}
