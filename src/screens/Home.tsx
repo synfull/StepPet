@@ -175,16 +175,24 @@ const Home: React.FC = () => {
     checkInteractionStatus();
   }, []);
   
-  // Show pulse hint and start animation after a delay
+  // Show pulse hint and start animation after pet is named
   useEffect(() => {
     if (petData && petData.growthStage !== 'Egg' && !hasInteractedWithPet) {
-      const timeoutId = setTimeout(() => {
+      // For newly hatched pets, show hint immediately
+      if (petData.level === 1) {
         setShowPulseHint(true);
         setIsPetAnimating(true);
         startPulseAnimation();
-      }, 5000);
-      
-      return () => clearTimeout(timeoutId);
+      } else {
+        // For existing pets, keep the delay
+        const timeoutId = setTimeout(() => {
+          setShowPulseHint(true);
+          setIsPetAnimating(true);
+          startPulseAnimation();
+        }, 5000);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
   }, [petData, hasInteractedWithPet]);
 
