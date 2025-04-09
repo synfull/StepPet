@@ -8,7 +8,8 @@ import {
   Image,
   Animated,
   RefreshControl,
-  Alert
+  Alert,
+  Easing
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +29,7 @@ import Button from '../components/Button';
 import { getRandomPetType } from '../utils/petUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PetData, GrowthStage } from '../types/petTypes';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -50,6 +52,31 @@ const Home: React.FC = () => {
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const eggShakeAnim = useRef(new Animated.Value(0)).current;
+  const buttonShakeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Welcome screen animations
+  useEffect(() => {
+    if (!petData) {
+      // Fade in and slide up animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad),
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.quad),
+        }),
+      ]).start();
+    }
+  }, [petData]);
   
   // Pedometer subscription
   useEffect(() => {
@@ -162,6 +189,63 @@ const Home: React.FC = () => {
       ])
     ).start();
   };
+  
+  // Shake animation sequence
+  const startShakeAnimations = () => {
+    // Create egg shake sequence
+    const eggShakeSequence = Animated.sequence([
+      Animated.timing(eggShakeAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(eggShakeAnim, {
+        toValue: -1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(eggShakeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    // Create button shake sequence
+    const buttonShakeSequence = Animated.sequence([
+      Animated.timing(buttonShakeAnim, {
+        toValue: 2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonShakeAnim, {
+        toValue: -2,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonShakeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    // Loop both animations
+    Animated.loop(
+      Animated.parallel([
+        eggShakeSequence,
+        buttonShakeSequence,
+      ]),
+      { iterations: -1 }
+    ).start();
+  };
+
+  // Start shake animations when egg is ready to hatch
+  useEffect(() => {
+    if (petData?.growthStage === 'Egg' && dailySteps >= 25) {
+      startShakeAnimations();
+    }
+  }, [petData?.growthStage, dailySteps]);
   
   // Refresh step data
   const refreshStepData = async () => {
@@ -657,24 +741,35 @@ const Home: React.FC = () => {
       <View style={styles.container}>
         <StatusBar style="dark" />
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>Welcome to StepPet!</Text>
-          <Text style={styles.emptyText}>
-            Looks like you don't have a pet yet. Let's get started by hatching an egg!
-          </Text>
-          <Button
-            title="Get Your Egg"
-            onPress={async () => {
-              const newPet = await createNewPet(dailySteps);
-              await savePetData(newPet);
-              setPetData(newPet);
-              // Reset step counters to 0 since we're starting fresh
-              setDailySteps(0);
-              setWeeklySteps(0);
-              setTotalSteps(0);
-            }}
-            size="large"
-            style={styles.startButton}
-          />
+          <Animated.View 
+            style={[
+              styles.welcomeContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            <Text style={styles.emptyTitle}>Welcome to StepPet!</Text>
+            <Text style={styles.emptyText}>
+              Looks like you don't have a pet yet. Let's get started by hatching an egg!
+            </Text>
+            <Button
+              title="Get Your Egg"
+              onPress={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                const newPet = await createNewPet(dailySteps);
+                await savePetData(newPet);
+                setPetData(newPet);
+                // Reset step counters to 0 since we're starting fresh
+                setDailySteps(0);
+                setWeeklySteps(0);
+                setTotalSteps(0);
+              }}
+              size="large"
+              style={styles.startButton}
+            />
+          </Animated.View>
         </View>
       </View>
     );
@@ -753,7 +848,15 @@ const Home: React.FC = () => {
           <Animated.View 
             style={[
               styles.petContainer,
-              showPulseHint ? { transform: [{ scale: pulseAnim }] } : null
+              showPulseHint ? { transform: [{ scale: pulseAnim }] } : null,
+              petData?.growthStage === 'Egg' && dailySteps >= 25 ? {
+                transform: [{
+                  rotate: eggShakeAnim.interpolate({
+                    inputRange: [-1, 1],
+                    outputRange: ['-3deg', '3deg']
+                  })
+                }]
+              } : null
             ]}
           >
             <TouchableOpacity onPress={handlePetTap} activeOpacity={0.8}>
@@ -795,12 +898,18 @@ const Home: React.FC = () => {
                     Reach 25 steps to hatch your egg!
                   </Text>
                   {dailySteps >= 25 && (
-                    <TouchableOpacity 
-                      style={styles.hatchButton}
-                      onPress={handlePetTap}
-                    >
-                      <Text style={styles.hatchButtonText}>Hatch Egg</Text>
-                    </TouchableOpacity>
+                    <Animated.View style={{
+                      transform: [{
+                        translateX: buttonShakeAnim
+                      }]
+                    }}>
+                      <TouchableOpacity 
+                        style={styles.hatchButton}
+                        onPress={handlePetTap}
+                      >
+                        <Text style={styles.hatchButtonText}>Hatch Egg</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
                   )}
                 </>
               ) : (
@@ -916,25 +1025,43 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  welcomeContent: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
   },
   emptyTitle: {
-    fontFamily: 'Caprasimo-Regular',
-    fontSize: 24,
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 32,
     color: '#333333',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   emptyText: {
     fontFamily: 'Montserrat-Regular',
-    fontSize: 16,
+    fontSize: 18,
     color: '#666666',
-    marginBottom: 24,
+    marginBottom: 40,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 28,
   },
   startButton: {
-    marginTop: 20,
+    width: '100%',
+    height: 56,
+    backgroundColor: '#8C52FF',
+    borderRadius: 16,
+    shadowColor: '#8C52FF',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   petSection: {
     alignItems: 'center',
@@ -1023,6 +1150,10 @@ const styles = StyleSheet.create({
   },
   badgeIcon: {
     marginLeft: 4,
+  },
+  gradientBackground: {
+    flex: 1,
+    width: '100%',
   },
 });
 

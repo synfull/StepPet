@@ -138,31 +138,55 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
           },
         ]}
       >
-        <Text style={styles.title}>Milestone Unlocked!</Text>
-        
-        <View style={styles.petContainer}>
-          <PetDisplay
-            petType={petData.type}
-            growthStage={petData.growthStage}
-            size="xlarge"
-            showEquippedItems
+        <View style={styles.card}>
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={
+                milestoneData.reward === 'xp' ? 'trophy' :
+                milestoneData.reward === 'appearance' ? 'color-palette' :
+                milestoneData.reward === 'background' ? 'image' :
+                milestoneData.reward === 'animation' ? 'sparkles' :
+                milestoneData.reward === 'badge' ? 'shield-checkmark' :
+                'ribbon'
+              }
+              size={40}
+              color="#8C52FF"
+            />
+          </View>
+
+          <Text style={styles.title}>Milestone Achieved!</Text>
+          
+          <View style={styles.stepsContainer}>
+            <Text style={styles.stepsCount}>
+              {milestoneData.steps.toLocaleString()}
+            </Text>
+            <Text style={styles.stepsLabel}>Steps Reached</Text>
+          </View>
+          
+          <View style={styles.petContainer}>
+            <PetDisplay
+              petType={petData.type}
+              growthStage={petData.growthStage}
+              size="large"
+              showEquippedItems
+            />
+          </View>
+          
+          <View style={styles.rewardContainer}>
+            <Text style={styles.rewardTitle}>Reward Unlocked</Text>
+            <Text style={styles.rewardDescription}>
+              {milestoneData.reward === 'animation' ? 
+                "Your pet can now perform a special animation! Try tapping on your pet." :
+                milestoneData.rewardDetails}
+            </Text>
+          </View>
+          
+          <Button
+            title="Claim Reward"
+            onPress={handleSkip}
+            style={styles.button}
           />
         </View>
-        
-        <View style={styles.milestoneInfo}>
-          <Text style={styles.milestoneName}>{milestoneData.steps.toLocaleString()} Steps Reached</Text>
-          <Text style={styles.milestoneDescription}>
-            {milestoneData.reward === 'animation' ? 
-              "Your pet can now perform a special animation! Try tapping on your pet." :
-              "Congratulations on reaching this milestone!"}
-          </Text>
-        </View>
-        
-        <Button
-          title="Claim Reward"
-          onPress={handleSkip}
-          style={styles.button}
-        />
       </Animated.View>
     </View>
   );
@@ -171,7 +195,7 @@ const MilestoneUnlocked: React.FC<MilestoneUnlockedProps> = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#8C52FF',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
   },
   starsContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -188,53 +212,80 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 2,
   },
-  title: {
-    fontFamily: 'Caprasimo-Regular',
-    fontSize: 28,
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  petContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#8C52FF',
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
-    borderWidth: 5,
-    borderColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
     elevation: 8,
   },
-  milestoneInfo: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F3EDFF',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
-  milestoneName: {
+  title: {
     fontFamily: 'Montserrat-Bold',
-    fontSize: 20,
+    fontSize: 24,
     color: '#333333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  stepsContainer: {
+    alignItems: 'center',
     marginBottom: 24,
   },
-  milestoneDescription: {
+  stepsCount: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 36,
+    color: '#8C52FF',
+    marginBottom: 4,
+  },
+  stepsLabel: {
     fontFamily: 'Montserrat-Medium',
-    fontSize: 15,
+    fontSize: 16,
+    color: '#666666',
+  },
+  petContainer: {
+    marginBottom: 24,
+  },
+  rewardContainer: {
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    marginBottom: 24,
+  },
+  rewardTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
     color: '#333333',
+    marginBottom: 8,
     textAlign: 'center',
-    lineHeight: 22,
+  },
+  rewardDescription: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   button: {
-    marginTop: 24,
+    width: '100%',
+    backgroundColor: '#8C52FF',
   },
 });
 
