@@ -75,10 +75,11 @@ const PetHatching: React.FC = () => {
   // Initialize audio system and load sound
   useEffect(() => {
     let mounted = true;
-    let sound: Audio.Sound | undefined;
 
     const setupAudio = async () => {
       try {
+        console.log('Setting up audio...');
+        
         // Initialize audio system
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -88,36 +89,28 @@ const PetHatching: React.FC = () => {
           playThroughEarpieceAndroid: false,
         });
 
-        // Load the sound file
-        const soundAsset = Asset.fromModule(require('../../assets/sounds/egg-crack.mp3'));
-        await soundAsset.downloadAsync();
+        console.log('Loading sound file...');
+        const soundObject = new Audio.Sound();
+        await soundObject.loadAsync(require('../../assets/sounds/egg-crack.mp3'));
         
-        if (!mounted) return;
-
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: soundAsset.localUri! },
-          { 
-            shouldPlay: false,
-            volume: 1.0,
-            isLooping: false,
-            progressUpdateIntervalMillis: 50,
-          },
-          (status) => {
-            console.log('Sound status:', status);
-          }
-        );
-
         if (!mounted) {
-          newSound.unloadAsync();
+          await soundObject.unloadAsync();
           return;
         }
 
-        sound = newSound;
-        setHatchingSound(newSound);
-        setIsSoundLoaded(true);
-        console.log('Sound loaded successfully with URI:', soundAsset.localUri);
+        console.log('Sound loaded, checking status...');
+        const status = await soundObject.getStatusAsync();
+        console.log('Sound status:', status);
+
+        if (status.isLoaded) {
+          setHatchingSound(soundObject);
+          setIsSoundLoaded(true);
+          console.log('Sound successfully loaded and ready');
+        } else {
+          console.error('Sound loaded but status check failed');
+        }
       } catch (error) {
-        console.log('Error setting up audio:', error);
+        console.error('Error setting up audio:', error);
       }
     };
 
@@ -125,11 +118,9 @@ const PetHatching: React.FC = () => {
 
     return () => {
       mounted = false;
-      if (sound) {
-        console.log('Unloading sound...');
-        sound.unloadAsync().catch(error => {
-          console.log('Error unloading sound:', error);
-        });
+      if (hatchingSound) {
+        console.log('Cleaning up sound...');
+        hatchingSound.unloadAsync();
       }
     };
   }, []);
@@ -150,9 +141,11 @@ const PetHatching: React.FC = () => {
       useNativeDriver: true,
     }).start();
 
-    // Start hatching process
-    startHatchingAnimation();
-    startShakeAnimation();
+    // Only start hatching process once sound is loaded
+    if (isSoundLoaded) {
+      startHatchingAnimation();
+      startShakeAnimation();
+    }
 
     // Cleanup function
     return () => {
@@ -160,33 +153,48 @@ const PetHatching: React.FC = () => {
       clearTimeout(shakeTimeout);
       clearTimeout(hatchTimeout);
     };
-  }, []);
+  }, [isSoundLoaded]);
+
+  // Remove the old useEffect and move initial animations to a separate one
+  useEffect(() => {
+    // Start initial animations immediately
+    Animated.timing(opacityAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []); // This runs once on mount
 
   // Play hatching sound
   const playHatchingSound = async () => {
     try {
-      if (hatchingSound && isSoundLoaded) {
-        console.log('Attempting to play sound...');
-        
-        // Stop any existing playback
-        const playbackStatus = await hatchingSound.getStatusAsync();
-        if (playbackStatus.isLoaded && playbackStatus.isPlaying) {
-          await hatchingSound.stopAsync();
-        }
-        
-        // Reset position and play
+      if (!hatchingSound || !isSoundLoaded) {
+        console.error('Sound not ready:', { hasSound: !!hatchingSound, isLoaded: isSoundLoaded });
+        return;
+      }
+
+      const status = await hatchingSound.getStatusAsync();
+      console.log('Current sound status before playing:', status);
+
+      if (status.isLoaded) {
+        // Reset to beginning and ensure volume is up
         await hatchingSound.setPositionAsync(0);
         await hatchingSound.setVolumeAsync(1.0);
-        const result = await hatchingSound.playAsync();
-        console.log('Sound played successfully:', result);
         
-        // Trigger haptic feedback
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        console.log('Playing sound...');
+        await hatchingSound.playAsync();
       } else {
-        console.log('Sound not ready:', { hatchingSound, isSoundLoaded });
+        console.error('Sound was marked as loaded but status check failed');
       }
     } catch (error) {
-      console.log('Could not play hatching sound:', error);
+      console.error('Error playing sound:', error);
     }
   };
 
@@ -194,6 +202,11 @@ const PetHatching: React.FC = () => {
   let hatchTimeout: NodeJS.Timeout;
 
   const startShakeAnimation = () => {
+    // Trigger haptic feedback with each shake
+    if (animationState === 'cracking') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
     Animated.sequence([
       Animated.timing(shakeAnim, {
         toValue: -0.3 * shakeIntensity,
@@ -212,25 +225,49 @@ const PetHatching: React.FC = () => {
       }),
     ]).start(() => {
       if (animationState === 'cracking') {
-        shakeTimeout = setTimeout(startShakeAnimation, 1000);
+        shakeTimeout = setTimeout(() => {
+          startShakeAnimation();
+          // Increase haptic intensity as shaking intensifies
+          if (shakeIntensity >= 1.5) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } else if (shakeIntensity >= 1.8) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          }
+        }, 1000);
       }
     });
   };
 
   const startHatchingAnimation = async () => {
-    // Play hatching sound only if it's loaded
-    if (isSoundLoaded) {
+    // Initial strong vibration
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Gradually increase shake intensity with corresponding haptic feedback
+    setTimeout(async () => {
+      setShakeIntensity(1.2);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, 2000);
+
+    setTimeout(async () => {
+      setShakeIntensity(1.5);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }, 4000);
+
+    // Play the cracking sound at the moment of hatching
+    setTimeout(async () => {
+      console.log('Attempting to play sound at hatching moment...');
+      setShakeIntensity(1.8);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (!isSoundLoaded) {
+        console.log('Sound not loaded at hatching moment');
+      }
       await playHatchingSound();
-    }
+    }, 6000);
 
-    // Gradually increase shake intensity
-    setTimeout(() => setShakeIntensity(1.2), 2000); // At 2 seconds
-    setTimeout(() => setShakeIntensity(1.5), 4000); // At 4 seconds
-    setTimeout(() => setShakeIntensity(1.8), 6000); // At 6 seconds
-
-    // Complete hatching after 7 seconds
-    hatchTimeout = setTimeout(() => {
+    // Complete hatching after 7 seconds with final celebration haptic
+    hatchTimeout = setTimeout(async () => {
       setAnimationState('hatched');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }, 7000);
   };
 
@@ -265,27 +302,25 @@ const PetHatching: React.FC = () => {
       <View style={styles.content}>
         {animationState === 'cracking' ? (
           <View style={styles.cardContainer}>
-            <TouchableOpacity onPress={playHatchingSound}>
-              <Animated.Image
-                source={require('../../assets/images/egg.png')}
-                style={[
-                  styles.eggImage,
-                  {
-                    transform: [
-                      { scale: scaleAnim },
-                      { 
-                        rotate: shakeAnim.interpolate({
-                          inputRange: [-1, 1],
-                          outputRange: [`${-25 * shakeIntensity}deg`, `${25 * shakeIntensity}deg`]
-                        })
-                      }
-                    ],
-                    opacity: opacityAnim,
-                  },
-                ]}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+            <Animated.Image
+              source={require('../../assets/images/egg.png')}
+              style={[
+                styles.eggImage,
+                {
+                  transform: [
+                    { scale: scaleAnim },
+                    { 
+                      rotate: shakeAnim.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: [`${-25 * shakeIntensity}deg`, `${25 * shakeIntensity}deg`]
+                      })
+                    }
+                  ],
+                  opacity: opacityAnim,
+                },
+              ]}
+              resizeMode="contain"
+            />
             <Animated.Text style={[styles.title, { opacity: opacityAnim }]}>
               Your egg is hatching!
             </Animated.Text>
