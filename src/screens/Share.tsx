@@ -87,7 +87,11 @@ const Share: React.FC<ShareProps> = ({ route }) => {
   };
   
   const handleSkip = () => {
-    navigation.navigate('Main' as never);
+    if (type === 'levelUp' && data.level === 3) {
+      navigation.navigate('Paywall');
+    } else {
+      navigation.navigate('Main' as never);
+    }
   };
   
   // Generate appropriate content based on share type

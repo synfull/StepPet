@@ -13,6 +13,9 @@ import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-naviga
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import Confetti from 'react-native-confetti';
 import { RootStackParamList } from '../types/navigationTypes';
 import PetDisplay from '../components/PetDisplay';
 import Button from '../components/Button';
@@ -20,17 +23,19 @@ import { useData } from '../context/DataContext';
 
 type PetLevelUpProps = NativeStackScreenProps<RootStackParamList, 'PetLevelUp'>;
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   const { level, petType } = route.params;
   const { petData } = useData();
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const confettiRef = useRef<any>(null);
   
   // Animation values
   const slideAnim = useRef(new Animated.Value(width)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const gradientAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
     // Play haptic feedback
@@ -42,10 +47,19 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
     // Start animations
     startAnimations();
     
+    // Start confetti
+    if (confettiRef.current) {
+      confettiRef.current.startConfetti();
+    }
+    
     return () => {
       // Clean up sound
       if (sound) {
         sound.unloadAsync();
+      }
+      // Stop confetti
+      if (confettiRef.current) {
+        confettiRef.current.stopConfetti();
       }
     };
   }, []);
@@ -63,16 +77,34 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   };
   
   const startAnimations = () => {
-    // Slide in the content
-    Animated.sequence([
-      Animated.timing(slideAnim, {
+    // Start gradient animation with a longer duration to reduce potential flickering
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientAnim, {
+          toValue: 1,
+          duration: 5000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(gradientAnim, {
+          toValue: 0,
+          duration: 5000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Slide in and scale up content with spring animation
+    Animated.parallel([
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 800,
+        tension: 50,
+        friction: 7,
         useNativeDriver: true,
       }),
-      Animated.timing(scaleAnim, {
+      Animated.spring(scaleAnim, {
         toValue: 1,
-        duration: 500,
+        tension: 50,
+        friction: 7,
         useNativeDriver: true,
       }),
       Animated.timing(opacityAnim, {
@@ -96,20 +128,44 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('Main');
+    if (level === 3) {
+      navigation.navigate('Paywall');
+    } else {
+      navigation.navigate('Main');
+    }
   };
   
-  // Get growth stage based on level
   const getGrowthStage = () => {
     if (level <= 1) return 'Egg';
     if (level === 2) return 'Baby';
     if (level === 3) return 'Juvenile';
     return 'Adult';
   };
+
+  const gradientColors = gradientAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['#8C52FF', '#6236B0', '#8C52FF'],
+  });
   
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      
+      <LinearGradient
+        colors={['#8C52FF', '#6236B0']}
+        style={styles.gradientContainer}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.starsContainer}>
+          {/* Add subtle star shapes in the background */}
+          <Ionicons name="star" size={20} color="rgba(255,255,255,0.2)" style={styles.star1} />
+          <Ionicons name="star" size={16} color="rgba(255,255,255,0.15)" style={styles.star2} />
+          <Ionicons name="star" size={24} color="rgba(255,255,255,0.25)" style={styles.star3} />
+        </View>
+      </LinearGradient>
+
+      <Confetti ref={confettiRef} />
       
       <Animated.View
         style={[
@@ -125,7 +181,9 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
           style={styles.skipButton}
           onPress={handleSkip}
         >
-          <Text style={styles.skipText}>Skip</Text>
+          <BlurView intensity={20} style={styles.skipButtonBlur}>
+            <Text style={styles.skipText}>Skip</Text>
+          </BlurView>
         </TouchableOpacity>
         
         <Animated.View
@@ -152,23 +210,28 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
             { opacity: opacityAnim },
           ]}
         >
-          <Text style={styles.congratsText}>Level Up!</Text>
-          <Text style={styles.levelText}>{petData?.name} has reached level {level}!</Text>
-          
-          <Button
-            title="Share Your Achievement"
-            onPress={handleContinue}
-            size="large"
-            style={styles.button}
-            icon={<Ionicons name="share-social-outline" size={20} color="#FFFFFF" />}
-          />
-          
-          <TouchableOpacity
-            onPress={handleSkip}
-            style={styles.continueButton}
-          >
-            <Text style={styles.continueText}>Continue without sharing</Text>
-          </TouchableOpacity>
+          <BlurView intensity={60} style={styles.blurContainer}>
+            <View style={styles.cardContent}>
+              <Text style={styles.congratsText}>Level Up!</Text>
+              <Text style={styles.levelText}>{petData?.name} has reached level {level}!</Text>
+              
+              <Button
+                title="Share Your Achievement"
+                onPress={handleContinue}
+                size="large"
+                style={styles.button}
+                textStyle={styles.buttonText}
+                icon={<Ionicons name="share-social-outline" size={20} color="#8C52FF" />}
+              />
+              
+              <TouchableOpacity
+                onPress={handleSkip}
+                style={styles.continueButton}
+              >
+                <Text style={styles.continueText}>Continue without sharing</Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
         </Animated.View>
       </Animated.View>
     </View>
@@ -178,7 +241,28 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#8C52FF',
+  },
+  gradientContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  starsContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  star1: {
+    position: 'absolute',
+    top: '15%',
+    left: '25%',
+  },
+  star2: {
+    position: 'absolute',
+    top: '35%',
+    right: '20%',
+  },
+  star3: {
+    position: 'absolute',
+    bottom: '30%',
+    left: '15%',
   },
   content: {
     flex: 1,
@@ -190,47 +274,68 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 48,
     right: 20,
+    overflow: 'hidden',
+    borderRadius: 20,
+  },
+  skipButtonBlur: {
     padding: 10,
+    borderRadius: 20,
   },
   skipText: {
-    fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
     color: '#FFFFFF',
+    fontWeight: '600',
   },
   petContainer: {
     marginBottom: 30,
   },
   infoContainer: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  blurContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cardContent: {
     padding: 24,
     alignItems: 'center',
   },
   congratsText: {
-    fontFamily: 'Caprasimo-Regular',
-    fontSize: 32,
-    color: '#8C52FF',
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   levelText: {
-    fontFamily: 'Montserrat-Bold',
     fontSize: 18,
-    color: '#333333',
+    fontWeight: '600',
+    color: '#FFFFFF',
     marginBottom: 24,
+    textAlign: 'center',
   },
   button: {
     width: '100%',
     marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  buttonText: {
+    color: '#8C52FF',
+    fontWeight: '600',
   },
   continueButton: {
     padding: 10,
   },
   continueText: {
-    fontFamily: 'Montserrat-Medium',
     fontSize: 14,
-    color: '#666666',
-    textDecorationLine: 'underline',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
 });
 

@@ -15,6 +15,8 @@ import StoreNeck from '../screens/StoreNeck';
 import StoreEyewear from '../screens/StoreEyewear';
 import MilestoneUnlocked from '../screens/MilestoneUnlocked';
 import AboutApp from '../screens/AboutApp';
+import { PaywallScreen } from '../screens/PaywallScreen';
+import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { RootStackParamList } from '../types/navigationTypes';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -144,6 +146,22 @@ const MainNavigator = () => {
       <Stack.Screen 
         name="AboutApp" 
         component={AboutApp}
+        options={{
+          presentation: 'card',
+          animation: 'slide_from_right'
+        }}
+      />
+      <Stack.Screen 
+        name="Paywall" 
+        component={PaywallScreen}
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade'
+        }}
+      />
+      <Stack.Screen 
+        name="Subscription" 
+        component={SubscriptionScreen}
         options={{
           presentation: 'card',
           animation: 'slide_from_right'

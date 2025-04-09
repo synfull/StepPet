@@ -7,12 +7,17 @@ import {
   TouchableOpacity,
   Image,
   ImageSourcePropType,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import { Asset } from 'expo-asset';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { RootStackParamList } from '../types/navigationTypes';
 import { PetType } from '../types/petTypes';
 import { PET_TYPES } from '../utils/petUtils';
@@ -51,49 +56,142 @@ const PET_BABY_IMAGES: { [key in PetType]: ImageSourcePropType } = {
 type PetHatchingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type PetHatchingRouteProp = RouteProp<RootStackParamList, 'PetHatching'>;
 
+const { width, height } = Dimensions.get('window');
+
 const PetHatching: React.FC = () => {
   const route = useRoute<PetHatchingRouteProp>();
   const navigation = useNavigation<PetHatchingNavigationProp>();
   const { petType } = route.params;
   const [animationState, setAnimationState] = useState<'cracking' | 'hatched'>('cracking');
   const [hatchingSound, setHatchingSound] = useState<Audio.Sound>();
+  const [isSoundLoaded, setIsSoundLoaded] = useState(false);
+  
+  // Animation values
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
   const [shakeIntensity, setShakeIntensity] = useState(1);
 
-  // Load hatching sound
+  // Initialize audio system and load sound
   useEffect(() => {
-    async function loadSound() {
+    let mounted = true;
+    let sound: Audio.Sound | undefined;
+
+    const setupAudio = async () => {
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/egg-crack.wav')
+        // Initialize audio system
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+
+        // Load the sound file
+        const soundAsset = Asset.fromModule(require('../../assets/sounds/egg-crack.mp3'));
+        await soundAsset.downloadAsync();
+        
+        if (!mounted) return;
+
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: soundAsset.localUri! },
+          { 
+            shouldPlay: false,
+            volume: 1.0,
+            isLooping: false,
+            progressUpdateIntervalMillis: 50,
+          },
+          (status) => {
+            console.log('Sound status:', status);
+          }
         );
-        setHatchingSound(sound);
+
+        if (!mounted) {
+          newSound.unloadAsync();
+          return;
+        }
+
+        sound = newSound;
+        setHatchingSound(newSound);
+        setIsSoundLoaded(true);
+        console.log('Sound loaded successfully with URI:', soundAsset.localUri);
       } catch (error) {
-        console.log('Could not load hatching sound:', error);
-        // Continue without sound
+        console.log('Error setting up audio:', error);
       }
-    }
-    loadSound();
+    };
+
+    setupAudio();
+
+    return () => {
+      mounted = false;
+      if (sound) {
+        console.log('Unloading sound...');
+        sound.unloadAsync().catch(error => {
+          console.log('Error unloading sound:', error);
+        });
+      }
+    };
   }, []);
 
-  // Start hatching automatically
+  // Start animations
   useEffect(() => {
+    // Start initial animations
+    Animated.timing(opacityAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+
+    // Start hatching process
     startHatchingAnimation();
     startShakeAnimation();
+
+    // Cleanup function
+    return () => {
+      // Clear any pending timeouts
+      clearTimeout(shakeTimeout);
+      clearTimeout(hatchTimeout);
+    };
   }, []);
 
   // Play hatching sound
   const playHatchingSound = async () => {
     try {
-      if (hatchingSound) {
-        await hatchingSound.playAsync();
+      if (hatchingSound && isSoundLoaded) {
+        console.log('Attempting to play sound...');
+        
+        // Stop any existing playback
+        const playbackStatus = await hatchingSound.getStatusAsync();
+        if (playbackStatus.isLoaded && playbackStatus.isPlaying) {
+          await hatchingSound.stopAsync();
+        }
+        
+        // Reset position and play
+        await hatchingSound.setPositionAsync(0);
+        await hatchingSound.setVolumeAsync(1.0);
+        const result = await hatchingSound.playAsync();
+        console.log('Sound played successfully:', result);
+        
+        // Trigger haptic feedback
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        console.log('Sound not ready:', { hatchingSound, isSoundLoaded });
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.log('Could not play hatching sound:', error);
-      // Continue without sound
     }
   };
+
+  let shakeTimeout: NodeJS.Timeout;
+  let hatchTimeout: NodeJS.Timeout;
 
   const startShakeAnimation = () => {
     Animated.sequence([
@@ -114,14 +212,16 @@ const PetHatching: React.FC = () => {
       }),
     ]).start(() => {
       if (animationState === 'cracking') {
-        setTimeout(startShakeAnimation, 1000);
+        shakeTimeout = setTimeout(startShakeAnimation, 1000);
       }
     });
   };
 
   const startHatchingAnimation = async () => {
-    // Play hatching sound
-    await playHatchingSound();
+    // Play hatching sound only if it's loaded
+    if (isSoundLoaded) {
+      await playHatchingSound();
+    }
 
     // Gradually increase shake intensity
     setTimeout(() => setShakeIntensity(1.2), 2000); // At 2 seconds
@@ -129,73 +229,97 @@ const PetHatching: React.FC = () => {
     setTimeout(() => setShakeIntensity(1.8), 6000); // At 6 seconds
 
     // Complete hatching after 7 seconds
-    setTimeout(() => {
+    hatchTimeout = setTimeout(() => {
       setAnimationState('hatched');
     }, 7000);
   };
 
   const handleContinue = () => {
-    console.log('Continue button pressed'); // Debug log
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate('PetNaming', {
       petType,
     });
   };
 
-  const renderContent = () => {
-    switch (animationState) {
-      case 'cracking':
-        return (
-          <>
-            <Animated.Image
-              source={require('../../assets/images/egg.png')}
-              style={[
-                styles.eggImage,
-                {
-                  transform: [
-                    { 
-                      rotate: shakeAnim.interpolate({
-                        inputRange: [-1, 1],
-                        outputRange: [`${-25 * shakeIntensity}deg`, `${25 * shakeIntensity}deg`]
-                      })
-                    }
-                  ],
-                },
-              ]}
-              resizeMode="contain"
-            />
-            <Text style={styles.text}>Your egg is hatching!</Text>
-          </>
-        );
-      case 'hatched':
-        return (
-          <>
-            <Image
-              source={PET_BABY_IMAGES[petType]}
-              style={styles.petImage}
-              resizeMode="contain"
-            />
-            <Text style={styles.text}>
-              It's a {petType === '' ? 'Mystery Pet' : PET_TYPES[petType].name}!
-            </Text>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: '#8C52FF', padding: 16, borderRadius: 30 }]}
-              onPress={handleContinue}
-            >
-              <Text style={{ color: '#FFFFFF', fontFamily: 'Montserrat-Bold', fontSize: 18 }}>
-                Name Your Pet
-              </Text>
-            </TouchableOpacity>
-          </>
-        );
+  const getPetCategory = () => {
+    if (petType.includes('lunacorn') || petType.includes('embermane') || 
+        petType.includes('aetherfin') || petType.includes('crystallisk')) {
+      return 'Mythic Beasts';
+    } else if (petType.includes('flareep') || petType.includes('aquabub') || 
+               petType.includes('terrabun') || petType.includes('gustling')) {
+      return 'Elemental Critters';
+    } else if (petType.includes('mossling') || petType.includes('twiggle') || 
+               petType.includes('thistuff') || petType.includes('glimmowl')) {
+      return 'Forest Folk';
+    } else if (petType.includes('wispurr') || petType.includes('batbun') || 
+               petType.includes('noctuff') || petType.includes('drimkin')) {
+      return 'Shadow Whims';
     }
+    return '';
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+      
       <View style={styles.content}>
-        {renderContent()}
+        {animationState === 'cracking' ? (
+          <View style={styles.cardContainer}>
+            <TouchableOpacity onPress={playHatchingSound}>
+              <Animated.Image
+                source={require('../../assets/images/egg.png')}
+                style={[
+                  styles.eggImage,
+                  {
+                    transform: [
+                      { scale: scaleAnim },
+                      { 
+                        rotate: shakeAnim.interpolate({
+                          inputRange: [-1, 1],
+                          outputRange: [`${-25 * shakeIntensity}deg`, `${25 * shakeIntensity}deg`]
+                        })
+                      }
+                    ],
+                    opacity: opacityAnim,
+                  },
+                ]}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <Animated.Text style={[styles.title, { opacity: opacityAnim }]}>
+              Your egg is hatching!
+            </Animated.Text>
+            <Animated.Text style={[styles.subtitle, { opacity: opacityAnim }]}>
+              Something magical is about to happen...
+            </Animated.Text>
+          </View>
+        ) : (
+          <View style={styles.cardContainer}>
+            <Animated.Image
+              source={PET_BABY_IMAGES[petType]}
+              style={[styles.petImage, { transform: [{ scale: scaleAnim }] }]}
+              resizeMode="contain"
+            />
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{getPetCategory()}</Text>
+            </View>
+            <Text style={styles.title}>
+              It's a {PET_TYPES[petType].name}!
+            </Text>
+            <Text style={styles.subtitle}>
+              A new friend has joined your journey
+            </Text>
+            
+            <Button
+              title="Name Your Pet"
+              onPress={handleContinue}
+              size="large"
+              style={styles.button}
+              textStyle={styles.buttonText}
+              icon={<Ionicons name="heart-outline" size={20} color="#FFFFFF" />}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -212,6 +336,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
+  cardContainer: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   eggImage: {
     width: 200,
     height: 200,
@@ -220,17 +359,41 @@ const styles = StyleSheet.create({
   petImage: {
     width: 200,
     height: 200,
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  text: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 24,
+  categoryBadge: {
+    backgroundColor: '#F0E7FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  categoryText: {
+    color: '#8C52FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
     color: '#333333',
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 32,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 24,
+    textAlign: 'center',
   },
   button: {
-    marginTop: 20,
+    width: '100%',
+    marginTop: 8,
+    backgroundColor: '#8C52FF',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

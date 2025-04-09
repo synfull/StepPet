@@ -11,6 +11,8 @@ export type RootStackParamList = {
   PetNaming: { petType: PetType };
   PetHatching: { petType: PetType };
   PetLevelUp: { level: number; petType: PetType };
+  Paywall: undefined;
+  Subscription: { tier: 'trial' | 'monthly' | 'annual' | 'lifetime' };
   AddFriend: undefined;
   QRCode: undefined;
   Settings: undefined;

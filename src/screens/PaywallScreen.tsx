@@ -201,6 +201,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
     lineHeight: 20,
+    fontFamily: 'System',
+    letterSpacing: 0.3,
   },
   content: {
     flex: 1,
@@ -212,8 +214,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 8,
+    fontFamily: 'System',
+    letterSpacing: 0.2,
   },
   featuresList: {
     marginBottom: 12,
@@ -227,6 +231,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 15,
     color: '#333',
+    fontFamily: 'System',
+    lineHeight: 20,
+    letterSpacing: 0.2,
   },
   pricingSection: {
     paddingHorizontal: 16,
