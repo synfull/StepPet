@@ -945,20 +945,6 @@ const Home: React.FC = () => {
         <View style={styles.miniGamesSection}>
           <Text style={styles.sectionTitle}>Daily Activities</Text>
           
-          {/* Feed Mini Game */}
-          <MiniGameCard
-            title="Feed Your Pet"
-            description="Walk 2,500 steps to feed your pet."
-            icon="nutrition-outline"
-            stepsRequired={2500}
-            stepsProgress={dailySteps}
-            isActive={canFeedToday}
-            isComplete={!canFeedToday}
-            isLocked={petData.growthStage === 'Egg'}
-            onPress={() => handleMiniGamePress('feed')}
-            color="#FF9500"
-          />
-          
           {/* Fetch Mini Game */}
           <MiniGameCard
             title="Play Fetch"
@@ -971,6 +957,20 @@ const Home: React.FC = () => {
             isLocked={petData.growthStage === 'Egg'}
             onPress={() => handleMiniGamePress('fetch')}
             color="#34C759"
+          />
+          
+          {/* Feed Mini Game */}
+          <MiniGameCard
+            title="Feed Your Pet"
+            description="Walk 2,500 steps to feed your pet."
+            icon="nutrition-outline"
+            stepsRequired={2500}
+            stepsProgress={dailySteps}
+            isActive={canFeedToday}
+            isComplete={!canFeedToday}
+            isLocked={petData.growthStage === 'Egg'}
+            onPress={() => handleMiniGamePress('feed')}
+            color="#FF9500"
           />
           
           {/* Adventure Walk */}
