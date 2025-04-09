@@ -49,6 +49,8 @@ const Home: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [showPulseHint, setShowPulseHint] = useState(false);
+  const [hasInteractedWithPet, setHasInteractedWithPet] = useState(false);
+  const [isPetAnimating, setIsPetAnimating] = useState(false);
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -160,17 +162,38 @@ const Home: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
   
-  // Show pulse hint after a delay
+  // Check if user has interacted before
   useEffect(() => {
-    if (petData && petData.growthStage !== 'Egg') {
+    const checkInteractionStatus = async () => {
+      try {
+        const hasInteracted = await AsyncStorage.getItem('hasInteractedWithPet');
+        setHasInteractedWithPet(!!hasInteracted);
+      } catch (error) {
+        console.error('Error checking interaction status:', error);
+      }
+    };
+    checkInteractionStatus();
+  }, []);
+  
+  // Show pulse hint and start animation after a delay
+  useEffect(() => {
+    if (petData && petData.growthStage !== 'Egg' && !hasInteractedWithPet) {
       const timeoutId = setTimeout(() => {
         setShowPulseHint(true);
+        setIsPetAnimating(true);
         startPulseAnimation();
       }, 5000);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [petData]);
+  }, [petData, hasInteractedWithPet]);
+
+  // Start animation when isPetAnimating changes
+  useEffect(() => {
+    if (isPetAnimating) {
+      startPulseAnimation();
+    }
+  }, [isPetAnimating]);
   
   // Start pulse animation
   const startPulseAnimation = () => {
@@ -373,7 +396,12 @@ const Home: React.FC = () => {
   const handlePetTap = async () => {
     if (showPulseHint) {
       setShowPulseHint(false);
-      pulseAnim.stopAnimation();
+      try {
+        await AsyncStorage.setItem('hasInteractedWithPet', 'true');
+        setHasInteractedWithPet(true);
+      } catch (error) {
+        console.error('Error saving interaction status:', error);
+      }
     }
     
     if (petData?.growthStage === 'Egg') {
@@ -815,27 +843,6 @@ const Home: React.FC = () => {
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={async () => {
-                const success = await clearAppData();
-                if (success) {
-                  Alert.alert(
-                    'Data Cleared',
-                    'All app data has been cleared. You can now start fresh!',
-                    [{ text: 'OK' }]
-                  );
-                } else {
-                  Alert.alert(
-                    'Error',
-                    'Failed to clear app data. Please try again.',
-                    [{ text: 'OK' }]
-                  );
-                }
-              }}
-            >
-              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
               onPress={() => navigation.navigate('Settings')}
             >
               <Ionicons name="settings-outline" size={24} color="#666666" />
@@ -845,10 +852,15 @@ const Home: React.FC = () => {
         
         {/* Pet Display */}
         <View style={styles.petSection}>
+          {showPulseHint && (
+            <View style={styles.hintContainer}>
+              <Text style={styles.hintText}>Tap to interact!</Text>
+            </View>
+          )}
           <Animated.View 
             style={[
               styles.petContainer,
-              showPulseHint ? { transform: [{ scale: pulseAnim }] } : null,
+              isPetAnimating ? { transform: [{ scale: pulseAnim }] } : null,
               petData?.growthStage === 'Egg' && dailySteps >= 25 ? {
                 transform: [{
                   rotate: eggShakeAnim.interpolate({
@@ -872,13 +884,17 @@ const Home: React.FC = () => {
           {/* Pet Info */}
           <View style={styles.petInfo}>
             <Text style={styles.petName}>{petData.name}</Text>
-            <Text style={styles.petType}>
-              Level {petData.level} {petData.growthStage === 'Egg' ? 'Egg' : PET_TYPES[petData.type].name}
+            <Text style={styles.petTypeText}>
+              {petData.growthStage === 'Egg' ? 'Egg' : PET_TYPES[petData.type].name}
               {petData.appearance.hasEliteBadge && (
                 <Ionicons name="shield-checkmark" size={20} color="#8C52FF" style={styles.badgeIcon} />
               )}
             </Text>
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelBadgeText}>Level {petData.level}</Text>
+            </View>
             <View style={styles.progressContainer}>
+              <Text style={styles.progressLabel}>Level Progress</Text>
               <ProgressBar
                 progress={progressData.progress}
                 height={12}
@@ -912,11 +928,7 @@ const Home: React.FC = () => {
                     </Animated.View>
                   )}
                 </>
-              ) : (
-                <Text style={styles.progressHint}>
-                  Walk {progressData.maxValue - progressData.currentValue} more steps to reach level {petData.level + 1}!
-                </Text>
-              )}
+              ) : null}
             </View>
           </View>
         </View>
@@ -1082,14 +1094,33 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 4,
   },
-  petType: {
+  petTypeText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 16,
     color: '#666666',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  levelBadge: {
+    backgroundColor: '#8C52FF',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 24,
+    alignSelf: 'center',
+  },
+  levelBadgeText: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
   progressContainer: {
     width: '100%',
+  },
+  progressLabel: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
+    color: '#333333',
+    marginBottom: -12,
   },
   progressHint: {
     fontFamily: 'Montserrat-Regular',
@@ -1154,6 +1185,18 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
     width: '100%',
+  },
+  hintContainer: {
+    backgroundColor: '#8C52FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  hintText: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });
 
