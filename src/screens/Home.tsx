@@ -417,6 +417,7 @@ const Home: React.FC = () => {
         try {
           // Update pet data to reflect hatching
           const { type: randomPetType } = getRandomPetType();
+          const now = new Date();
           const updatedPet = {
             ...petData,
             type: randomPetType,
@@ -435,10 +436,10 @@ const Home: React.FC = () => {
                 claimsToday: 0
               },
               adventure: {
-                lastStarted: null,
+                lastStarted: now.toISOString(),
                 lastCompleted: null,
                 currentProgress: 0,
-                isActive: false
+                isActive: true
               }
             }
           };

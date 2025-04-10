@@ -480,7 +480,12 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     miniGames: {
       feed: { lastClaimed: null, claimedToday: false },
       fetch: { lastClaimed: null, claimsToday: 0 },
-      adventure: { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false }
+      adventure: { 
+        lastStarted: now, 
+        lastCompleted: null, 
+        currentProgress: 0, 
+        isActive: true 
+      }
     },
     milestones: [...DEFAULT_MILESTONES],
     created: now
