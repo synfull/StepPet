@@ -956,7 +956,7 @@ const Home: React.FC = () => {
             isComplete={fetchClaimsToday >= 2}
             isLocked={petData.growthStage === 'Egg'}
             onPress={() => handleMiniGamePress('fetch')}
-            color="#34C759"
+            color="#8C52FF"
           />
           
           {/* Feed Mini Game */}
@@ -970,13 +970,13 @@ const Home: React.FC = () => {
             isComplete={!canFeedToday}
             isLocked={petData.growthStage === 'Egg'}
             onPress={() => handleMiniGamePress('feed')}
-            color="#FF9500"
+            color="#8C52FF"
           />
           
           {/* Adventure Walk */}
           <MiniGameCard
             title="Adventure Walk"
-            description="Walk 15,000 steps this week for a special adventure."
+            description="Walk 15,000 steps this week to take your pet on a special adventure."
             icon="map-outline"
             stepsRequired={15000}
             stepsProgress={adventureActive ? weeklySteps : 0}
@@ -984,7 +984,7 @@ const Home: React.FC = () => {
             isComplete={adventureComplete}
             isLocked={petData.growthStage === 'Egg'}
             onPress={() => handleMiniGamePress('adventure')}
-            color="#5856D6"
+            color="#8C52FF"
           />
         </View>
         
