@@ -19,7 +19,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { formatSimpleDate } from '../utils/dateUtils';
-import { savePetData } from '../utils/petUtils';
+import { savePetData, LEVEL_REQUIREMENTS } from '../utils/petUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
@@ -111,18 +111,26 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
     switch (petData.growthStage) {
       case 'Baby':
         // Need to reach level 3 for Juvenile
-        const stepsToJuvenile = (petData.level === 1) 
-          ? petData.xpToNextLevel * 2 - petData.xp // Need two level ups
-          : petData.xpToNextLevel - petData.xp; // One level up remaining
+        if (petData.level === 1) {
+          return {
+            nextStage: 'Juvenile',
+            stepsNeeded: petData.xpToNextLevel + LEVEL_REQUIREMENTS[1] - petData.xp
+          };
+        } else if (petData.level === 2) {
+          return {
+            nextStage: 'Juvenile',
+            stepsNeeded: LEVEL_REQUIREMENTS[2] - petData.xp
+          };
+        }
         return {
           nextStage: 'Juvenile',
-          stepsNeeded: stepsToJuvenile
+          stepsNeeded: stepsToNextLevel
         };
       case 'Juvenile':
         // Need to reach level 4 for Adult
         return {
           nextStage: 'Adult',
-          stepsNeeded: petData.xpToNextLevel - petData.xp
+          stepsNeeded: stepsToNextLevel
         };
       case 'Adult':
         return {
