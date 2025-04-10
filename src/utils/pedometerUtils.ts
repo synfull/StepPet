@@ -43,7 +43,7 @@ export const fetchDailySteps = async (startTime?: Date): Promise<number> => {
 };
 
 // Get steps for this week (last 7 days)
-export const fetchWeeklySteps = async (): Promise<number> => {
+export const fetchWeeklySteps = async (startDate?: Date): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
@@ -52,8 +52,12 @@ export const fetchWeeklySteps = async (): Promise<number> => {
     }
 
     const now = new Date();
-    const startOfWeek = new Date();
-    startOfWeek.setDate(now.getDate() - 7);
+    // If startDate is provided, use it as the start point
+    // Otherwise, use 7 days ago
+    const startOfWeek = startDate || new Date();
+    if (!startDate) {
+      startOfWeek.setDate(now.getDate() - 7);
+    }
     startOfWeek.setHours(0, 0, 0, 0);
     
     const { steps } = await Pedometer.getStepCountAsync(startOfWeek, now);

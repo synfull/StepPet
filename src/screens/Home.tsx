@@ -286,7 +286,7 @@ const Home: React.FC = () => {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
       const daily = await fetchDailySteps(petCreationTime);
-      const weekly = await fetchWeeklySteps();
+      const weekly = await fetchWeeklySteps(petCreationTime);
       
       // Update daily and weekly steps
       setDailySteps(daily);

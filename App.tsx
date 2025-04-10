@@ -61,7 +61,11 @@ export default function App() {
           
           if (available) {
             const daily = await fetchDailySteps();
-            const weekly = await fetchWeeklySteps();
+            // Get pet data to use its creation date for weekly steps
+            const petDataStr = await AsyncStorage.getItem('@pet_data');
+            const petData = petDataStr ? JSON.parse(petDataStr) : null;
+            const petCreationTime = petData ? new Date(petData.created) : undefined;
+            const weekly = await fetchWeeklySteps(petCreationTime);
             
             // Get total steps from storage
             const storedTotal = await AsyncStorage.getItem('@total_steps');
@@ -95,7 +99,11 @@ export default function App() {
       
       if (available) {
         const daily = await fetchDailySteps();
-        const weekly = await fetchWeeklySteps();
+        // Get pet data to use its creation date for weekly steps
+        const petDataStr = await AsyncStorage.getItem('@pet_data');
+        const petData = petDataStr ? JSON.parse(petDataStr) : null;
+        const petCreationTime = petData ? new Date(petData.created) : undefined;
+        const weekly = await fetchWeeklySteps(petCreationTime);
         setDailySteps(daily);
         setWeeklySteps(weekly);
       }
