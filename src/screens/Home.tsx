@@ -58,6 +58,7 @@ const Home: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const eggShakeAnim = useRef(new Animated.Value(0)).current;
   const buttonShakeAnim = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
   
   // Welcome screen animations
   useEffect(() => {
@@ -292,6 +293,28 @@ const Home: React.FC = () => {
       startShakeAnimations();
     }
   }, [petData?.growthStage, dailySteps]);
+  
+  // Start floating animation when egg is present
+  useEffect(() => {
+    if (petData?.growthStage === 'Egg') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(floatAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(floatAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ])
+      ).start();
+    }
+  }, [petData?.growthStage]);
   
   // Refresh step data
   const refreshStepData = async () => {
@@ -885,13 +908,21 @@ const Home: React.FC = () => {
             style={[
               styles.petContainer,
               isPetAnimating ? { transform: [{ scale: pulseAnim }] } : null,
-              petData?.growthStage === 'Egg' && dailySteps >= 25 ? {
-                transform: [{
-                  rotate: eggShakeAnim.interpolate({
-                    inputRange: [-1, 1],
-                    outputRange: ['-3deg', '3deg']
-                  })
-                }]
+              petData?.growthStage === 'Egg' ? {
+                transform: [
+                  {
+                    rotate: eggShakeAnim.interpolate({
+                      inputRange: [-1, 1],
+                      outputRange: ['-3deg', '3deg']
+                    })
+                  },
+                  {
+                    translateY: floatAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -10]
+                    })
+                  }
+                ]
               } : null
             ]}
           >
