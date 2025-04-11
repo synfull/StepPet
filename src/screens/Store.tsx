@@ -126,20 +126,50 @@ const HatsScreen = () => {
   );
 };
 
-const ItemCategory: React.FC<{ title: string; onPress: () => void }> = ({ title, onPress }) => (
-  <TouchableOpacity style={styles.itemCategory} onPress={onPress}>
-    <Text style={styles.categoryTitle}>{title}</Text>
-    {title === 'Hats' ? (
-      <Text style={styles.itemCount}>{hatItems.length} items</Text>
-    ) : title === 'Neck' ? (
-      <Text style={styles.itemCount}>4 items</Text>
-    ) : title === 'Eyewear' ? (
-      <Text style={styles.itemCount}>4 items</Text>
-    ) : (
-      <Text style={styles.comingSoonLabel}>Coming Soon!</Text>
-    )}
-  </TouchableOpacity>
-);
+const ItemCategory: React.FC<{ title: string; onPress: () => void }> = ({ title, onPress }) => {
+  const getItemCount = () => {
+    switch (title) {
+      case 'Hats':
+        return hatItems.length;
+      case 'Neck':
+        return neckItems.length;
+      case 'Eyewear':
+        return eyewearItems.length;
+      default:
+        return 0;
+    }
+  };
+
+  const getIconSource = () => {
+    switch (title) {
+      case 'Hats':
+        return require('../../assets/images/store/items/hats/top_hat.png');
+      case 'Neck':
+        return require('../../assets/images/store/items/neck/bow_tie.png');
+      case 'Eyewear':
+        return require('../../assets/images/store/items/eyewear/sunglasses.png');
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <TouchableOpacity style={styles.itemCategory} onPress={onPress}>
+      <View style={styles.categoryContent}>
+        <View style={styles.categoryIcon}>
+          <Image source={getIconSource()} style={styles.categoryImage} />
+        </View>
+        <View style={styles.categoryInfo}>
+          <Text style={styles.categoryTitle}>{title}</Text>
+          <Text style={styles.itemCount}>{getItemCount()} items</Text>
+        </View>
+        <View style={styles.categoryArrow}>
+          <Text style={styles.arrowIcon}>→</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const ItemsTab = () => {
   const navigation = useNavigation<StoreNavigationProp>();
@@ -160,7 +190,10 @@ const ItemsTab = () => {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.sectionTitle}>Shop by Category</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.sectionTitle}>Shop by Category</Text>
+        <Text style={styles.sectionSubtitle}>Customize your pet with unique accessories</Text>
+      </View>
       <ItemCategory title="Eyewear" onPress={() => handleCategoryPress('Eyewear')} />
       <ItemCategory title="Hats" onPress={() => handleCategoryPress('Hats')} />
       <ItemCategory title="Neck" onPress={() => handleCategoryPress('Neck')} />
@@ -469,9 +502,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: 'Montserrat-Bold',
-    fontSize: 20,
+    fontSize: 28,
     color: '#333333',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 16,
+    color: '#666666',
+    lineHeight: 22,
   },
   gemPackage: {
     backgroundColor: '#FFFFFF',
@@ -544,16 +583,38 @@ const styles = StyleSheet.create({
   },
   itemCategory: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  categoryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#F8F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  categoryImage: {
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
+  },
+  categoryInfo: {
+    flex: 1,
   },
   categoryTitle: {
     fontFamily: 'Montserrat-Bold',
@@ -561,10 +622,20 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 4,
   },
-  comingSoonLabel: {
+  itemCount: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
-    color: '#666666',
+    color: '#8C52FF',
+  },
+  categoryArrow: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowIcon: {
+    fontSize: 20,
+    color: '#8C52FF',
   },
   gridContent: {
     padding: 16,
@@ -607,11 +678,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   itemPrice: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 14,
-    color: '#8C52FF',
-  },
-  itemCount: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
     color: '#8C52FF',
@@ -675,6 +741,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#856404',
     textAlign: 'center',
+  },
+  headerContainer: {
+    marginHorizontal: 16,
+    marginBottom: 24,
   },
 });
 
