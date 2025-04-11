@@ -18,11 +18,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import { Friend } from '../types/petTypes';
+import { useUser } from '../context/UserContext';
 
 const AddFriend: React.FC = () => {
   const navigation = useNavigation();
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { userData } = useUser();
 
   const handleAddFriend = async () => {
     if (!username.trim()) {
@@ -30,67 +32,72 @@ const AddFriend: React.FC = () => {
       return;
     }
 
+    // Check if trying to add self
+    if (username.trim().toLowerCase() === userData?.username?.toLowerCase()) {
+      Alert.alert('Error', 'You cannot add yourself as a friend');
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
-
-      // For demo purposes, create a mock friend
-      const newFriend: Friend = {
-        id: 'friend-' + Date.now(),
-        username: username,
-        petName: getRandomPetName(),
-        petType: getRandomPetType(),
-        petLevel: Math.floor(Math.random() * 4) + 1,
-        weeklySteps: Math.floor(Math.random() * 40000) + 10000,
-        monthlySteps: Math.floor(Math.random() * 160000) + 40000,
-        allTimeSteps: Math.floor(Math.random() * 1000000) + 100000,
-        lastActive: new Date().toISOString(),
-      };
-
       // Get existing friends
       const existingFriendsJSON = await AsyncStorage.getItem('@friends_data');
       let existingFriends: Friend[] = existingFriendsJSON ? JSON.parse(existingFriendsJSON) : [];
 
       // Check if friend already exists
-      if (existingFriends.some(friend => friend.username === username)) {
+      if (existingFriends.some(friend => friend.username.toLowerCase() === username.toLowerCase())) {
         setIsLoading(false);
         Alert.alert('Friend Exists', 'This user is already your friend.');
         return;
       }
 
-      // Add new friend to list
-      existingFriends.push(newFriend);
-
-      // Save updated friends list
-      await AsyncStorage.setItem('@friends_data', JSON.stringify(existingFriends));
-
-      // Show success message
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // TODO: In a real app, we would make an API call here to verify the user exists
+      // For now, we'll show a disclaimer
       Alert.alert(
-        'Friend Added',
-        `${username} has been added to your friends list!`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        'Add Friend',
+        `Note: This is a demo version. In the full app, we would verify if "${username}" exists before adding them.`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => setIsLoading(false)
+          },
+          {
+            text: 'Continue Anyway',
+            onPress: async () => {
+              // Create new friend with initial data
+              const newFriend: Friend = {
+                id: 'friend-' + Date.now(),
+                username: username,
+                petName: 'Demo Pet',
+                petType: 'lunacorn',
+                petLevel: 1,
+                weeklySteps: 0,
+                monthlySteps: 0,
+                allTimeSteps: 0,
+                lastActive: new Date().toISOString(),
+              };
+
+              // Add new friend to list
+              existingFriends.push(newFriend);
+
+              // Save updated friends list
+              await AsyncStorage.setItem('@friends_data', JSON.stringify(existingFriends));
+
+              // Show success message
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              navigation.goBack();
+            }
+          }
+        ]
       );
     } catch (error) {
       console.error('Error adding friend:', error);
       Alert.alert('Error', 'There was a problem adding your friend. Please try again.');
-    } finally {
       setIsLoading(false);
     }
-  };
-
-  // Helper function to get random pet name for demo
-  const getRandomPetName = () => {
-    const names = ['Luna', 'Blaze', 'Shadow', 'Spark', 'Nova', 'Rocky', 'Misty', 'Pixel'];
-    return names[Math.floor(Math.random() * names.length)];
-  };
-
-  // Helper function to get random pet type for demo
-  const getRandomPetType = () => {
-    const types = ['Dragon', 'Unicorn', 'Wolf', 'Eagle', 'FireLizard', 'WaterTurtle', 'RobotDog', 'ClockworkBunny'];
-    return types[Math.floor(Math.random() * types.length)] as any;
   };
 
   return (
@@ -130,6 +137,13 @@ const AddFriend: React.FC = () => {
           <Ionicons name="information-circle-outline" size={20} color="#666666" />
           <Text style={styles.infoText}>
             Friends can see your pet information and step count on the leaderboard.
+          </Text>
+        </View>
+
+        <View style={[styles.infoContainer, styles.warningContainer]}>
+          <Ionicons name="warning-outline" size={20} color="#FFB100" />
+          <Text style={[styles.infoText, styles.warningText]}>
+            Demo Version: Friend verification is not implemented yet. Any username can be added.
           </Text>
         </View>
       </ScrollView>
@@ -183,12 +197,18 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 24,
   },
+  warningContainer: {
+    backgroundColor: '#FFF8E7',
+  },
   infoText: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
     color: '#666666',
     flex: 1,
     marginLeft: 8,
+  },
+  warningText: {
+    color: '#B37800',
   },
 });
 
