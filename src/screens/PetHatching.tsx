@@ -301,7 +301,7 @@ const PetHatching: React.FC = () => {
       
       <View style={styles.content}>
         {animationState === 'cracking' ? (
-          <View style={styles.cardContainer}>
+          <View style={styles.hatchingContainer}>
             <Animated.Image
               source={require('../../assets/images/egg.png')}
               style={[
@@ -329,7 +329,7 @@ const PetHatching: React.FC = () => {
             </Animated.Text>
           </View>
         ) : (
-          <View style={styles.cardContainer}>
+          <View style={styles.hatchedContainer}>
             <Animated.Image
               source={PET_BABY_IMAGES[petType]}
               style={[styles.petImage, { transform: [{ scale: scaleAnim }] }]}
@@ -371,20 +371,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  cardContainer: {
+  hatchingContainer: {
     width: '100%',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+  },
+  hatchedContainer: {
+    width: '100%',
+    alignItems: 'center',
   },
   eggImage: {
     width: 200,
