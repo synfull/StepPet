@@ -96,6 +96,11 @@ const PetNaming: React.FC = () => {
         index: 0,
         routes: [{ name: 'Main' }],
       });
+
+      // Show paywall after 5 seconds
+      setTimeout(() => {
+        navigation.navigate('Paywall');
+      }, 5000);
     } catch (error) {
       console.error('Error updating pet name:', error);
       setIsLoading(false);

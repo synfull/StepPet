@@ -6,6 +6,7 @@ import { useData } from '../context/DataContext';
 import { subscriptionPricing } from '../utils/subscriptionUtils';
 import { RootStackParamList } from '../types/navigationTypes';
 import { LinearGradient } from 'expo-linear-gradient';
+import PetDisplay from '../components/PetDisplay';
 
 const { width, height } = Dimensions.get('window');
 const MODAL_WIDTH = width * 0.9;
@@ -36,9 +37,17 @@ export const PaywallScreen = () => {
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Ionicons name="close" size={20} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.title}>Your Pet Has Evolved!</Text>
+          <View style={styles.petContainer}>
+            <PetDisplay
+              petType={petData?.type || ''}
+              growthStage="Baby"
+              size="small"
+              showEquippedItems={false}
+            />
+          </View>
+          <Text style={styles.title}>Your Pet Has Hatched!</Text>
           <Text style={styles.subtitle}>
-            {petData?.name} has evolved into a juvenile! Unlock premium to continue their journey.
+            {petData?.name} is ready to grow!{'\n'}Unlock premium to begin their journey.
           </Text>
         </LinearGradient>
 
@@ -46,7 +55,7 @@ export const PaywallScreen = () => {
           <View style={styles.featuresSection}>
             <Text style={styles.sectionTitle}>Included Features:</Text>
             <View style={styles.featuresList}>
-              <FeatureItem text="Juvenile & Adult Evolution Stages" />
+              <FeatureItem text="All Evolution Stages" />
               <FeatureItem text="Exclusive Premium Accessories" />
               <FeatureItem text="Special Mini-Games & Events" />
               <FeatureItem text="Priority Support" />
@@ -346,5 +355,13 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 14,
+  },
+  petContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+    marginTop: 2,
+    width: '100%',
+    height: 50,
   },
 }); 
