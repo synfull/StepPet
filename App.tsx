@@ -8,6 +8,7 @@ import { PedometerContext } from '@context/PedometerContext';
 import { DataProvider } from '@context/DataContext';
 import { GemProvider } from '@context/GemContext';
 import { InventoryProvider } from '@context/InventoryContext';
+import { UserProvider } from '@context/UserContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
 import { View, ActivityIndicator, Text, Platform } from 'react-native';
@@ -18,6 +19,7 @@ import {
   pedoInit 
 } from '@utils/pedometerUtils';
 import { PetData } from './src/types/petTypes';
+import { RegistrationStatus } from './src/types/userTypes';
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
@@ -162,13 +164,15 @@ export default function App() {
           <DataProvider>
             <GemProvider>
               <InventoryProvider>
-                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
-                  {isOnboardingComplete ? (
-                    <MainNavigator />
-                  ) : (
-                    <Onboarding completeOnboarding={completeOnboarding} />
-                  )}
-                </SafeAreaView>
+                <UserProvider>
+                  <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
+                    {isOnboardingComplete ? (
+                      <MainNavigator />
+                    ) : (
+                      <Onboarding completeOnboarding={completeOnboarding} />
+                    )}
+                  </SafeAreaView>
+                </UserProvider>
               </InventoryProvider>
             </GemProvider>
           </DataProvider>

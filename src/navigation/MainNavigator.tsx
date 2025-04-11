@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from '@navigation/TabNavigator';
 import PetNaming from '../screens/PetNaming';
@@ -17,14 +17,43 @@ import MilestoneUnlocked from '../screens/MilestoneUnlocked';
 import AboutApp from '../screens/AboutApp';
 import { PaywallScreen } from '../screens/PaywallScreen';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
+import Registration from '../screens/Registration';
 import { RootStackParamList } from '../types/navigationTypes';
+import { useUser } from '../context/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const MainNavigator = () => {
+  const { registrationStatus, isLoading } = useUser();
+
+  // Check registration status on mount
+  useEffect(() => {
+    const checkRegistration = async () => {
+      try {
+        const storedStatus = await AsyncStorage.getItem('@registration_status');
+        if (storedStatus) {
+          const status = JSON.parse(storedStatus);
+          if (!status.isRegistered) {
+            // Navigate to registration if not registered
+            // Note: We can't navigate here directly, so we'll handle this in the screen component
+          }
+        }
+      } catch (error) {
+        console.error('Error checking registration status:', error);
+      }
+    };
+
+    checkRegistration();
+  }, []);
+
+  if (isLoading) {
+    return null; // Or a loading screen
+  }
+
   return (
     <Stack.Navigator
-      initialRouteName="Main"
+      initialRouteName={registrationStatus.isRegistered ? "Main" : "Registration"}
       screenOptions={{
         headerShown: false,
         animation: 'fade',
@@ -32,6 +61,13 @@ const MainNavigator = () => {
         contentStyle: { backgroundColor: '#FFFFFF' }
       }}
     >
+      <Stack.Screen 
+        name="Registration" 
+        component={Registration}
+        options={{
+          animation: 'none'
+        }}
+      />
       <Stack.Screen 
         name="Main" 
         component={TabNavigator}

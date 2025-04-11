@@ -22,6 +22,7 @@ import { PET_ICONS } from '../utils/petUtils';
 import Header from '../components/Header';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
+import { useUser } from '../context/UserContext';
 
 type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Friends'>;
 
@@ -154,6 +155,7 @@ const Friends: React.FC = () => {
   const navigation = useNavigation<FriendsNavigationProp>();
   const insets = useSafeAreaInsets();
   const { petData } = useData();
+  const { userData } = useUser();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
@@ -286,6 +288,12 @@ const Friends: React.FC = () => {
       />
       
       <View style={styles.content}>
+        <View style={styles.userInfoContainer}>
+          <Text style={styles.yourUsernameLabel}>Your Username:</Text>
+          <Text style={styles.yourUsername}>{userData?.username || 'Not set'}</Text>
+          <Text style={styles.usernameHelpText}>Share this with friends to add you!</Text>
+        </View>
+
         <View style={styles.leaderboardHeader}>
           <Text style={styles.leaderboardTitle}>
             {timePeriod === 'weekly' 
@@ -495,6 +503,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1,
     elevation: 2,
+  },
+  userInfoContainer: {
+    backgroundColor: '#F8F8F8',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  yourUsernameLabel: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  yourUsername: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#8C52FF',
+    marginBottom: 8,
+  },
+  usernameHelpText: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 14,
+    color: '#666666',
   },
 });
 
