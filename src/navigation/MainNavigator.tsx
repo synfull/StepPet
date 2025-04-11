@@ -25,18 +25,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const MainNavigator = () => {
-  const { registrationStatus, isLoading } = useUser();
+  const { registrationStatus, isLoading, userData } = useUser();
 
   // Check registration status on mount
   useEffect(() => {
     const checkRegistration = async () => {
       try {
+        const storedUserData = await AsyncStorage.getItem('@user_data');
         const storedStatus = await AsyncStorage.getItem('@registration_status');
-        if (storedStatus) {
-          const status = JSON.parse(storedStatus);
-          if (!status.isRegistered) {
-            // Navigate to registration if not registered
-            // Note: We can't navigate here directly, so we'll handle this in the screen component
+        
+        if (storedUserData) {
+          const user = JSON.parse(storedUserData);
+          if (user.isRegistered) {
+            // If user data exists and is registered, ensure registration status is set
+            await AsyncStorage.setItem('@registration_status', JSON.stringify({
+              isRegistered: true,
+              lastCheck: new Date().toISOString()
+            }));
           }
         }
       } catch (error) {
@@ -51,9 +56,12 @@ const MainNavigator = () => {
     return null; // Or a loading screen
   }
 
+  // Determine initial route based on registration status and user data
+  const initialRoute = userData?.isRegistered ? "Main" : "Registration";
+
   return (
     <Stack.Navigator
-      initialRouteName={registrationStatus.isRegistered ? "Main" : "Registration"}
+      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
         animation: 'fade',
@@ -111,8 +119,8 @@ const MainNavigator = () => {
         name="QRCode" 
         component={QRCode}
         options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
+          presentation: 'card',
+          animation: 'slide_from_right'
         }}
       />
       <Stack.Screen 

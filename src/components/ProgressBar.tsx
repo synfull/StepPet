@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Animated, Text, ViewStyle } from 'react-native';
+import debounce from 'lodash/debounce';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1
@@ -18,14 +19,16 @@ interface ProgressBarProps {
   maxValue?: number;
 }
 
-const ProgressBar: React.FC<ProgressBarProps> = ({
+const MIN_PROGRESS_CHANGE = 0.01; // Only animate if progress changes by more than 1%
+
+const ProgressBar: React.FC<ProgressBarProps> = React.memo(({
   progress,
   height = 15,
   backgroundColor = '#E0E0E0',
   fillColor = '#8C52FF',
   borderRadius = 4,
   animated = true,
-  duration = 500,
+  duration = 300, // Reduced from 500ms to 300ms
   showLabel = false,
   labelFormat = 'percent',
   customLabel,
@@ -35,21 +38,39 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   maxValue,
 }) => {
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const prevProgress = useRef(0);
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
 
-  useEffect(() => {
-    if (animated) {
-      Animated.timing(progressAnim, {
-        toValue: clampedProgress,
-        duration: duration,
-        useNativeDriver: false, // We're animating width which isn't supported by the native driver
-      }).start();
-    } else {
-      progressAnim.setValue(clampedProgress);
-    }
-  }, [clampedProgress, animated, duration, progressAnim]);
+  // Debounced animation function
+  const startAnimation = useCallback(
+    debounce((toValue: number) => {
+      if (animated) {
+        Animated.timing(progressAnim, {
+          toValue,
+          duration,
+          useNativeDriver: false,
+        }).start();
+      } else {
+        progressAnim.setValue(toValue);
+      }
+    }, 16), // Debounce at 60fps rate
+    [animated, duration]
+  );
 
-  const getLabel = () => {
+  useEffect(() => {
+    // Only animate if the change is significant enough
+    if (Math.abs(clampedProgress - prevProgress.current) >= MIN_PROGRESS_CHANGE) {
+      startAnimation(clampedProgress);
+      prevProgress.current = clampedProgress;
+    }
+
+    return () => {
+      startAnimation.cancel(); // Cancel any pending animations on cleanup
+    };
+  }, [clampedProgress, startAnimation]);
+
+  // Memoize label calculation
+  const label = useMemo(() => {
     if (customLabel) return customLabel;
     
     switch (labelFormat) {
@@ -63,46 +84,48 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       default:
         return `${Math.round(clampedProgress * 100)}%`;
     }
-  };
+  }, [clampedProgress, customLabel, labelFormat, currentValue, maxValue]);
+
+  // Memoize styles
+  const containerStyle = useMemo(() => [styles.container, style], [style]);
+  const progressContainerStyle = useMemo(() => [
+    styles.progressContainer,
+    {
+      height,
+      backgroundColor,
+      borderRadius,
+    }
+  ], [height, backgroundColor, borderRadius]);
+
+  const progressFillStyle = useMemo(() => [
+    styles.progressFill,
+    {
+      width: progressAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '100%'],
+      }),
+      height,
+      backgroundColor: fillColor,
+      borderRadius,
+    },
+  ], [height, fillColor, borderRadius, progressAnim]);
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={containerStyle}>
       {showLabel && labelStyle === 'outside' && (
-        <Text style={styles.labelOutside}>{getLabel()}</Text>
+        <Text style={styles.labelOutside}>{label}</Text>
       )}
       
-      <View 
-        style={[
-          styles.progressContainer, 
-          { 
-            height: height, 
-            backgroundColor: backgroundColor,
-            borderRadius: borderRadius,
-          }
-        ]}
-      >
-        <Animated.View 
-          style={[
-            styles.progressFill,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-              height: height,
-              backgroundColor: fillColor,
-              borderRadius: borderRadius,
-            },
-          ]}
-        >
+      <View style={progressContainerStyle}>
+        <Animated.View style={progressFillStyle}>
           {showLabel && labelStyle === 'inside' && (
-            <Text style={styles.labelInside}>{getLabel()}</Text>
+            <Text style={styles.labelInside}>{label}</Text>
           )}
         </Animated.View>
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -31,7 +31,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ]);
 
         if (storedUserData !== null) {
-          setUserData(JSON.parse(storedUserData));
+          const parsedUserData = JSON.parse(storedUserData);
+          setUserData(parsedUserData);
+          
+          // If user data exists and is registered, ensure registration status is set
+          if (parsedUserData.isRegistered) {
+            const newRegistrationStatus = {
+              isRegistered: true,
+              lastCheck: new Date().toISOString()
+            };
+            setRegistrationStatus(newRegistrationStatus);
+            await AsyncStorage.setItem('@registration_status', JSON.stringify(newRegistrationStatus));
+          }
         }
 
         if (storedRegistrationStatus !== null) {

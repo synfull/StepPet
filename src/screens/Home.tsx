@@ -145,6 +145,21 @@ const Home: React.FC = () => {
   
   // Force update growth stage on mount
   useEffect(() => {
+    const checkPaywallStatus = async () => {
+      try {
+        const paywallActive = await AsyncStorage.getItem('paywallActive');
+        const hasSubscribed = await AsyncStorage.getItem('hasSubscribed');
+        
+        if (paywallActive === 'true' && hasSubscribed !== 'true') {
+          navigation.navigate('Paywall');
+        }
+      } catch (error) {
+        console.error('Error checking paywall status:', error);
+      }
+    };
+    
+    checkPaywallStatus();
+    
     if (petData && petData.growthStage !== 'Egg') {
       // Force an update through updatePetWithSteps to correct growth stage
       updatePetWithSteps(petData, 0).then(({ updatedPet }) => {

@@ -21,6 +21,7 @@ import { PetCategory, GrowthStage } from '../types/petTypes';
 import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
 import Header from '../components/Header';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PetNamingNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type PetNamingRouteProp = RouteProp<RootStackParamList, 'PetNaming'>;
@@ -99,6 +100,7 @@ const PetNaming: React.FC = () => {
 
       // Show paywall after 5 seconds
       setTimeout(() => {
+        AsyncStorage.setItem('paywallActive', 'true');
         navigation.navigate('Paywall');
       }, 5000);
     } catch (error) {

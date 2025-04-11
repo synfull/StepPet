@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { subscriptionPricing } from '../utils/subscriptionUtils';
 import { RootStackParamList } from '../types/navigationTypes';
 import { LinearGradient } from 'expo-linear-gradient';
 import PetDisplay from '../components/PetDisplay';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 const MODAL_WIDTH = width * 0.9;
@@ -16,12 +17,30 @@ export const PaywallScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { petData } = useData();
   const [selectedTier, setSelectedTier] = useState<'trial' | 'monthly' | 'annual' | 'lifetime'>('annual');
+  const [isPaywallActive, setIsPaywallActive] = useState(false);
+
+  useEffect(() => {
+    const checkPaywallStatus = async () => {
+      try {
+        const paywallActive = await AsyncStorage.getItem('paywallActive');
+        setIsPaywallActive(paywallActive === 'true');
+      } catch (error) {
+        console.error('Error checking paywall status:', error);
+      }
+    };
+    
+    checkPaywallStatus();
+  }, []);
 
   const handleClose = () => {
-    navigation.goBack();
+    if (!isPaywallActive) {
+      navigation.goBack();
+    }
   };
 
   const handleContinue = () => {
+    AsyncStorage.setItem('paywallActive', 'false');
+    AsyncStorage.setItem('hasSubscribed', 'true');
     navigation.navigate('Subscription', { tier: selectedTier });
   };
 
@@ -34,9 +53,11 @@ export const PaywallScreen = () => {
           end={{ x: 0, y: 1 }}
           style={styles.header}
         >
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Ionicons name="close" size={20} color="#fff" />
-          </TouchableOpacity>
+          {!isPaywallActive && (
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <Ionicons name="close" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
           <View style={styles.petContainer}>
             <PetDisplay
               petType={petData?.type || ''}

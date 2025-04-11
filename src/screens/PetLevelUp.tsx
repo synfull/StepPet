@@ -20,6 +20,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import PetDisplay from '../components/PetDisplay';
 import Button from '../components/Button';
 import { useData } from '../context/DataContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PetLevelUpProps = NativeStackScreenProps<RootStackParamList, 'PetLevelUp'>;
 
@@ -29,6 +30,7 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   const { level, petType } = route.params;
   const { petData } = useData();
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPaywallActive, setIsPaywallActive] = useState(false);
   const confettiRef = useRef<any>(null);
   
   // Animation values
@@ -38,6 +40,18 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   const gradientAnim = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
+    // Check if paywall is active
+    const checkPaywallStatus = async () => {
+      try {
+        const paywallActive = await AsyncStorage.getItem('paywallActive');
+        setIsPaywallActive(paywallActive === 'true');
+      } catch (error) {
+        console.error('Error checking paywall status:', error);
+      }
+    };
+    
+    checkPaywallStatus();
+    
     // Play haptic feedback
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
@@ -128,7 +142,9 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (level === 3) {
+    if (isPaywallActive) {
+      navigation.navigate('Paywall');
+    } else if (level === 3) {
       navigation.navigate('Paywall');
     } else {
       navigation.navigate('Main');
