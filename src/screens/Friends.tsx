@@ -28,68 +28,6 @@ type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Frie
 
 type TimePeriod = 'weekly' | 'monthly' | 'allTime';
 
-// Sample friend data for demonstration
-const SAMPLE_FRIENDS: Friend[] = [
-  {
-    id: 'f1',
-    username: 'walker123',
-    petName: 'Blaze',
-    petType: 'lunacorn',
-    petLevel: 3,
-    weeklySteps: 42500,
-    monthlySteps: 168000,
-    allTimeSteps: 1250000,
-    lastActive: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
-    isCrowned: true
-  },
-  {
-    id: 'f2',
-    username: 'stepmaster',
-    petName: 'Luna',
-    petType: 'embermane',
-    petLevel: 4,
-    weeklySteps: 38700,
-    monthlySteps: 155000,
-    allTimeSteps: 980000,
-    lastActive: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    isCrowned: true
-  },
-  {
-    id: 'f3',
-    username: 'fitnessbuddy',
-    petName: 'Shadow',
-    petType: 'wispurr',
-    petLevel: 3,
-    weeklySteps: 35200,
-    monthlySteps: 142000,
-    allTimeSteps: 890000,
-    lastActive: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-    isCrowned: true
-  },
-  {
-    id: 'f4',
-    username: 'strollerpro',
-    petName: 'Sparky',
-    petType: 'flareep',
-    petLevel: 2,
-    weeklySteps: 28100,
-    monthlySteps: 112000,
-    allTimeSteps: 450000,
-    lastActive: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-  },
-  {
-    id: 'f5',
-    username: 'hikerhero',
-    petName: 'Aqua',
-    petType: 'aquabub',
-    petLevel: 2,
-    weeklySteps: 24800,
-    monthlySteps: 98000,
-    allTimeSteps: 320000,
-    lastActive: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-  }
-];
-
 interface FriendItemProps {
   friend: Friend;
   rank: number;
@@ -170,17 +108,9 @@ const Friends: React.FC = () => {
       const storedFriends = await AsyncStorage.getItem('@friends_data');
       if (storedFriends) {
         setFriends(JSON.parse(storedFriends));
-      } else {
-        // Use sample data for demonstration
-        setFriends(SAMPLE_FRIENDS);
-        
-        // Save sample data to storage (only for demonstration purposes)
-        await AsyncStorage.setItem('@friends_data', JSON.stringify(SAMPLE_FRIENDS));
       }
     } catch (error) {
       console.error('Error loading friends:', error);
-      // Fallback to sample data
-      setFriends(SAMPLE_FRIENDS);
     } finally {
       setLoading(false);
     }
@@ -189,11 +119,6 @@ const Friends: React.FC = () => {
   const handleAddFriend = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate('AddFriend');
-  };
-
-  const handleShowQRCode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate('QRCode');
   };
 
   const handleFriendPress = (friend: Friend) => {
@@ -295,21 +220,26 @@ const Friends: React.FC = () => {
           <Text style={styles.usernameHelpText}>Share this with friends to add you!</Text>
         </View>
 
-        <View style={styles.leaderboardHeader}>
-          <Text style={styles.leaderboardTitle}>
-            {timePeriod === 'weekly' 
-              ? 'Weekly' 
-              : timePeriod === 'monthly'
-                ? 'Monthly'
-                : 'All Time'} Leaderboard
-          </Text>
-          <Text style={styles.leaderboardSubtitle}>Top 3 earn a crown!</Text>
-        </View>
+        {friends.length > 0 && (
+          <>
+            <View style={styles.leaderboardHeader}>
+              <Text style={styles.leaderboardTitle}>
+                {timePeriod === 'weekly' 
+                  ? 'Weekly' 
+                  : timePeriod === 'monthly'
+                    ? 'Monthly'
+                    : 'All Time'} Leaderboard
+              </Text>
+              <Text style={styles.leaderboardSubtitle}>Top 3 earn a crown!</Text>
+            </View>
 
-        {renderTimePeriodSelector()}
+            {renderTimePeriodSelector()}
+          </>
+        )}
         
         {loading ? (
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#8C52FF" />
             <Text style={styles.loadingText}>Loading friends...</Text>
           </View>
         ) : friends.length === 0 ? (
@@ -418,6 +348,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     fontSize: 16,
     color: '#666666',
+    marginTop: 12,
   },
   emptyContainer: {
     flex: 1,
