@@ -6,6 +6,7 @@ interface GemContextType {
   addGems: (amount: number) => Promise<void>;
   deductGems: (amount: number) => Promise<boolean>;
   isLoading: boolean;
+  setGemBalance: (balance: number) => void;
 }
 
 const GemContext = createContext<GemContextType | undefined>(undefined);
@@ -62,7 +63,7 @@ export const GemProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <GemContext.Provider value={{ gemBalance, addGems, deductGems, isLoading }}>
+    <GemContext.Provider value={{ gemBalance, addGems, deductGems, isLoading, setGemBalance }}>
       {children}
     </GemContext.Provider>
   );

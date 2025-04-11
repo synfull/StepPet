@@ -5,7 +5,7 @@ import { useData } from './DataContext';
 
 export type ItemCategory = 'Hats' | 'Eyewear' | 'Neck';
 
-interface EquippedItems {
+export interface EquippedItems {
   Hats?: string;
   Eyewear?: string;
   Neck?: string;
@@ -21,6 +21,8 @@ interface InventoryContextType {
   unequipItem: (category: ItemCategory) => Promise<boolean>;
   getEquippedItemForCategory: (category: ItemCategory) => string | undefined;
   isLoading: boolean;
+  setOwnedItems: (items: string[]) => void;
+  setEquippedItems: (items: EquippedItems) => void;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -154,7 +156,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         equipItem,
         unequipItem,
         getEquippedItemForCategory,
-        isLoading 
+        isLoading,
+        setOwnedItems,
+        setEquippedItems
       }}
     >
       {children}
