@@ -231,10 +231,11 @@ const Friends: React.FC = () => {
 
   const headerRightComponent = (
     <TouchableOpacity 
-      onPress={() => navigation.navigate('QRCode')}
+      onPress={handleAddFriend}
+      style={styles.headerButton}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
-      <Ionicons name="qr-code-outline" size={24} color="#8C52FF" />
+      <Ionicons name="person-add-outline" size={24} color="#8C52FF" />
     </TouchableOpacity>
   );
 
@@ -528,6 +529,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
     color: '#666666',
+  },
+  headerButton: {
+    padding: 8,
   },
 });
 

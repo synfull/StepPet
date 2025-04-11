@@ -33,8 +33,6 @@ const AddFriend: React.FC = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
 
-    // In a real app, this would make an API call to find the user
-    // For this demo, we'll simulate finding a user
     try {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network request
 
@@ -83,16 +81,6 @@ const AddFriend: React.FC = () => {
     }
   };
 
-  const handleScanQRCode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // In a real app, this would open the device camera to scan a QR code
-    Alert.alert(
-      'Scan QR Code',
-      'This feature would open your camera to scan a friend\'s QR code.',
-      [{ text: 'OK' }]
-    );
-  };
-
   // Helper function to get random pet name for demo
   const getRandomPetName = () => {
     const names = ['Luna', 'Blaze', 'Shadow', 'Spark', 'Nova', 'Rocky', 'Misty', 'Pixel'];
@@ -138,41 +126,11 @@ const AddFriend: React.FC = () => {
           />
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Scan QR Code</Text>
-          <Text style={styles.description}>
-            Scan your friend's QR code to add them instantly.
-          </Text>
-          <TouchableOpacity
-            style={styles.qrButton}
-            onPress={handleScanQRCode}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="qr-code-outline" size={40} color="#8C52FF" />
-            <Text style={styles.qrButtonText}>Scan QR Code</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.infoContainer}>
           <Ionicons name="information-circle-outline" size={20} color="#666666" />
           <Text style={styles.infoText}>
             Friends can see your pet information and step count on the leaderboard.
           </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Share Your Profile</Text>
-          <Text style={styles.description}>
-            Share your QR code with friends so they can add you.
-          </Text>
-          <Button
-            title="Show My QR Code"
-            onPress={() => navigation.navigate('QRCode' as never)}
-            type="outline"
-            style={styles.qrCodeButton}
-          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -218,26 +176,6 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 24,
-  },
-  qrButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3EDFF',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  qrButtonText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 16,
-    color: '#8C52FF',
-    marginLeft: 12,
-  },
   infoContainer: {
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
@@ -251,9 +189,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     flex: 1,
     marginLeft: 8,
-  },
-  qrCodeButton: {
-    width: '100%',
   },
 });
 
