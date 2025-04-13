@@ -4,7 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { mockPurchaseSubscription } from '../utils/subscriptionUtils';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SubscriptionScreenRouteProp = RouteProp<RootStackParamList, 'Subscription'>;
 type SubscriptionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -21,24 +21,36 @@ export const SubscriptionScreen = () => {
         const success = await mockPurchaseSubscription(tier);
         
         if (success) {
+          // Set subscription status
+          await AsyncStorage.setItem('paywallActive', 'false');
+          await AsyncStorage.setItem('hasSubscribed', 'true');
+          
           // Check if this was part of the registration flow
-          const isRegistrationFlow = await SecureStore.getItemAsync('isRegistering');
+          const isRegistrationFlow = await AsyncStorage.getItem('isRegistering');
           
           if (isRegistrationFlow === 'true') {
             // Clear the registration flag
-            await SecureStore.deleteItemAsync('isRegistering');
-            // Navigate to onboarding or main screen
-            navigation.navigate('Main');
+            await AsyncStorage.removeItem('isRegistering');
+            // Navigate to main screen
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Main' }],
+            });
           } else {
             // Regular subscription purchase, go back to previous screen
             navigation.goBack();
           }
         } else {
-          // Handle failure
+          // Purchase failed, keep paywall active
+          await AsyncStorage.setItem('paywallActive', 'true');
+          await AsyncStorage.setItem('hasSubscribed', 'false');
           navigation.goBack();
         }
       } catch (error) {
         console.error('Error processing purchase:', error);
+        // On error, keep paywall active
+        await AsyncStorage.setItem('paywallActive', 'true');
+        await AsyncStorage.setItem('hasSubscribed', 'false');
         navigation.goBack();
       }
     };

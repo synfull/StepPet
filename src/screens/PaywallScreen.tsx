@@ -41,12 +41,10 @@ const PaywallScreen = () => {
   const handleContinue = async () => {
     if (selectedTier) {
       try {
-        await AsyncStorage.setItem('paywallActive', 'false');
-        await AsyncStorage.setItem('hasSubscribed', 'true');
         await AsyncStorage.setItem('isRegistering', 'true');
         navigation.navigate('Subscription', { tier: selectedTier });
       } catch (error) {
-        console.error('Error saving subscription state:', error);
+        console.error('Error saving registration state:', error);
       }
     }
   };
