@@ -150,9 +150,14 @@ const Home: React.FC = () => {
       try {
         const paywallActive = await AsyncStorage.getItem('paywallActive');
         const hasSubscribed = await AsyncStorage.getItem('hasSubscribed');
+        const hasNamedPet = await AsyncStorage.getItem('hasNamedPet');
         
-        if (paywallActive === 'true' && hasSubscribed !== 'true') {
-          navigation.navigate('Paywall');
+        // Only show paywall if pet has been named and we're not in the egg stage
+        if (paywallActive === 'true' && hasSubscribed !== 'true' && hasNamedPet === 'true' && petData?.growthStage !== 'Egg') {
+          // Add a small delay to ensure we're fully back on the home screen
+          setTimeout(() => {
+            navigation.navigate('Paywall');
+          }, 3000);
         }
       } catch (error) {
         console.error('Error checking paywall status:', error);
@@ -167,7 +172,7 @@ const Home: React.FC = () => {
         setPetData(updatedPet);
       });
     }
-  }, []); // Run once on mount
+  }, [petData?.growthStage]); // Run when pet growth stage changes
   
   // Refresh data periodically
   useEffect(() => {

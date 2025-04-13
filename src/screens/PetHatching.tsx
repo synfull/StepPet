@@ -279,16 +279,6 @@ const PetHatching: React.FC = () => {
     navigation.navigate('PetNaming', {
       petType,
     });
-
-    // Show paywall after 5 seconds
-    setTimeout(async () => {
-      try {
-        await AsyncStorage.setItem('paywallActive', 'true');
-        navigation.navigate('Paywall');
-      } catch (error) {
-        console.error('Error setting paywall state:', error);
-      }
-    }, 5000);
   };
 
   const getPetCategory = () => {

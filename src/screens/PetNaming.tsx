@@ -92,17 +92,20 @@ const PetNaming: React.FC = () => {
       // Update context
       setPetData(updatedPet);
       
+      // Set the hasNamedPet flag
+      await AsyncStorage.setItem('hasNamedPet', 'true');
+      
       // Navigate to the main screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Main' }],
       });
 
-      // Show paywall after 5 seconds
+      // Show paywall after 3 seconds
       setTimeout(() => {
         AsyncStorage.setItem('paywallActive', 'true');
         navigation.navigate('Paywall');
-      }, 5000);
+      }, 3000);
     } catch (error) {
       console.error('Error updating pet name:', error);
       setIsLoading(false);
