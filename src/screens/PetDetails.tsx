@@ -106,41 +106,45 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   
   // Get next evolution stage and required steps
   const getEvolutionInfo = () => {
-    const stepsToNextLevel = petData.xpToNextLevel - petData.xp;
-    
     switch (petData.growthStage) {
       case 'Baby':
         // Need to reach level 3 for Juvenile
         if (petData.level === 1) {
           return {
             nextStage: 'Juvenile',
-            stepsNeeded: petData.xpToNextLevel + LEVEL_REQUIREMENTS[1] - petData.xp
+            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
           };
         } else if (petData.level === 2) {
           return {
             nextStage: 'Juvenile',
-            stepsNeeded: LEVEL_REQUIREMENTS[2] - petData.xp
+            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
           };
         }
         return {
           nextStage: 'Juvenile',
-          stepsNeeded: stepsToNextLevel
+          stepsNeeded: 0 // Already at level 3, should be evolving
         };
       case 'Juvenile':
         // Need to reach level 4 for Adult
+        if (petData.level === 3) {
+          return {
+            nextStage: 'Adult',
+            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
+          };
+        }
         return {
           nextStage: 'Adult',
-          stepsNeeded: stepsToNextLevel
+          stepsNeeded: 0 // Already at level 4, should be evolving
         };
       case 'Adult':
         return {
           nextStage: 'Max Level',
-          stepsNeeded: stepsToNextLevel
+          stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
         };
       default:
         return {
           nextStage: 'Unknown',
-          stepsNeeded: stepsToNextLevel
+          stepsNeeded: 0
         };
     }
   };
