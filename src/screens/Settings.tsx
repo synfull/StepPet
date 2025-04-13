@@ -22,7 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import { RootStackParamList } from '../types/navigationTypes';
-import { savePetData } from '../utils/petUtils';
+import { savePetData, createNewPet } from '../utils/petUtils';
 import { PET_CATEGORIES, PET_TYPES } from '../utils/petUtils';
 import type { PetType, GrowthStage, PetData } from '../types/petTypes';
 import { supabase } from '../lib/supabase';
@@ -96,27 +96,52 @@ const Settings: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear ALL data from AsyncStorage
+              // Get the current session first
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session?.user?.id) {
+                throw new Error('No user found');
+              }
+
+              // Update the profile in Supabase to reset pet data
+              const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                  pet_name: 'Egg',
+                  pet_type: '',
+                  pet_level: 1,
+                  weekly_steps: 0,
+                  monthly_steps: 0,
+                  all_time_steps: 0,
+                  last_active: new Date().toISOString()
+                })
+                .eq('id', session.user.id);
+
+              if (profileError) {
+                console.error('Error updating profile:', profileError);
+                throw profileError;
+              }
+
+              // Sign out first
+              await supabase.auth.signOut();
+
+              // Clear all data
               await AsyncStorage.clear();
               
               // Reset pet data in context
               setPetData(null);
               
-              // Force reload the app by navigating to Main
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Main' as never }],
-              });
-              
               // Show confirmation
               Alert.alert(
                 'Data Reset',
-                'All data has been reset successfully. Please close and reopen the app to start fresh.',
+                'All data has been reset successfully. Please log in again to start fresh.',
                 [{ 
                   text: 'OK',
                   onPress: () => {
-                    // Force close the app
-                    BackHandler.exitApp();
+                    // Navigate to login screen
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Login' as never }],
+                    });
                   }
                 }]
               );
