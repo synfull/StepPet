@@ -113,7 +113,13 @@ const TabNavigator = () => {
         />
       </Tab.Navigator>
 
-      <View style={styles.gemContainer}>
+      <View style={[
+        styles.gemContainer,
+        {
+          top: insets.top - (Platform.OS === 'ios' ? 40 : 30),
+          right: 56,
+        }
+      ]}>
         <TouchableOpacity 
           style={styles.gemButton}
           onPress={handleGemPress}
@@ -155,12 +161,16 @@ const styles = StyleSheet.create({
   },
   gemContainer: {
     position: 'absolute',
-    right: 48,
-    top: 8,
-    zIndex: 1000,
+    zIndex: 2,
   },
   gemButton: {
-    padding: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });
 
