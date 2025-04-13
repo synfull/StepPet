@@ -11,6 +11,7 @@ import {
   BackHandler,
   Modal,
   FlatList,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -23,8 +24,8 @@ import Header from '../components/Header';
 import { RootStackParamList } from '../types/navigationTypes';
 import { savePetData } from '../utils/petUtils';
 import { PET_CATEGORIES, PET_TYPES } from '../utils/petUtils';
-import type { PetType } from '../types/petTypes';
-import type { GrowthStage } from '../types/petTypes';
+import type { PetType, GrowthStage, PetData } from '../types/petTypes';
+import { supabase } from '../lib/supabase';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -186,6 +187,25 @@ const Settings: React.FC = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Clear any local data if needed
+      setPetData(null);
+      
+      // Navigate to the login screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' as never }],
+      });
+    } catch (error) {
+      console.error('Error logging out:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
+  };
+  
   // Render a settings item with a toggle switch
   const renderToggleItem = (
     title: string,
@@ -301,6 +321,14 @@ const Settings: React.FC = () => {
             'Learn more about the app and developers',
             () => navigation.navigate('AboutApp' as never),
             'information-circle-outline'
+          )}
+
+          {renderActionItem(
+            'Log Out',
+            'Sign out of your account',
+            handleLogout,
+            'log-out-outline',
+            '#FF3B30'
           )}
         </View>
         

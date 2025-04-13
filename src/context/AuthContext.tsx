@@ -115,11 +115,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
       });
       
+      if (error) {
+        return { error };
+      }
+
       if (data.session) {
+        // Save auth session
         await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(data.session));
+        
+        // Fetch user profile from Supabase
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          return { error: profileError };
+        }
+
+        // Save user data to AsyncStorage
+        const userData = {
+          id: profileData.id,
+          username: profileData.username,
+          createdAt: profileData.created_at,
+          lastActive: profileData.last_active,
+          subscription: {
+            tier: 'free',
+            startDate: new Date().toISOString(),
+            endDate: null,
+            isActive: true,
+            autoRenew: false
+          },
+          isRegistered: true
+        };
+        
+        await AsyncStorage.setItem('@user_data', JSON.stringify(userData));
       }
       
-      return { error };
+      return { error: null };
     } catch (error) {
       return { error };
     }

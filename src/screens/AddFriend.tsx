@@ -40,14 +40,31 @@ const AddFriend: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Find the user by username
-      const { data: foundUser, error: userError } = await supabase
+      console.log('Searching for username:', username.trim());
+      
+      // First try to get all matching users to debug
+      const { data: allMatches, error: matchError } = await supabase
         .from('profiles')
         .select('id, username')
-        .eq('username', username.trim())
-        .single();
+        .ilike('username', `%${username.trim()}%`);
+        
+      console.log('All potential matches:', allMatches);
+      
+      if (matchError) {
+        console.error('Error searching for users:', matchError);
+        Alert.alert('Error', 'There was a problem searching for users.');
+        setIsLoading(false);
+        return;
+      }
 
-      if (userError || !foundUser) {
+      // Then get the exact match if it exists
+      const foundUser = allMatches?.find(
+        user => user.username.toLowerCase() === username.trim().toLowerCase()
+      );
+
+      console.log('Found exact match:', foundUser);
+
+      if (!foundUser) {
         Alert.alert('User Not Found', 'Could not find a user with that username.');
         setIsLoading(false);
         return;

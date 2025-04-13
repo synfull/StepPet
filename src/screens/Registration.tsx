@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types/navigationTypes';
 import { UserData, SubscriptionStatus } from '../types/userTypes';
 import { createNewPet, savePetData } from '../utils/petUtils';
+import { supabase } from '../lib/supabase';
 
 // Custom ID generator for React Native
 const generateId = () => {
@@ -93,7 +94,26 @@ const Registration: React.FC = () => {
     setError(null);
 
     try {
-      // Check if username is already taken
+      // Check if username is already taken in Supabase
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('username')
+        .ilike('username', username)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking username:', checkError);
+        throw new Error('Failed to check username availability');
+      }
+
+      if (existingProfile) {
+        setError('Username is already taken');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if username is already taken in local storage
       const existingUser = await AsyncStorage.getItem('@user_data');
       if (existingUser) {
         const user = JSON.parse(existingUser);
@@ -112,9 +132,41 @@ const Registration: React.FC = () => {
         throw new Error('Failed to create account. Please try again later.');
       }
 
+      // Get the current session to get the user ID
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Failed to get user session');
+      }
+
+      // Create profile in Supabase
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: session.user.id,
+          username: username,
+          email: email,
+          pet_name: 'My Pet',
+          pet_type: 'Egg',
+          pet_level: 1,
+          weekly_steps: 0,
+          monthly_steps: 0,
+          all_time_steps: 0,
+          last_active: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        // Log the full error for debugging
+        console.error('Profile creation error:', JSON.stringify(profileError));
+        // Continue with registration as the auth part succeeded
+        console.warn('Failed to create profile, but continuing with registration');
+      }
+
       // Create new user data
       const newUser: UserData = {
-        id: generateId(),
+        id: session.user.id,  // Use Supabase user ID instead of generating one
         username,
         createdAt: new Date().toISOString(),
         lastActive: new Date().toISOString(),

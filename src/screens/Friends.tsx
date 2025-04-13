@@ -308,30 +308,6 @@ const Friends: React.FC = () => {
     setTimePeriod(period);
   };
 
-  // Sort friends by selected time period
-  const sortedFriends = [...friends].sort((a, b) => {
-    switch (timePeriod) {
-      case 'weekly':
-        return b.weekly_steps - a.weekly_steps;
-      case 'monthly':
-        return b.monthly_steps - a.monthly_steps;
-      case 'allTime':
-        return b.all_time_steps - a.all_time_steps;
-      default:
-        return b.weekly_steps - a.weekly_steps;
-    }
-  });
-
-  const headerRightComponent = (
-    <TouchableOpacity 
-      onPress={handleAddFriend}
-      style={styles.headerButton}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-    >
-      <Ionicons name="person-add-outline" size={24} color="#8C52FF" />
-    </TouchableOpacity>
-  );
-
   const renderTimePeriodSelector = () => (
     <View style={styles.timePeriodSelector}>
       <TouchableOpacity
@@ -373,6 +349,39 @@ const Friends: React.FC = () => {
     </View>
   );
 
+  const renderFriendRequest = ({ item }: { item: FriendRequest }) => (
+    <View style={styles.friendRequestItem}>
+      <View style={styles.friendRequestInfo}>
+        <Text style={styles.friendRequestUsername}>{item.username}</Text>
+        <Text style={styles.friendRequestText}>wants to be your friend</Text>
+      </View>
+      <View style={styles.friendRequestActions}>
+        <TouchableOpacity
+          style={[styles.friendRequestButton, styles.acceptButton]}
+          onPress={() => handleFriendRequest(item.id, true)}
+        >
+          <Ionicons name="checkmark-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.friendRequestButton, styles.rejectButton]}
+          onPress={() => handleFriendRequest(item.id, false)}
+        >
+          <Ionicons name="close-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const headerRightComponent = (
+    <TouchableOpacity 
+      onPress={handleAddFriend}
+      style={styles.headerButton}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="person-add-outline" size={24} color="#8C52FF" />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <StatusBar style="dark" />
@@ -389,27 +398,15 @@ const Friends: React.FC = () => {
         </View>
 
         {friendRequests.length > 0 && (
-          <View style={styles.requestsContainer}>
-            <Text style={styles.requestsTitle}>Friend Requests</Text>
-            {friendRequests.map(request => (
-              <View key={request.id} style={styles.requestItem}>
-                <Text style={styles.requestUsername}>{request.username}</Text>
-                <View style={styles.requestButtons}>
-                  <TouchableOpacity
-                    style={[styles.requestButton, styles.acceptButton]}
-                    onPress={() => handleFriendRequest(request.id, true)}
-                  >
-                    <Text style={styles.requestButtonText}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.requestButton, styles.rejectButton]}
-                    onPress={() => handleFriendRequest(request.id, false)}
-                  >
-                    <Text style={[styles.requestButtonText, styles.rejectButtonText]}>Decline</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+          <View style={styles.friendRequestsSection}>
+            <Text style={styles.sectionTitle}>Friend Requests</Text>
+            <FlatList
+              data={friendRequests}
+              renderItem={renderFriendRequest}
+              keyExtractor={item => item.id}
+              horizontal={false}
+              scrollEnabled={false}
+            />
           </View>
         )}
 
@@ -451,7 +448,7 @@ const Friends: React.FC = () => {
           </View>
         ) : (
           <FlatList
-            data={sortedFriends}
+            data={friends}
             renderItem={({ item, index }) => (
               <FriendItem 
                 friend={item} 
@@ -657,56 +654,60 @@ const styles = StyleSheet.create({
   headerButton: {
     padding: 8,
   },
-  requestsContainer: {
-    backgroundColor: '#F5F5F5',
+  friendRequestsSection: {
+    marginBottom: 16,
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  requestsTitle: {
+  sectionTitle: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 16,
-    color: '#333333',
+    color: '#333',
     marginBottom: 12,
   },
-  requestItem: {
+  friendRequestItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  requestUsername: {
+  friendRequestInfo: {
+    flex: 1,
+  },
+  friendRequestUsername: {
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 14,
-    color: '#333333',
+    fontSize: 16,
+    color: '#333',
   },
-  requestButtons: {
+  friendRequestText: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 14,
+    color: '#666',
+  },
+  friendRequestActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  requestButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+  friendRequestButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   acceptButton: {
     backgroundColor: '#4CAF50',
   },
   rejectButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#FF5252',
-  },
-  requestButtonText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    color: '#FFFFFF',
-  },
-  rejectButtonText: {
-    color: '#FF5252',
+    backgroundColor: '#FF3B30',
   },
 });
 
