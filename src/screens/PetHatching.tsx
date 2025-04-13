@@ -22,6 +22,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { PetType } from '../types/petTypes';
 import { PET_TYPES } from '../utils/petUtils';
 import Button from '../components/Button';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Pet baby images mapping
 const PET_BABY_IMAGES: { [key in PetType]: ImageSourcePropType } = {
@@ -273,9 +274,21 @@ const PetHatching: React.FC = () => {
 
   const handleContinue = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    // Navigate to PetNaming screen
     navigation.navigate('PetNaming', {
       petType,
     });
+
+    // Show paywall after 5 seconds
+    setTimeout(async () => {
+      try {
+        await AsyncStorage.setItem('paywallActive', 'true');
+        navigation.navigate('Paywall');
+      } catch (error) {
+        console.error('Error setting paywall state:', error);
+      }
+    }, 5000);
   };
 
   const getPetCategory = () => {

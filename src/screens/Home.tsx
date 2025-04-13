@@ -421,8 +421,8 @@ const Home: React.FC = () => {
       setWeeklySteps(0);
       setTotalSteps(0);
       
-      // Create a new pet with current steps
-      const newPet = await createNewPet(dailySteps);
+      // Create a new pet with 0 steps instead of current steps
+      const newPet = await createNewPet(0);
       await savePetData(newPet);
       setPetData(newPet);
       
@@ -833,7 +833,7 @@ const Home: React.FC = () => {
               title="Get Your Egg"
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                const newPet = await createNewPet(dailySteps);
+                const newPet = await createNewPet(0, '', 'mythic', 'Egg');
                 await savePetData(newPet);
                 setPetData(newPet);
                 // Reset step counters to 0 since we're starting fresh

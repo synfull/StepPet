@@ -1,216 +1,92 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../context/AuthContext';
+import Login from '../screens/Login';
+import Registration from '../screens/Registration';
 import TabNavigator from '@navigation/TabNavigator';
+import PetDetails from '../screens/PetDetails';
 import PetNaming from '../screens/PetNaming';
 import PetHatching from '../screens/PetHatching';
 import PetLevelUp from '../screens/PetLevelUp';
+import PaywallScreen from '../screens/PaywallScreen';
+import Share from '../screens/Share';
+import AboutApp from '../screens/AboutApp';
+import Settings from '../screens/Settings';
 import AddFriend from '../screens/AddFriend';
 import QRCode from '../screens/QRCode';
-import Settings from '../screens/Settings';
-import PetDetails from '../screens/PetDetails';
-import Share from '../screens/Share';
 import Store from '../screens/Store';
 import StoreHats from '../screens/StoreHats';
 import StoreNeck from '../screens/StoreNeck';
 import StoreEyewear from '../screens/StoreEyewear';
 import MilestoneUnlocked from '../screens/MilestoneUnlocked';
-import AboutApp from '../screens/AboutApp';
-import { PaywallScreen } from '../screens/PaywallScreen';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
-import Registration from '../screens/Registration';
-import { RootStackParamList } from '../types/navigationTypes';
-import { useUser } from '../context/UserContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export type RootStackParamList = {
+  Login: undefined;
+  Registration: undefined;
+  Main: undefined;
+  Home: undefined;
+  PetDetails: { petId: string; showSpecialAnimation?: boolean };
+  PetNaming: undefined;
+  PetHatching: { petType: string };
+  PetLevelUp: { level: number; petType: string };
+  Paywall: undefined;
+  Share: { type: 'levelUp' | 'milestone'; data: any };
+  AboutApp: undefined;
+  Settings: undefined;
+  AddFriend: undefined;
+  QRCode: undefined;
+  Store: undefined;
+  StoreHats: undefined;
+  StoreNeck: undefined;
+  StoreEyewear: undefined;
+  MilestoneUnlocked: undefined;
+  Subscription: undefined;
+};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const MainNavigator = () => {
-  const { registrationStatus, isLoading, userData } = useUser();
+const MainNavigator: React.FC = () => {
+  const { user, loading } = useAuth();
 
-  // Check registration status on mount
-  useEffect(() => {
-    const checkRegistration = async () => {
-      try {
-        const storedUserData = await AsyncStorage.getItem('@user_data');
-        const storedStatus = await AsyncStorage.getItem('@registration_status');
-        
-        if (storedUserData) {
-          const user = JSON.parse(storedUserData);
-          if (user.isRegistered) {
-            // If user data exists and is registered, ensure registration status is set
-            await AsyncStorage.setItem('@registration_status', JSON.stringify({
-              isRegistered: true,
-              lastCheck: new Date().toISOString()
-            }));
-          }
-        }
-      } catch (error) {
-        console.error('Error checking registration status:', error);
-      }
-    };
-
-    checkRegistration();
-  }, []);
-
-  if (isLoading) {
+  if (loading) {
     return null; // Or a loading screen
   }
 
-  // Determine initial route based on registration status and user data
-  const initialRoute = userData?.isRegistered ? "Main" : "Registration";
-
   return (
     <Stack.Navigator
-      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
-        presentation: 'card',
-        contentStyle: { backgroundColor: '#FFFFFF' }
       }}
     >
-      <Stack.Screen 
-        name="Registration" 
-        component={Registration}
-        options={{
-          animation: 'none'
-        }}
-      />
-      <Stack.Screen 
-        name="Main" 
-        component={TabNavigator}
-        options={{
-          animation: 'none'
-        }}
-      />
-      <Stack.Screen 
-        name="PetNaming" 
-        component={PetNaming}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="PetHatching" 
-        component={PetHatching}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="PetLevelUp" 
-        component={PetLevelUp}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
-        }}
-      />
-      <Stack.Screen 
-        name="AddFriend" 
-        component={AddFriend}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="QRCode" 
-        component={QRCode}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="Settings" 
-        component={Settings}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="PetDetails" 
-        component={PetDetails}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="Share" 
-        component={Share}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
-        }}
-      />
-      <Stack.Screen 
-        name="Store" 
-        component={Store}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="StoreHats" 
-        component={StoreHats}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="StoreNeck" 
-        component={StoreNeck}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="StoreEyewear" 
-        component={StoreEyewear}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="MilestoneUnlocked" 
-        component={MilestoneUnlocked}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
-        }}
-      />
-      <Stack.Screen 
-        name="AboutApp" 
-        component={AboutApp}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
-      <Stack.Screen 
-        name="Paywall" 
-        component={PaywallScreen}
-        options={{
-          presentation: 'transparentModal',
-          animation: 'fade'
-        }}
-      />
-      <Stack.Screen 
-        name="Subscription" 
-        component={SubscriptionScreen}
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right'
-        }}
-      />
+      {!user ? (
+        // Auth screens
+        <>
+          <Stack.Screen name="Login" component={Login} />
+          <Stack.Screen name="Registration" component={Registration} />
+        </>
+      ) : (
+        // Protected screens
+        <>
+          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="PetDetails" component={PetDetails} />
+          <Stack.Screen name="PetNaming" component={PetNaming} />
+          <Stack.Screen name="PetHatching" component={PetHatching} />
+          <Stack.Screen name="PetLevelUp" component={PetLevelUp} />
+          <Stack.Screen name="Paywall" component={PaywallScreen} />
+          <Stack.Screen name="Share" component={Share} />
+          <Stack.Screen name="AboutApp" component={AboutApp} />
+          <Stack.Screen name="Settings" component={Settings} />
+          <Stack.Screen name="AddFriend" component={AddFriend} />
+          <Stack.Screen name="QRCode" component={QRCode} />
+          <Stack.Screen name="Store" component={Store} />
+          <Stack.Screen name="StoreHats" component={StoreHats} />
+          <Stack.Screen name="StoreNeck" component={StoreNeck} />
+          <Stack.Screen name="StoreEyewear" component={StoreEyewear} />
+          <Stack.Screen name="MilestoneUnlocked" component={MilestoneUnlocked} />
+          <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 };

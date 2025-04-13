@@ -20,9 +20,28 @@ import {
 } from '@utils/pedometerUtils';
 import { PetData } from './src/types/petTypes';
 import { RegistrationStatus } from './src/types/userTypes';
+import { AuthProvider } from './src/context/AuthContext';
+import * as Linking from 'expo-linking';
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
+
+const linking = {
+  prefixes: ['steppet://'],
+  config: {
+    screens: {
+      Login: 'login',
+      Registration: 'registration',
+      Main: 'main',
+      auth: {
+        path: 'auth/callback',
+        parse: {
+          token: (token: string) => token,
+        },
+      },
+    },
+  },
+};
 
 export default function App() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
@@ -157,27 +176,29 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
-      <StatusBar style="dark" />
-      <NavigationContainer>
-        <PedometerContext.Provider value={pedometerValue}>
-          <DataProvider>
-            <GemProvider>
-              <InventoryProvider>
-                <UserProvider>
-                  <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
-                    {isOnboardingComplete ? (
-                      <MainNavigator />
-                    ) : (
-                      <Onboarding completeOnboarding={completeOnboarding} />
-                    )}
-                  </SafeAreaView>
-                </UserProvider>
-              </InventoryProvider>
-            </GemProvider>
-          </DataProvider>
-        </PedometerContext.Provider>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
+        <StatusBar style="dark" />
+        <NavigationContainer linking={linking}>
+          <PedometerContext.Provider value={pedometerValue}>
+            <DataProvider>
+              <GemProvider>
+                <InventoryProvider>
+                  <UserProvider>
+                    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
+                      {isOnboardingComplete ? (
+                        <MainNavigator />
+                      ) : (
+                        <Onboarding completeOnboarding={completeOnboarding} />
+                      )}
+                    </SafeAreaView>
+                  </UserProvider>
+                </InventoryProvider>
+              </GemProvider>
+            </DataProvider>
+          </PedometerContext.Provider>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }

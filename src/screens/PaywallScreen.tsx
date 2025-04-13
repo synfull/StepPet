@@ -13,7 +13,7 @@ const { width, height } = Dimensions.get('window');
 const MODAL_WIDTH = width * 0.9;
 const MODAL_HEIGHT = height * 0.85;
 
-export const PaywallScreen = () => {
+const PaywallScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { petData } = useData();
   const [selectedTier, setSelectedTier] = useState<'trial' | 'monthly' | 'annual' | 'lifetime'>('annual');
@@ -38,10 +38,17 @@ export const PaywallScreen = () => {
     }
   };
 
-  const handleContinue = () => {
-    AsyncStorage.setItem('paywallActive', 'false');
-    AsyncStorage.setItem('hasSubscribed', 'true');
-    navigation.navigate('Subscription', { tier: selectedTier });
+  const handleContinue = async () => {
+    if (selectedTier) {
+      try {
+        await AsyncStorage.setItem('paywallActive', 'false');
+        await AsyncStorage.setItem('hasSubscribed', 'true');
+        await AsyncStorage.setItem('isRegistering', 'true');
+        navigation.navigate('Subscription', { tier: selectedTier });
+      } catch (error) {
+        console.error('Error saving subscription state:', error);
+      }
+    }
   };
 
   return (
@@ -385,4 +392,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 50,
   },
-}); 
+});
+
+export default PaywallScreen; 

@@ -4,6 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigationTypes';
 import { mockPurchaseSubscription } from '../utils/subscriptionUtils';
+import * as SecureStore from 'expo-secure-store';
 
 type SubscriptionScreenRouteProp = RouteProp<RootStackParamList, 'Subscription'>;
 type SubscriptionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -20,8 +21,18 @@ export const SubscriptionScreen = () => {
         const success = await mockPurchaseSubscription(tier);
         
         if (success) {
-          // Navigate back to main screen after successful purchase
-          navigation.navigate('Main');
+          // Check if this was part of the registration flow
+          const isRegistrationFlow = await SecureStore.getItemAsync('isRegistering');
+          
+          if (isRegistrationFlow === 'true') {
+            // Clear the registration flag
+            await SecureStore.deleteItemAsync('isRegistering');
+            // Navigate to onboarding or main screen
+            navigation.navigate('Main');
+          } else {
+            // Regular subscription purchase, go back to previous screen
+            navigation.goBack();
+          }
         } else {
           // Handle failure
           navigation.goBack();

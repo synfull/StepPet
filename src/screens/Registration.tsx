@@ -17,8 +17,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types/navigationTypes';
 import { UserData, SubscriptionStatus } from '../types/userTypes';
+import { createNewPet, savePetData } from '../utils/petUtils';
 
 // Custom ID generator for React Native
 const generateId = () => {
@@ -35,7 +37,10 @@ const Registration: React.FC = () => {
   const navigation = useNavigation<RegistrationNavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserData, setRegistrationStatus } = useUser();
+  const { signUp } = useAuth();
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +66,25 @@ const Registration: React.FC = () => {
     return true;
   };
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
+
+  const validatePassword = (password: string): boolean => {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    return true;
+  };
+
   const handleRegister = async () => {
-    if (!validateUsername(username)) {
+    if (!validateUsername(username) || !validateEmail(email) || !validatePassword(password)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -72,15 +94,22 @@ const Registration: React.FC = () => {
 
     try {
       // Check if username is already taken
-      const existingUsers = await AsyncStorage.getItem('@user_data');
-      if (existingUsers) {
-        const users = JSON.parse(existingUsers);
-        if (users.some((user: UserData) => user.username.toLowerCase() === username.toLowerCase())) {
+      const existingUser = await AsyncStorage.getItem('@user_data');
+      if (existingUser) {
+        const user = JSON.parse(existingUser);
+        if (user.username.toLowerCase() === username.toLowerCase()) {
           setError('Username is already taken');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
           setIsLoading(false);
           return;
         }
+      }
+
+      // Sign up with Supabase using the provided email
+      const { error: authError } = await signUp(email, password);
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw new Error('Failed to create account. Please try again later.');
       }
 
       // Create new user data
@@ -105,10 +134,17 @@ const Registration: React.FC = () => {
       setRegistrationStatus({ isRegistered: true, lastCheck: new Date().toISOString() });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      navigation.replace('Main');
+      
+      // Create a new pet with 0 steps
+      const newPet = await createNewPet(0, '', 'mythic', 'Egg');
+      await savePetData(newPet);
+      
+      // Navigate to Main screen after registration
+      navigation.navigate('Main');
+
     } catch (error) {
       console.error('Error during registration:', error);
-      setError('Failed to register. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to register. Please try again.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
@@ -123,7 +159,7 @@ const Registration: React.FC = () => {
       <StatusBar style="dark" />
       <View style={styles.content}>
         <Text style={styles.title}>Create Your Account</Text>
-        <Text style={styles.subtitle}>Choose a username to get started</Text>
+        <Text style={styles.subtitle}>Enter your details to get started</Text>
 
         <View style={styles.inputContainer}>
           <TextInput
@@ -135,6 +171,24 @@ const Registration: React.FC = () => {
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={20}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#999999"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#999999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
           />
           {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
@@ -193,6 +247,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Regular',
     color: '#333333',
     backgroundColor: '#F8F8F8',
+    marginBottom: 15,
   },
   errorText: {
     color: '#FF3B30',
