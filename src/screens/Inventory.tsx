@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInventory, ItemCategory } from '../context/InventoryContext';
@@ -24,7 +25,12 @@ const InventoryItemCard: React.FC<{
 }> = ({ item, onPress, isEquipped }) => (
   <TouchableOpacity style={styles.itemCard} onPress={onPress}>
     <View style={styles.itemImageContainer}>
-      <Image source={ITEM_IMAGES[item.category][item.id]} style={styles.itemImage} />
+      <Image 
+        source={ITEM_IMAGES[item.category][item.id]} 
+        style={styles.itemImage}
+        contentFit="cover"
+        transition={200}
+      />
       {isEquipped && (
         <View style={styles.equippedBadge}>
           <Text style={styles.equippedText}>Equipped</Text>
@@ -98,7 +104,12 @@ const Inventory = () => {
                 if (!item) return null;
                 return (
                   <View key={itemId} style={styles.equippedItem}>
-                    <Image source={ITEM_IMAGES[category as Category][itemId]} style={styles.equippedItemImage} />
+                    <Image 
+                      source={ITEM_IMAGES[category as Category][itemId]} 
+                      style={styles.equippedItemImage}
+                      contentFit="cover"
+                      transition={200}
+                    />
                     <Text style={styles.equippedItemText}>{item.name}</Text>
                   </View>
                 );

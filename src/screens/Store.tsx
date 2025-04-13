@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -77,7 +78,12 @@ const GemPackageCard: React.FC<{ pack: GemPackage }> = ({ pack }) => (
   <TouchableOpacity style={styles.gemPackage}>
     <View style={styles.gemInfo}>
       <View style={styles.leftContent}>
-        <Image source={pack.image} style={styles.gemImage} />
+        <Image 
+          source={pack.image} 
+          style={styles.gemImage}
+          contentFit="contain"
+          transition={200}
+        />
       </View>
       <View style={styles.rightContent}>
         <View style={styles.priceContainer}>
@@ -98,7 +104,14 @@ const GemPackageCard: React.FC<{ pack: GemPackage }> = ({ pack }) => (
 const StoreItemCard: React.FC<{ item: StoreItem }> = ({ item }) => (
   <TouchableOpacity style={styles.itemCard}>
     <View style={styles.itemImageContainer}>
-      {item.image && <Image source={item.image} style={styles.itemImage} />}
+      {item.image && (
+        <Image 
+          source={item.image} 
+          style={styles.itemImage}
+          contentFit="cover"
+          transition={200}
+        />
+      )}
     </View>
     <View style={styles.itemInfo}>
       <Text style={styles.itemName}>{item.name}</Text>
@@ -157,7 +170,12 @@ const ItemCategory: React.FC<{ title: string; onPress: () => void }> = ({ title,
     <TouchableOpacity style={styles.itemCategory} onPress={onPress}>
       <View style={styles.categoryContent}>
         <View style={styles.categoryIcon}>
-          <Image source={getIconSource()} style={styles.categoryImage} />
+          <Image 
+            source={getIconSource()} 
+            style={styles.categoryImage}
+            contentFit="contain"
+            transition={200}
+          />
         </View>
         <View style={styles.categoryInfo}>
           <Text style={styles.categoryTitle}>{title}</Text>
@@ -298,7 +316,12 @@ const GemsTab = () => {
         <View key={pack.id} style={styles.gemPackage}>
           <View style={styles.gemInfo}>
             <View style={styles.leftContent}>
-              <Image source={pack.image} style={styles.gemImage} />
+              <Image 
+                source={pack.image} 
+                style={styles.gemImage}
+                contentFit="contain"
+                transition={200}
+              />
             </View>
             <View style={styles.rightContent}>
               <View style={styles.priceContainer}>
@@ -431,7 +454,14 @@ const AllItemsTab = () => {
           onPress={() => handleItemPress(item)}
         >
           <View style={styles.itemImageContainer}>
-            {item.image && <Image source={item.image} style={styles.itemImage} />}
+            {item.image && (
+              <Image 
+                source={item.image} 
+                style={styles.itemImage}
+                contentFit="cover"
+                transition={200}
+              />
+            )}
           </View>
           <View style={styles.itemInfo}>
             <Text style={styles.itemName}>{item.name}</Text>

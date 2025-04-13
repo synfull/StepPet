@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useInventory } from '../context/InventoryContext';
 import { useGems } from '../context/GemContext';
 
@@ -49,7 +50,14 @@ export const StoreItemCard: React.FC<StoreItemCardProps> = ({ item, onPurchaseSu
       disabled={isOwned || isProcessing || !canAfford}
     >
       <View style={styles.imageContainer}>
-        {item.image && <Image source={item.image} style={styles.image} />}
+        {item.image && (
+          <Image 
+            source={item.image} 
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
         {isProcessing && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="small" color="#8C52FF" />
