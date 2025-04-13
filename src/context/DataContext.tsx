@@ -7,8 +7,6 @@ import { useAuth } from './AuthContext';
 interface DataContextType {
   petData: PetData | null;
   setPetData: (data: PetData | null) => void;
-  isDevelopmentMode: boolean;
-  setIsDevelopmentMode: (value: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -18,7 +16,6 @@ const getPetStorageKey = (userId: string) => `@pet_data_${userId}`;
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [petData, setPetData] = useState<PetData | null>(null);
-  const [isDevelopmentMode, setIsDevelopmentMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load pet data from storage on mount or when user changes
@@ -65,9 +62,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider 
       value={{ 
         petData, 
-        setPetData,
-        isDevelopmentMode,
-        setIsDevelopmentMode
+        setPetData
       }}
     >
       {children}

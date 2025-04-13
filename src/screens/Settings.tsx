@@ -30,7 +30,7 @@ type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Settings: React.FC = () => {
   const navigation = useNavigation<SettingsNavigationProp>();
-  const { petData, setPetData, isDevelopmentMode, setIsDevelopmentMode } = useData();
+  const { petData, setPetData } = useData();
   
   // Settings state
   const [notifications, setNotifications] = useState(true);
@@ -275,61 +275,6 @@ const Settings: React.FC = () => {
             !!petData?.appearance.backgroundTheme,
             handleToggleBackgroundTheme,
             'color-palette-outline'
-          )}
-        </View>
-        
-        {/* Development Section (Hidden by default) */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.settingItem}
-            onPress={() => setIsDevelopmentMode(!isDevelopmentMode)}
-          >
-            <View style={[styles.settingIconContainer, { backgroundColor: '#FF3B3020' }]}>
-              <Ionicons name="code-working" size={22} color="#FF3B30" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Development Mode</Text>
-              <Text style={styles.settingDescription}>Enable development features</Text>
-            </View>
-            <Switch
-              value={isDevelopmentMode}
-              onValueChange={() => setIsDevelopmentMode(!isDevelopmentMode)}
-              trackColor={{ false: '#D0D0D0', true: '#FFB0B0' }}
-              thumbColor={isDevelopmentMode ? '#FF3B30' : '#F4F4F4'}
-              ios_backgroundColor="#D0D0D0"
-            />
-          </TouchableOpacity>
-
-          {isDevelopmentMode && (
-            <>
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={() => setShowPetSelector(true)}
-              >
-                <View style={[styles.settingIconContainer, { backgroundColor: '#8C52FF20' }]}>
-                  <Ionicons name="paw" size={22} color="#8C52FF" />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingTitle}>Select Pet Type</Text>
-                  <Text style={styles.settingDescription}>Current: {petData?.type || 'None'}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#909090" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={() => setShowGrowthStageSelector(true)}
-              >
-                <View style={[styles.settingIconContainer, { backgroundColor: '#8C52FF20' }]}>
-                  <Ionicons name="leaf" size={22} color="#8C52FF" />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingTitle}>Select Growth Stage</Text>
-                  <Text style={styles.settingDescription}>Current: {petData?.growthStage || 'None'}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#909090" />
-              </TouchableOpacity>
-            </>
           )}
         </View>
         
