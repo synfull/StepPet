@@ -156,6 +156,21 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
     return 'Adult';
   };
 
+  const hasEvolved = () => {
+    const currentStage = getGrowthStage();
+    const previousStage = level > 1 ? (level === 2 ? 'Egg' : level === 3 ? 'Baby' : 'Juvenile') : 'Egg';
+    return currentStage !== previousStage;
+  };
+
+  const getEvolutionMessage = () => {
+    const currentStage = getGrowthStage();
+    const previousStage = level > 1 ? (level === 2 ? 'Egg' : level === 3 ? 'Baby' : 'Juvenile') : 'Egg';
+    
+    if (currentStage === 'Juvenile') return 'Your pet has grown into a juvenile!';
+    if (currentStage === 'Adult') return 'Your pet has reached adulthood!';
+    return '';
+  };
+
   const gradientColors = gradientAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: ['#8C52FF', '#6236B0', '#8C52FF'],
@@ -228,6 +243,12 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
             <View style={styles.cardContent}>
               <Text style={styles.congratsText}>Level Up!</Text>
               <Text style={styles.levelText}>{petData?.name} has reached level {level}!</Text>
+              
+              {hasEvolved() && (
+                <View style={styles.evolutionContainer}>
+                  <Text style={styles.evolutionText}>{getEvolutionMessage()}</Text>
+                </View>
+              )}
               
               <Button
                 title="Share Your Achievement"
@@ -350,6 +371,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
+  },
+  evolutionContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(140, 82, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(140, 82, 255, 0.3)',
+  },
+  evolutionText: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
 
