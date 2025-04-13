@@ -144,8 +144,6 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPaywallActive) {
       navigation.navigate('Paywall');
-    } else if (level === 3) {
-      navigation.navigate('Paywall');
     } else {
       navigation.navigate('Main');
     }
