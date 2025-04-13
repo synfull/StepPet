@@ -13,20 +13,40 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
-import { Friend } from '../types/petTypes';
-import { formatRelativeTime } from '../utils/dateUtils';
 import { PET_ICONS } from '../utils/petUtils';
+import { formatRelativeTime } from '../utils/dateUtils';
 import Header from '../components/Header';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
+import { supabase } from '../lib/supabase';
+import { PetType, GrowthStage } from '../types/petTypes';
 
 type FriendsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Friends'>;
-
 type TimePeriod = 'weekly' | 'monthly' | 'allTime';
+
+interface Friend {
+  id: string;
+  username: string;
+  pet_name: string;
+  pet_type: PetType;
+  pet_level: number;
+  weekly_steps: number;
+  monthly_steps: number;
+  all_time_steps: number;
+  last_active: string;
+  isCrowned: boolean;
+}
+
+interface FriendRequest {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  username: string;
+}
 
 interface FriendItemProps {
   friend: Friend;
@@ -44,16 +64,16 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeri
   const getStepCount = () => {
     switch (timePeriod) {
       case 'weekly':
-        return friend.weeklySteps;
+        return friend.weekly_steps;
       case 'monthly':
-        return friend.monthlySteps;
+        return friend.monthly_steps;
       case 'allTime':
-        return friend.allTimeSteps;
+        return friend.all_time_steps;
     }
   };
 
   const getPetImage = () => {
-    const petIcon = PET_ICONS[friend.petType];
+    const petIcon = PET_ICONS[friend.pet_type];
     if (!petIcon) return require('../../assets/images/egg.png');
     return petIcon.Adult;
   };
@@ -76,7 +96,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, rank, onPress, timePeri
       
       <View style={styles.friendInfo}>
         <Text style={styles.username}>{friend.username}</Text>
-        <Text style={styles.petName}>{friend.petName}</Text>
+        <Text style={styles.petName}>{friend.pet_name}</Text>
         <Text style={styles.stepCount}>{getStepCount().toLocaleString()} steps</Text>
       </View>
       
@@ -95,24 +115,172 @@ const Friends: React.FC = () => {
   const { petData } = useData();
   const { userData } = useUser();
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
 
   useEffect(() => {
     loadFriends();
-  }, []);
+    loadFriendRequests();
+
+    // Subscribe to friend request changes
+    const friendRequestsSubscription = supabase
+      .channel('friend-requests')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'friendships',
+        filter: `friend_id=eq.${userData?.id}`,
+      }, () => {
+        loadFriendRequests();
+      })
+      .subscribe();
+
+    return () => {
+      friendRequestsSubscription.unsubscribe();
+    };
+  }, [userData?.id]);
 
   const loadFriends = async () => {
+    if (!userData?.id) return;
+    
     setLoading(true);
     try {
-      const storedFriends = await AsyncStorage.getItem('@friends_data');
-      if (storedFriends) {
-        setFriends(JSON.parse(storedFriends));
-      }
+      // First get all accepted friendships
+      const { data: friendships, error: friendshipsError } = await supabase
+        .from('friendships')
+        .select('id, user_id, friend_id')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userData.id},friend_id.eq.${userData.id}`);
+
+      if (friendshipsError) throw friendshipsError;
+
+      // Get the IDs of all friends
+      const friendIds = friendships.map(friendship => 
+        friendship.user_id === userData.id ? friendship.friend_id : friendship.user_id
+      );
+
+      // Then get the profiles for these friends
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, pet_name, pet_type, pet_level, weekly_steps, monthly_steps, all_time_steps, last_active')
+        .in('id', friendIds);
+
+      if (profilesError) throw profilesError;
+
+      // Transform the data to get friend profiles
+      let friendList = profiles.map(profile => ({
+        id: profile.id,
+        username: profile.username,
+        pet_name: profile.pet_name,
+        pet_type: profile.pet_type,
+        pet_level: profile.pet_level,
+        weekly_steps: profile.weekly_steps,
+        monthly_steps: profile.monthly_steps,
+        all_time_steps: profile.all_time_steps,
+        last_active: profile.last_active,
+        isCrowned: false,
+      }));
+
+      // Sort friends by step count based on current time period
+      friendList.sort((a, b) => {
+        let aSteps, bSteps;
+        switch (timePeriod) {
+          case 'weekly':
+            aSteps = a.weekly_steps;
+            bSteps = b.weekly_steps;
+            break;
+          case 'monthly':
+            aSteps = a.monthly_steps;
+            bSteps = b.monthly_steps;
+            break;
+          case 'allTime':
+            aSteps = a.all_time_steps;
+            bSteps = b.all_time_steps;
+            break;
+          default:
+            aSteps = a.weekly_steps;
+            bSteps = b.weekly_steps;
+        }
+        return bSteps - aSteps;
+      });
+
+      // Set crown for top 3 friends
+      friendList = friendList.map((friend, index) => ({
+        ...friend,
+        isCrowned: index < 3
+      }));
+
+      setFriends(friendList);
     } catch (error) {
       console.error('Error loading friends:', error);
+      Alert.alert('Error', 'Failed to load friends. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFriendRequests = async () => {
+    if (!userData?.id) return;
+
+    try {
+      // First get pending friend requests
+      const { data: requests, error: requestsError } = await supabase
+        .from('friendships')
+        .select('id, user_id, friend_id, status')
+        .eq('friend_id', userData.id)
+        .eq('status', 'pending');
+
+      if (requestsError) throw requestsError;
+
+      // Get the usernames of the requesters
+      const requesterIds = requests.map(request => request.user_id);
+      
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', requesterIds);
+
+      if (profilesError) throw profilesError;
+
+      // Map usernames to requests
+      const requestsWithUsernames = requests.map(request => {
+        const profile = profiles.find(p => p.id === request.user_id);
+        return {
+          id: request.id,
+          user_id: request.user_id,
+          friend_id: request.friend_id,
+          status: request.status,
+          username: profile?.username || 'Unknown User',
+        };
+      });
+
+      setFriendRequests(requestsWithUsernames);
+    } catch (error) {
+      console.error('Error loading friend requests:', error);
+    }
+  };
+
+  const handleFriendRequest = async (requestId: string, accept: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .update({ status: accept ? 'accepted' : 'rejected' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      Haptics.notificationAsync(
+        accept 
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning
+      );
+
+      loadFriendRequests();
+      if (accept) loadFriends();
+    } catch (error) {
+      console.error('Error handling friend request:', error);
+      Alert.alert('Error', 'Failed to process friend request. Please try again.');
     }
   };
 
@@ -123,14 +291,14 @@ const Friends: React.FC = () => {
 
   const handleFriendPress = (friend: Friend) => {
     const stepCount = timePeriod === 'weekly' 
-      ? friend.weeklySteps 
+      ? friend.weekly_steps 
       : timePeriod === 'monthly'
-        ? friend.monthlySteps
-        : friend.allTimeSteps;
+        ? friend.monthly_steps
+        : friend.all_time_steps;
 
     Alert.alert(
       `${friend.username}'s Profile`,
-      `Pet: ${friend.petName}\nType: ${friend.petType}\nLevel: ${friend.petLevel}\n${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Steps: ${stepCount.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.lastActive)}`,
+      `Pet: ${friend.pet_name}\nType: ${friend.pet_type}\nLevel: ${friend.pet_level}\n${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Steps: ${stepCount.toLocaleString()}\nLast Active: ${formatRelativeTime(friend.last_active)}`,
       [{ text: 'OK' }]
     );
   };
@@ -144,13 +312,13 @@ const Friends: React.FC = () => {
   const sortedFriends = [...friends].sort((a, b) => {
     switch (timePeriod) {
       case 'weekly':
-        return b.weeklySteps - a.weeklySteps;
+        return b.weekly_steps - a.weekly_steps;
       case 'monthly':
-        return b.monthlySteps - a.monthlySteps;
+        return b.monthly_steps - a.monthly_steps;
       case 'allTime':
-        return b.allTimeSteps - a.allTimeSteps;
+        return b.all_time_steps - a.all_time_steps;
       default:
-        return b.weeklySteps - a.weeklySteps;
+        return b.weekly_steps - a.weekly_steps;
     }
   });
 
@@ -219,6 +387,31 @@ const Friends: React.FC = () => {
           <Text style={styles.yourUsername}>{userData?.username || 'Not set'}</Text>
           <Text style={styles.usernameHelpText}>Share this with friends to add you!</Text>
         </View>
+
+        {friendRequests.length > 0 && (
+          <View style={styles.requestsContainer}>
+            <Text style={styles.requestsTitle}>Friend Requests</Text>
+            {friendRequests.map(request => (
+              <View key={request.id} style={styles.requestItem}>
+                <Text style={styles.requestUsername}>{request.username}</Text>
+                <View style={styles.requestButtons}>
+                  <TouchableOpacity
+                    style={[styles.requestButton, styles.acceptButton]}
+                    onPress={() => handleFriendRequest(request.id, true)}
+                  >
+                    <Text style={styles.requestButtonText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.requestButton, styles.rejectButton]}
+                    onPress={() => handleFriendRequest(request.id, false)}
+                  >
+                    <Text style={[styles.requestButtonText, styles.rejectButtonText]}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {friends.length > 0 && (
           <>
@@ -463,6 +656,57 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
+  },
+  requestsContainer: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  requestsTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 16,
+    color: '#333333',
+    marginBottom: 12,
+  },
+  requestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  requestUsername: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  requestButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  requestButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FF5252',
+  },
+  requestButtonText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
+  rejectButtonText: {
+    color: '#FF5252',
   },
 });
 

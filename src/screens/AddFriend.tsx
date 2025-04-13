@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -14,10 +13,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../components/Header';
 import Button from '../components/Button';
-import { Friend } from '../types/petTypes';
+import { supabase } from '../lib/supabase';
 import { useUser } from '../context/UserContext';
 
 const AddFriend: React.FC = () => {
@@ -42,60 +40,54 @@ const AddFriend: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Get existing friends
-      const existingFriendsJSON = await AsyncStorage.getItem('@friends_data');
-      let existingFriends: Friend[] = existingFriendsJSON ? JSON.parse(existingFriendsJSON) : [];
+      // Find the user by username
+      const { data: foundUser, error: userError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .eq('username', username.trim())
+        .single();
 
-      // Check if friend already exists
-      if (existingFriends.some(friend => friend.username.toLowerCase() === username.toLowerCase())) {
+      if (userError || !foundUser) {
+        Alert.alert('User Not Found', 'Could not find a user with that username.');
         setIsLoading(false);
-        Alert.alert('Friend Exists', 'This user is already your friend.');
         return;
       }
 
-      // TODO: In a real app, we would make an API call here to verify the user exists
-      // For now, we'll show a disclaimer
-      Alert.alert(
-        'Add Friend',
-        `Note: This is a demo version. In the full app, we would verify if "${username}" exists before adding them.`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setIsLoading(false)
-          },
-          {
-            text: 'Continue Anyway',
-            onPress: async () => {
-              // Create new friend with initial data
-              const newFriend: Friend = {
-                id: 'friend-' + Date.now(),
-                username: username,
-                petName: 'Demo Pet',
-                petType: 'lunacorn',
-                petLevel: 1,
-                weeklySteps: 0,
-                monthlySteps: 0,
-                allTimeSteps: 0,
-                lastActive: new Date().toISOString(),
-              };
+      // Check if friendship already exists
+      const { data: existingFriendship, error: friendshipError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`user_id.eq.${userData?.id},friend_id.eq.${userData?.id}`)
+        .or(`user_id.eq.${foundUser.id},friend_id.eq.${foundUser.id}`)
+        .single();
 
-              // Add new friend to list
-              existingFriends.push(newFriend);
+      if (existingFriendship) {
+        Alert.alert('Already Friends', 'You are already friends with this user or have a pending request.');
+        setIsLoading(false);
+        return;
+      }
 
-              // Save updated friends list
-              await AsyncStorage.setItem('@friends_data', JSON.stringify(existingFriends));
+      // Create friend request
+      const { error: createError } = await supabase
+        .from('friendships')
+        .insert({
+          user_id: userData?.id,
+          friend_id: foundUser.id,
+          status: 'pending'
+        });
 
-              // Show success message
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              navigation.goBack();
-            }
-          }
-        ]
-      );
+      if (createError) {
+        throw createError;
+      }
+
+      // Show success message
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Success', 'Friend request sent!');
+      navigation.goBack();
     } catch (error) {
       console.error('Error adding friend:', error);
-      Alert.alert('Error', 'There was a problem adding your friend. Please try again.');
+      Alert.alert('Error', 'There was a problem sending the friend request. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -125,7 +117,7 @@ const AddFriend: React.FC = () => {
             />
           </View>
           <Button
-            title="Add Friend"
+            title="Send Friend Request"
             onPress={handleAddFriend}
             loading={isLoading}
             disabled={!username.trim() || isLoading}
@@ -137,13 +129,6 @@ const AddFriend: React.FC = () => {
           <Ionicons name="information-circle-outline" size={20} color="#666666" />
           <Text style={styles.infoText}>
             Friends can see your pet information and step count on the leaderboard.
-          </Text>
-        </View>
-
-        <View style={[styles.infoContainer, styles.warningContainer]}>
-          <Ionicons name="warning-outline" size={20} color="#FFB100" />
-          <Text style={[styles.infoText, styles.warningText]}>
-            Demo Version: Friend verification is not implemented yet. Any username can be added.
           </Text>
         </View>
       </ScrollView>
