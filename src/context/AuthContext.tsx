@@ -127,7 +127,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await AsyncStorage.removeItem(SESSION_KEY);
+      // Clear all user-related data
+      const keysToRemove = [
+        SESSION_KEY,
+        '@user_data',
+        '@pet_data',
+        '@onboarding_complete',
+        '@registration_status',
+        '@paywall_active'
+      ];
+      
+      await Promise.all(keysToRemove.map(key => AsyncStorage.removeItem(key)));
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error signing out:', error);

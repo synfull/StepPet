@@ -6,6 +6,8 @@ import {
   GrowthStage, 
   Milestone 
 } from '../types/petTypes';
+import { supabase } from '../lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
 // Pet Categories
 export const PET_CATEGORIES: Record<PetCategory, {
@@ -492,10 +494,18 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
   };
 };
 
+// Add this helper function
+const getPetStorageKey = (userId: string) => `@pet_data_${userId}`;
+
 // Save pet data
 export const savePetData = async (pet: PetData): Promise<void> => {
   try {
-    await AsyncStorage.setItem('@pet_data', JSON.stringify(pet));
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      throw new Error('No user found');
+    }
+    const storageKey = getPetStorageKey(session.user.id);
+    await AsyncStorage.setItem(storageKey, JSON.stringify(pet));
   } catch (error) {
     console.error('Error saving pet data:', error);
     throw error;
@@ -505,11 +515,13 @@ export const savePetData = async (pet: PetData): Promise<void> => {
 // Load pet data
 export const loadPetData = async (): Promise<PetData | null> => {
   try {
-    const petDataString = await AsyncStorage.getItem('@pet_data');
-    if (petDataString) {
-      return JSON.parse(petDataString);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      return null;
     }
-    return null;
+    const storageKey = getPetStorageKey(session.user.id);
+    const data = await AsyncStorage.getItem(storageKey);
+    return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error loading pet data:', error);
     return null;

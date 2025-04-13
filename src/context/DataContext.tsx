@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PetData, PetType, GrowthStage } from '../types/petTypes';
 import { savePetData } from '../utils/petUtils';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   petData: PetData | null;
@@ -12,64 +13,53 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+const getPetStorageKey = (userId: string) => `@pet_data_${userId}`;
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [petData, setPetData] = useState<PetData | null>({
-    id: 'default',
-    name: 'Default Pet',
-    type: 'terrabun',
-    category: 'mythic',
-    level: 1,
-    xp: 0,
-    xpToNextLevel: 100,
-    growthStage: 'Egg',
-    stepsToHatch: 1000,
-    stepsSinceHatched: 0,
-    totalSteps: 0,
-    startingStepCount: 0,
-    appearance: {
-      mainColor: '#FFFFFF',
-      accentColor: '#000000',
-      hasCustomization: false,
-      customizationApplied: false,
-      backgroundTheme: 'default',
-      hasEliteBadge: false,
-      hasAnimatedBackground: false
-    },
-    miniGames: {
-      feed: { lastClaimed: null, claimedToday: false },
-      fetch: { lastClaimed: null, claimsToday: 0 },
-      adventure: { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false }
-    },
-    milestones: [],
-    created: new Date().toISOString()
-  });
+  const { user } = useAuth();
+  const [petData, setPetData] = useState<PetData | null>(null);
   const [isDevelopmentMode, setIsDevelopmentMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load pet data from storage on mount
+  // Load pet data from storage on mount or when user changes
   useEffect(() => {
     const loadData = async () => {
       try {
-        const storedData = await AsyncStorage.getItem('@pet_data');
-        if (storedData !== null) {
-          setPetData(JSON.parse(storedData));
+        if (user?.id) {
+          const storageKey = getPetStorageKey(user.id);
+          const storedData = await AsyncStorage.getItem(storageKey);
+          if (storedData !== null) {
+            setPetData(JSON.parse(storedData));
+          } else {
+            // If no pet data exists for this user, clear the state
+            setPetData(null);
+          }
+        } else {
+          // No user logged in, clear pet data
+          setPetData(null);
         }
       } catch (error) {
         console.error('Error loading pet data:', error);
+        setPetData(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, []);
+  }, [user]);
 
   // Save pet data to storage whenever it changes
   useEffect(() => {
-    if (!isLoading && petData) {
-      savePetData(petData);
-    }
-  }, [petData, isLoading]);
+    const saveData = async () => {
+      if (!isLoading && petData && user?.id) {
+        const storageKey = getPetStorageKey(user.id);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(petData));
+      }
+    };
+
+    saveData();
+  }, [petData, isLoading, user]);
 
   return (
     <DataContext.Provider 
