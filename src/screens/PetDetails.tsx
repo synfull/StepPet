@@ -213,7 +213,9 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
             <View style={styles.nameContainer}>
               <Text style={styles.petName}>{petData.name}</Text>
               <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Lv. {petData.level}</Text>
+                <Text style={styles.levelText}>
+                  Lv. {petData.growthStage === 'Egg' ? '0' : petData.level}
+                </Text>
               </View>
             </View>
           )}

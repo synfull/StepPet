@@ -946,7 +946,9 @@ const Home: React.FC = () => {
               )}
             </Text>
             <View style={styles.levelBadge}>
-              <Text style={styles.levelBadgeText}>Level {petData.level}</Text>
+              <Text style={styles.levelBadgeText}>
+                Level {petData.growthStage === 'Egg' ? '0' : petData.level}
+              </Text>
             </View>
             <View style={styles.progressContainer}>
               <Text style={styles.progressLabel}>Level Progress</Text>
