@@ -405,7 +405,7 @@ export const DEFAULT_MILESTONES: Milestone[] = [
     id: 'milestone-250',
     steps: 250,
     reward: 'badge',
-    rewardDetails: 'Elite Badge + Animated Background',
+    rewardDetails: 'Elite Badge',
     claimed: false
   }
 ];
