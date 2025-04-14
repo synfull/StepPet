@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -17,6 +16,7 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
+import { Image } from 'expo-image';
 
 type LoginScreenNavigationProp = NavigationProp<RootStackParamList>;
 
@@ -55,7 +55,8 @@ const Login: React.FC = () => {
           <Image
             source={require('../../assets/images/logo.png')}
             style={styles.logo}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={200}
           />
         </View>
 

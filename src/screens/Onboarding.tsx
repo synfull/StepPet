@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Button from '../components/Button';
 import { Pedometer } from 'expo-sensors';
+import { Image as ExpoImage } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
 
@@ -145,21 +146,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ completeOnboarding }) => {
 
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
-  const renderSlide = ({ item }: { item: SlideItem }) => {
-    return (
-      <View style={styles.slideContainer}>
-        <Image 
-          source={item.image} 
-          style={styles.image} 
-          resizeMode="contain" 
-        />
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-        </View>
-      </View>
-    );
-  };
+  const renderSlide = ({ item }: { item: SlideItem }) => (
+    <View style={styles.slide}>
+      <ExpoImage
+        source={item.image}
+        style={styles.image}
+        contentFit="contain"
+        transition={200}
+      />
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.description}>{item.description}</Text>
+    </View>
+  );
 
   const renderDots = () => {
     return slides.map((_, i) => {
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8C52FF',
   },
-  slideContainer: {
+  slide: {
     width,
     flex: 1,
     alignItems: 'center',
@@ -273,9 +271,6 @@ const styles = StyleSheet.create({
     width: width * 0.8,
     height: height * 0.4,
     marginBottom: 40,
-  },
-  textContainer: {
-    alignItems: 'center',
   },
   title: {
     fontFamily: 'Caprasimo-Regular',
