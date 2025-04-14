@@ -12,9 +12,10 @@ export interface PetAppearance {
   accentColor: string;
   hasCustomization: boolean;
   customizationApplied: boolean;
-  backgroundTheme: string;
+  backgroundTheme?: string;
   hasEliteBadge: boolean;
   hasAnimatedBackground: boolean;
+  nameColor?: string;
 }
 
 export interface MiniGameStatus {
@@ -43,7 +44,7 @@ export interface MiniGames {
 export interface Milestone {
   id: string;
   steps: number;
-  reward: 'xp' | 'appearance' | 'background' | 'animation' | 'badge';
+  reward: 'xp' | 'appearance' | 'background' | 'animation' | 'badge' | 'nameColor';
   rewardDetails: string;
   claimed: boolean;
 }

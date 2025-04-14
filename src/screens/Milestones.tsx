@@ -173,8 +173,12 @@ const Milestones: React.FC = () => {
     // Mark as claimed
     updatedPet.milestones[milestoneIndex].claimed = true;
     
-    // Apply the selected background theme
-    updatedPet.appearance.backgroundTheme = selectedColor;
+    // Apply the selected color based on reward type
+    if (updatedPet.milestones[milestoneIndex].reward === 'background') {
+      updatedPet.appearance.backgroundTheme = selectedColor;
+    } else if (updatedPet.milestones[milestoneIndex].reward === 'nameColor') {
+      updatedPet.appearance.nameColor = selectedColor;
+    }
     
     // Save updated pet data
     await savePetData(updatedPet);
@@ -192,8 +196,8 @@ const Milestones: React.FC = () => {
     const milestone = petData.milestones.find(m => m.id === milestoneId);
     if (!milestone) return;
     
-    // For background theme milestone, show color picker
-    if (milestone.reward === 'background') {
+    // For background theme or name color milestone, show color picker
+    if (milestone.reward === 'background' || milestone.reward === 'nameColor') {
       setCurrentMilestoneId(milestoneId);
       setShowColorPicker(true);
       return;
@@ -378,36 +382,44 @@ const Milestones: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.colorPickerContainer}>
-            <Text style={styles.colorPickerTitle}>Choose Your Background Theme</Text>
+            <Text style={styles.colorPickerTitle}>
+              {milestones.find(m => m.id === currentMilestoneId)?.reward === 'background' 
+                ? 'Choose Your Background Theme'
+                : 'Choose Your Pet Name Color'}
+            </Text>
             
             <View style={styles.colorOptions}>
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(52, 199, 89, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(52, 199, 89, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#34C759' }]}
+                onPress={() => handleColorSelect('#34C759')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(90, 200, 250, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(90, 200, 250, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#5AC8FA' }]}
+                onPress={() => handleColorSelect('#5AC8FA')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(255, 149, 0, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(255, 149, 0, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#FF9500' }]}
+                onPress={() => handleColorSelect('#FF9500')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(255, 45, 85, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(255, 45, 85, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#FF2D55' }]}
+                onPress={() => handleColorSelect('#FF2D55')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(255, 214, 10, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(255, 214, 10, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#FFD60A' }]}
+                onPress={() => handleColorSelect('#FFD60A')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(0, 122, 255, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(0, 122, 255, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#007AFF' }]}
+                onPress={() => handleColorSelect('#007AFF')}
               />
               <TouchableOpacity
-                style={[styles.colorOption, { backgroundColor: 'rgba(255, 59, 48, 0.2)' }]}
-                onPress={() => handleColorSelect('rgba(255, 59, 48, 0.2)')}
+                style={[styles.colorOption, { backgroundColor: '#FF3B30' }]}
+                onPress={() => handleColorSelect('#FF3B30')}
+              />
+              <TouchableOpacity
+                style={[styles.colorOption, { backgroundColor: '#8C52FF' }]}
+                onPress={() => handleColorSelect('#8C52FF')}
               />
             </View>
             
@@ -443,16 +455,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
   },
   headerTitle: {
     fontFamily: 'Montserrat-Bold',
-    fontSize: 22,
+    fontSize: 24,
     color: '#333333',
+  },
+  gemCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    position: 'absolute',
+    right: 16,
+    top: 12,
   },
   content: {
     flexGrow: 1,

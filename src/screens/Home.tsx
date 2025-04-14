@@ -943,7 +943,12 @@ const Home: React.FC = () => {
           
           {/* Pet Info */}
           <View style={styles.petInfo}>
-            <Text style={styles.petName}>{petData.name}</Text>
+            <Text style={[
+              styles.petName,
+              petData?.appearance.nameColor && { color: petData.appearance.nameColor }
+            ]}>
+              {petData?.name}
+            </Text>
             <Text style={styles.petTypeText}>
               {petData.growthStage === 'Egg' ? 'Egg' : PET_TYPES[petData.type].name}
               {petData.appearance.hasEliteBadge && (

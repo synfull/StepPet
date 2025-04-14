@@ -390,8 +390,8 @@ export const DEFAULT_MILESTONES: Milestone[] = [
   {
     id: 'milestone-150',
     steps: 150,
-    reward: 'background',
-    rewardDetails: 'Background Theme',
+    reward: 'nameColor',
+    rewardDetails: 'Pet Name Color',
     claimed: false
   },
   {
@@ -456,6 +456,12 @@ export const getRandomPetType = (): { type: PetType; category: PetCategory } => 
 // Create a new pet
 export const createNewPet = async (currentSteps: number, type?: PetType, category?: PetCategory, name?: string): Promise<PetData> => {
   const now = new Date().toISOString();
+  
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) {
+    throw new Error('No user found');
+  }
   
   return {
     id: generateUUID(),
