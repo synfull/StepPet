@@ -472,10 +472,10 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     xp: 0,
     xpToNextLevel: LEVEL_REQUIREMENTS[0],
     growthStage: 'Egg' as GrowthStage,
-    stepsToHatch: 100,
+    stepsToHatch: 25, // Set to 25 steps for testing
     stepsSinceHatched: 0,
-    totalSteps: currentSteps,
-    startingStepCount: currentSteps,
+    totalSteps: 0, // Start with 0 steps for a new egg
+    startingStepCount: 0, // Start with 0 steps for a new egg
     appearance: {
       mainColor: '#FFFFFF',
       accentColor: '#FFFFFF',

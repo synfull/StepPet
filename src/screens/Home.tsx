@@ -9,7 +9,8 @@ import {
   Animated,
   RefreshControl,
   Alert,
-  Easing
+  Easing,
+  AppState
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -19,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
-import { updatePetWithSteps, createNewPet, savePetData, PET_TYPES } from '../utils/petUtils';
+import { updatePetWithSteps, createNewPet, savePetData, PET_TYPES, loadPetData } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
 import { isSameDay } from '../utils/dateUtils';
 import PetDisplay from '../components/PetDisplay';
@@ -30,12 +31,93 @@ import { getRandomPetType } from '../utils/petUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PetData, GrowthStage } from '../types/petTypes';
 import { LinearGradient } from 'expo-linear-gradient';
+import { sendEggHatchingNotification } from '../utils/notificationUtils';
+import { supabase } from '../lib/supabase';
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
+import * as Notifications from 'expo-notifications';
+
+// Define the background task
+const BACKGROUND_FETCH_TASK = 'background-fetch-task';
+
+TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
+  try {
+    console.log('Background task started at:', new Date().toISOString());
+    
+    // Get the current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      console.log('No user session in background task');
+      return BackgroundFetch.BackgroundFetchResult.NoData;
+    }
+
+    // Load pet data
+    const petData = await loadPetData();
+    if (!petData) {
+      console.log('No pet data found in background task');
+      return BackgroundFetch.BackgroundFetchResult.NoData;
+    }
+
+    if (petData.growthStage !== 'Egg') {
+      console.log('Pet is not an egg, skipping check');
+      return BackgroundFetch.BackgroundFetchResult.NoData;
+    }
+
+    console.log('Checking egg hatching status for:', petData.name);
+    
+    // Get current steps
+    const petCreationTime = new Date(petData.created);
+    const dailySteps = await fetchDailySteps(petCreationTime);
+    const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
+    
+    console.log('Steps since creation:', stepsSinceCreation);
+    console.log('Steps needed to hatch:', petData.stepsToHatch);
+
+    // Check if egg is ready to hatch
+    if (stepsSinceCreation >= petData.stepsToHatch) {
+      console.log('Egg is ready to hatch!');
+      // Check if we've already sent a notification for this egg
+      const hasSentNotification = await AsyncStorage.getItem(`egg_hatching_notification_${petData.id}`);
+      if (!hasSentNotification) {
+        console.log('Sending hatching notification...');
+        
+        // Schedule a local notification
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Egg Ready to Hatch!',
+            body: `Your ${petData.name} is ready to hatch! Tap to meet your new pet.`,
+            data: { 
+              type: 'pet',
+              petId: petData.id,
+              petName: petData.name
+            },
+          },
+          trigger: null, // Send immediately
+        });
+        
+        // Also send the push notification
+        await sendEggHatchingNotification(session.user.id, petData.name);
+        await AsyncStorage.setItem(`egg_hatching_notification_${petData.id}`, 'true');
+        console.log('Hatching notification sent');
+      } else {
+        console.log('Notification already sent for this egg');
+      }
+    } else {
+      console.log('Egg not ready to hatch yet');
+    }
+
+    return BackgroundFetch.BackgroundFetchResult.NewData;
+  } catch (error) {
+    console.error('Background task error:', error);
+    return BackgroundFetch.BackgroundFetchResult.Failed;
+  }
+});
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Home: React.FC = () => {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { petData, setPetData, isDevelopmentMode } = useData();
+  const { petData, setPetData } = useData();
   const { 
     isAvailable, 
     dailySteps, 
@@ -45,9 +127,6 @@ const Home: React.FC = () => {
     setWeeklySteps,
     setTotalSteps
   } = useContext(PedometerContext);
-  
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [showPulseHint, setShowPulseHint] = useState(false);
   const [hasInteractedWithPet, setHasInteractedWithPet] = useState(false);
   const [isPetAnimating, setIsPetAnimating] = useState(false);
@@ -59,6 +138,8 @@ const Home: React.FC = () => {
   const eggShakeAnim = useRef(new Animated.Value(0)).current;
   const buttonShakeAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+  
+  const appState = useRef(AppState.currentState);
   
   // Welcome screen animations
   useEffect(() => {
@@ -83,66 +164,55 @@ const Home: React.FC = () => {
   
   // Pedometer subscription
   useEffect(() => {
-    if (isAvailable && petData && !isDevelopmentMode) {
+    if (isAvailable && petData) {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
-      const subscription = subscribeToPedometer((steps) => {
-        // Always set daily steps directly from the pedometer
-        setDailySteps(steps);
-        
-        // Update total steps based on pet stage
+      let initialSteps = 0;
+      
+      const subscription = subscribeToPedometer(async (steps: number) => {
+        // For new eggs, only count steps after creation time
         if (petData.growthStage === 'Egg') {
-          setTotalSteps(steps);
-        } else {
-          // For hatched pets, calculate XP based on new steps since hatching
-          const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
-          // Only update pet data if XP has actually changed
-          if (stepsAfterHatch !== petData.xp) {
-            const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
-            if (newXP !== petData.xp) {
-              // Check if this will cause a level up
-              if (newXP >= petData.xpToNextLevel) {
-                // Handle level up through updatePetWithSteps
-                updatePetWithSteps(petData, newXP - petData.xp).then(({ updatedPet, leveledUp }) => {
-                  // Preserve only the type after level up
-                  const preservedPet = {
-                    ...updatedPet,
-                    type: petData.type
-                  };
-                  setPetData(preservedPet);
-                  setTotalSteps(preservedPet.totalSteps);
-                  if (leveledUp) {
-                    navigation.navigate('PetLevelUp', {
-                      level: preservedPet.level,
-                      petType: preservedPet.type
-                    });
-                  }
-                });
-              } else {
-                // Just update XP without level up
-                const updatedPet = {
-                  ...petData,
-                  xp: newXP,
-                  totalSteps: petData.totalSteps + (newXP - petData.xp)
-                };
-                setPetData(updatedPet);
-                setTotalSteps(updatedPet.totalSteps);
-                // Save the updated pet
-                savePetData(updatedPet);
+          // On first run, set the initial steps
+          if (initialSteps === 0) {
+            initialSteps = steps;
+          }
+          // Calculate steps since pet creation
+          const stepsSinceCreation = Math.max(0, steps - initialSteps);
+          setDailySteps(stepsSinceCreation);
+          setTotalSteps(stepsSinceCreation);
+
+          // Check if egg is ready to hatch
+          if (stepsSinceCreation >= petData.stepsToHatch) {
+            console.log('Egg is ready to hatch in pedometer subscription!');
+            // Check if we've already sent a notification for this egg
+            const hasSentNotification = await AsyncStorage.getItem(`egg_hatching_notification_${petData.id}`);
+            if (!hasSentNotification) {
+              console.log('Sending hatching notification from pedometer...');
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session?.user?.id) {
+                await sendEggHatchingNotification(session.user.id, petData.name);
+                await AsyncStorage.setItem(`egg_hatching_notification_${petData.id}`, 'true');
+                console.log('Hatching notification sent from pedometer');
               }
             }
           }
+        } else {
+          // For hatched pets, calculate XP based on new steps since hatching
+          const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
+          setDailySteps(steps);
+          if (stepsAfterHatch !== petData.xp) {
+            setTotalSteps(steps);
+          }
         }
-      }, petCreationTime);
-      
-      // Cleanup subscription on unmount
+      });
+
       return () => {
         if (subscription) {
           subscription.remove();
         }
       };
     }
-  }, [isAvailable, petData?.id, petData?.stepsSinceHatched, petData?.xpToNextLevel, isDevelopmentMode]);
+  }, [isAvailable, petData]);
   
   // Force update growth stage on mount
   useEffect(() => {
@@ -331,56 +401,27 @@ const Home: React.FC = () => {
       const daily = await fetchDailySteps(petCreationTime);
       const weekly = await fetchWeeklySteps(petCreationTime);
       
-      // Update daily and weekly steps
-      setDailySteps(daily);
-      setWeeklySteps(weekly);
-      setLastRefreshed(new Date());
-      
-      // Calculate new steps since last refresh
-      const lastTotal = totalSteps;
-      const newSteps = daily - lastTotal;
-      
-      if (newSteps > 0) {
+      // For new eggs, only count steps after creation time
+      if (petData.growthStage === 'Egg') {
+        const stepsSinceCreation = Math.max(0, daily - (petData.startingStepCount || 0));
+        setDailySteps(stepsSinceCreation);
+        setWeeklySteps(weekly);
+        setTotalSteps(stepsSinceCreation);
+      } else {
         // For hatched pets, calculate XP based on new steps since hatching
-        if (petData.growthStage !== 'Egg') {
-          const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
-          const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
-          
-          // Check for level up
-          if (newXP >= petData.xpToNextLevel) {
-            const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(petData, 0);
-            // Preserve only the type after level up
-            const preservedPet = {
-              ...leveledPet,
-              type: petData.type
-            };
-            setPetData(preservedPet);
-            setTotalSteps(preservedPet.totalSteps);
-            
-            if (leveledUp) {
-              navigation.navigate('PetLevelUp', { 
-                level: preservedPet.level,
-                petType: preservedPet.type 
-              });
-            }
-          } else {
-            // Just update XP without level up
-            const updatedPet = {
-              ...petData,
-              xp: newXP,
-              totalSteps: daily
-            };
-            await savePetData(updatedPet);
-            setPetData(updatedPet);
-            setTotalSteps(updatedPet.totalSteps);
-          }
-        } else {
-          // For eggs, just update total steps while preserving type
-          const { updatedPet, leveledUp, milestoneReached } = await updatePetWithSteps(petData, newSteps);
-          // Preserve type if it exists
+        setDailySteps(daily);
+        setWeeklySteps(weekly);
+        
+        const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
+        const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+        
+        // Check for level up
+        if (newXP >= petData.xpToNextLevel) {
+          const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(petData, 0);
+          // Preserve only the type after level up
           const preservedPet = {
-            ...updatedPet,
-            type: petData.type || updatedPet.type,
+            ...leveledPet,
+            type: petData.type
           };
           setPetData(preservedPet);
           setTotalSteps(preservedPet.totalSteps);
@@ -391,15 +432,16 @@ const Home: React.FC = () => {
               petType: preservedPet.type 
             });
           }
-          
-          if (milestoneReached) {
-            const milestone = preservedPet.milestones.find(m => m.id === milestoneReached);
-            if (milestone) {
-              navigation.navigate('MilestoneUnlocked', { 
-                milestone: milestone 
-              });
-            }
-          }
+        } else {
+          // Just update XP without level up
+          const updatedPet = {
+            ...petData,
+            xp: newXP,
+            totalSteps: daily
+          };
+          await savePetData(updatedPet);
+          setPetData(updatedPet);
+          setTotalSteps(updatedPet.totalSteps);
         }
       }
     } catch (error) {
@@ -409,9 +451,7 @@ const Home: React.FC = () => {
   
   // Pull-to-refresh handler
   const onRefresh = async () => {
-    setRefreshing(true);
     await refreshStepData();
-    setRefreshing(false);
   };
   
   // Clear all app data
@@ -458,6 +498,15 @@ const Home: React.FC = () => {
     if (petData?.growthStage === 'Egg') {
       if (dailySteps >= 25) {
         try {
+          // Get current user ID
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user?.id) {
+            throw new Error('No user session found');
+          }
+          
+          // Send egg hatching notification
+          await sendEggHatchingNotification(session.user.id, petData.name);
+          
           // Update pet data to reflect hatching
           const { type: randomPetType } = getRandomPetType();
           const now = new Date();
@@ -815,6 +864,72 @@ const Home: React.FC = () => {
     await savePetData(newPetData);
   };
   
+  // Register background task
+  useEffect(() => {
+    const registerBackgroundTask = async () => {
+      try {
+        console.log('Attempting to register background task...');
+        const status = await BackgroundFetch.getStatusAsync();
+        console.log('Current background fetch status:', status);
+        
+        await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+          minimumInterval: 1 * 60, // 1 minute for testing
+          stopOnTerminate: false,
+          startOnBoot: true,
+        });
+        console.log('Background task registered successfully');
+      } catch (error) {
+        console.error('Error registering background task:', error);
+      }
+    };
+
+    registerBackgroundTask();
+  }, []);
+  
+  // Register for push notifications
+  useEffect(() => {
+    const registerForPushNotifications = async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          console.log('Failed to get push token for push notification!');
+          return;
+        }
+        
+        try {
+          // Try to get the push token, but don't fail if it doesn't work
+          const token = await Notifications.getExpoPushTokenAsync();
+          console.log('Push token:', token);
+          
+          // Get current user
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            // Update the user's push token in Supabase
+            await supabase
+              .from('profiles')
+              .update({ push_token: token.data })
+              .eq('id', session.user.id);
+          }
+        } catch (tokenError) {
+          // Log the error but don't break the app
+          console.log('Push notifications not available:', tokenError);
+        }
+      } catch (error) {
+        // Log the error but don't break the app
+        console.log('Error registering for push notifications:', error);
+      }
+    };
+
+    registerForPushNotifications();
+  }, []);
+  
   // If no pet data, show pet selection screen
   if (!petData) {
     return (
@@ -880,7 +995,7 @@ const Home: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={false}
             onRefresh={onRefresh}
             tintColor="#8C52FF"
           />
@@ -1050,7 +1165,7 @@ const Home: React.FC = () => {
         {/* Last refreshed indicator */}
         <View style={styles.refreshInfo}>
           <Text style={styles.refreshText}>
-            Last updated: {lastRefreshed.toLocaleTimeString()}
+            Last updated: {new Date().toLocaleTimeString()}
           </Text>
           <TouchableOpacity onPress={refreshStepData}>
             <Text style={styles.refreshButton}>Refresh</Text>

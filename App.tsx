@@ -11,7 +11,7 @@ import { InventoryProvider } from '@context/InventoryContext';
 import { UserProvider } from '@context/UserContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
-import { View, ActivityIndicator, Text, Platform } from 'react-native';
+import { View, ActivityIndicator, Text, Platform, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { 
   fetchDailySteps, 
@@ -22,6 +22,7 @@ import { PetData } from './src/types/petTypes';
 import { RegistrationStatus } from './src/types/userTypes';
 import { AuthProvider } from './src/context/AuthContext';
 import * as Linking from 'expo-linking';
+import { NotificationProvider } from './src/context/NotificationContext';
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
@@ -42,6 +43,15 @@ const linking = {
     },
   },
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+});
 
 export default function App() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
@@ -177,28 +187,34 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
-        <StatusBar style="dark" />
-        <NavigationContainer linking={linking}>
+      <UserProvider>
+        <DataProvider>
           <PedometerContext.Provider value={pedometerValue}>
-            <DataProvider>
-              <GemProvider>
-                <InventoryProvider>
-                  <UserProvider>
+            <GemProvider>
+              <InventoryProvider>
+                <NotificationProvider>
+                  <SafeAreaProvider style={{ backgroundColor: '#FFFFFF' }}>
+                    <StatusBar style="dark" />
                     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} onLayout={onLayoutRootView}>
-                      {isOnboardingComplete ? (
-                        <MainNavigator />
-                      ) : (
-                        <Onboarding completeOnboarding={completeOnboarding} />
-                      )}
+                      <NavigationContainer linking={linking}>
+                        {!fontsLoaded ? (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#8C52FF" />
+                          </View>
+                        ) : isOnboardingComplete === false ? (
+                          <Onboarding completeOnboarding={completeOnboarding} />
+                        ) : (
+                          <MainNavigator />
+                        )}
+                      </NavigationContainer>
                     </SafeAreaView>
-                  </UserProvider>
-                </InventoryProvider>
-              </GemProvider>
-            </DataProvider>
+                  </SafeAreaProvider>
+                </NotificationProvider>
+              </InventoryProvider>
+            </GemProvider>
           </PedometerContext.Provider>
-        </NavigationContainer>
-      </SafeAreaProvider>
+        </DataProvider>
+      </UserProvider>
     </AuthProvider>
   );
 }

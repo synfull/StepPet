@@ -30,7 +30,9 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.steppet.app",
-      "permissions": ["android.permission.ACTIVITY_RECOGNITION"]
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -48,8 +50,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "steppet-project"
+        "projectId": "015de8ab-5782-44b3-bc37-4295acdefddf"
       }
-    }
+    },
+    "owner": "innervoice"
   }
 }
