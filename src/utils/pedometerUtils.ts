@@ -110,6 +110,8 @@ export const subscribeToPedometer = (callback: (steps: number) => void, startTim
     // First get the current step count from our start time
     Pedometer.getStepCountAsync(start, now).then(({ steps }) => {
       callback(steps); // Call immediately with initial steps
+    }).catch(error => {
+      console.error('Error getting initial step count:', error);
     });
     
     // Then subscribe to updates
@@ -117,6 +119,8 @@ export const subscribeToPedometer = (callback: (steps: number) => void, startTim
       // Get current steps from start time to now
       Pedometer.getStepCountAsync(start, new Date()).then(({ steps }) => {
         callback(steps);
+      }).catch(error => {
+        console.error('Error getting updated step count:', error);
       });
     });
   } catch (error) {

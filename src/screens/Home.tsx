@@ -174,17 +174,12 @@ const Home: React.FC = () => {
     if (isAvailable && petData) {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
-      let initialSteps = 0;
       
       const subscription = subscribeToPedometer(async (steps: number) => {
-        // For new eggs, only count steps after creation time
+        // For new eggs, calculate steps since creation
         if (petData.growthStage === 'Egg') {
-          // On first run, set the initial steps
-          if (initialSteps === 0) {
-            initialSteps = steps;
-          }
-          // Calculate steps since pet creation
-          const stepsSinceCreation = Math.max(0, steps - initialSteps);
+          const dailySteps = await fetchDailySteps(petCreationTime);
+          const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
           setDailySteps(stepsSinceCreation);
           setTotalSteps(stepsSinceCreation);
 
@@ -211,7 +206,7 @@ const Home: React.FC = () => {
             setTotalSteps(steps);
           }
         }
-      });
+      }, petCreationTime);
 
       return () => {
         if (subscription) {
