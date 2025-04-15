@@ -20,15 +20,21 @@ import * as Haptics from 'expo-haptics';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
-import { updatePetWithSteps, createNewPet, savePetData, PET_TYPES, loadPetData } from '../utils/petUtils';
+import { 
+  getRandomPetType, 
+  updatePetWithSteps, 
+  savePetData, 
+  LEVEL_REQUIREMENTS,
+  loadPetData,
+  createNewPet,
+  PET_TYPES 
+} from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
 import { isSameDay } from '../utils/dateUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
 import Button from '../components/Button';
-import { getRandomPetType } from '../utils/petUtils';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PetData, GrowthStage } from '../types/petTypes';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sendEggHatchingNotification } from '../utils/notificationUtils';
@@ -36,6 +42,7 @@ import { supabase } from '../lib/supabase';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the background task
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
@@ -364,7 +371,7 @@ const Home: React.FC = () => {
 
   // Start shake animations when egg is ready to hatch
   useEffect(() => {
-    if (petData?.growthStage === 'Egg' && dailySteps >= 25) {
+    if (petData?.growthStage === 'Egg' && dailySteps >= petData.stepsToHatch) {
       startShakeAnimations();
     }
   }, [petData?.growthStage, dailySteps]);
@@ -496,7 +503,7 @@ const Home: React.FC = () => {
     }
     
     if (petData?.growthStage === 'Egg') {
-      if (dailySteps >= 25) {
+      if (dailySteps >= petData.stepsToHatch) {
         try {
           // Get current user ID
           const { data: { session } } = await supabase.auth.getSession();
@@ -513,11 +520,11 @@ const Home: React.FC = () => {
           const updatedPet = {
             ...petData,
             type: randomPetType,
-            growthStage: 'Baby' as const, // Set growth stage to Baby
+            growthStage: 'Baby' as const,
             totalSteps: dailySteps,
             stepsSinceHatched: dailySteps,
             xp: 0,
-            xpToNextLevel: 25, // Reset XP to next level
+            xpToNextLevel: LEVEL_REQUIREMENTS[0], // Use first level requirement
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -554,7 +561,7 @@ const Home: React.FC = () => {
       } else {
         Alert.alert(
           'Not Ready to Hatch',
-          `Your egg needs ${25 - dailySteps} more steps to hatch! Keep walking to help it grow.`,
+          `Your egg needs ${petData.stepsToHatch - dailySteps} more steps to hatch! Keep walking to help it grow.`,
           [{ text: 'OK' }]
         );
       }
@@ -842,9 +849,9 @@ const Home: React.FC = () => {
 
     if (petData.growthStage === 'Egg') {
       return {
-        progress: dailySteps / 25,
+        progress: dailySteps / petData.stepsToHatch,
         currentValue: dailySteps,
-        maxValue: 25
+        maxValue: petData.stepsToHatch
       };
     } else {
       return {
@@ -1093,9 +1100,9 @@ const Home: React.FC = () => {
               {petData.growthStage === 'Egg' ? (
                 <>
                   <Text style={styles.progressHint}>
-                    Reach 25 steps to hatch your egg!
+                    Reach {petData.stepsToHatch} steps to hatch your egg!
                   </Text>
-                  {dailySteps >= 25 && (
+                  {dailySteps >= petData.stepsToHatch && (
                     <Animated.View style={{
                       transform: [{
                         translateX: buttonShakeAnim

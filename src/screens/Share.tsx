@@ -112,7 +112,7 @@ const Share: React.FC<ShareProps> = ({ route }) => {
             <Text style={styles.achievementTitle}>Level Up!</Text>
             <PetDisplay
               petType={petData?.type || 'Dragon'}
-              growthStage={data.level <= 1 ? 'Egg' : data.level === 2 ? 'Baby' : data.level === 3 ? 'Juvenile' : 'Adult'}
+              growthStage={data.level <= 1 ? 'Egg' : data.level <= 5 ? 'Baby' : data.level <= 10 ? 'Juvenile' : 'Adult'}
               level={data.level}
               mainColor="#8C52FF"
               accentColor="#5EFFA9"

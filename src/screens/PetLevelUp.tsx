@@ -151,8 +151,8 @@ const PetLevelUp: React.FC<PetLevelUpProps> = ({ route, navigation }) => {
   
   const getGrowthStage = () => {
     if (level <= 1) return 'Egg';
-    if (level === 2) return 'Baby';
-    if (level === 3) return 'Juvenile';
+    if (level <= 5) return 'Baby';
+    if (level <= 10) return 'Juvenile';
     return 'Adult';
   };
 

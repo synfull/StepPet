@@ -304,106 +304,70 @@ export const PET_COLORS = {
   drimkin: { mainColor: '#FF5722', accentColor: '#FFC107' }
 };
 
-// ORIGINAL VALUES (DO NOT DELETE)
-// export const LEVEL_REQUIREMENTS = [
-//    7500,    // Level 1 to 2 (hatching egg)
-//    12500,   // Level 2 to 3
-//    17500,   // Level 3 to 4
-//    22500,   // Level 4 to 5
-//    27500,   // Level 5 to 6
-//    32500,   // Level 6 to 7
-//    37500,   // Level 7 to 8
-//    42500,   // Level 8 to 9
-//    47500,   // Level 9 to 10
-//    52500    // Level 10+
-// ];
-
-// TEST VALUES
+// Revised Level Requirements
 export const LEVEL_REQUIREMENTS = [
-  25,      // Level 1 to 2 (hatching egg)
-  200,     // Level 2 to 3
-  300,     // Level 3 to 4
-  400,     // Level 4 to 5
-  500,     // Level 5 to 6
-  600,     // Level 6 to 7
-  700,     // Level 7 to 8
-  800,     // Level 8 to 9
-  900,     // Level 9 to 10
-  1000     // Level 10+
+  5000,     // Level 1 to 2
+  7500,     // Level 2 to 3
+  10000,    // Level 3 to 4
+  12500,    // Level 4 to 5
+  15000,    // Level 5 to 6
+  20000,    // Level 6 to 7
+  25000,    // Level 7 to 8
+  30000,    // Level 8 to 9
+  35000,    // Level 9 to 10
+  40000,    // Level 10 to 11
+  45000,    // Level 11 to 12
+  50000,    // Level 12 to 13
+  55000,    // Level 13 to 14
+  60000,    // Level 14 to 15
+  65000,    // Level 15 to 16
+  70000,    // Level 16 to 17
+  75000,    // Level 17 to 18
+  80000,    // Level 18 to 19
+  85000,    // Level 19 to 20
+  90000     // Level 20+
 ];
 
-// ORIGINAL VALUES (DO NOT DELETE)
-// export const DEFAULT_MILESTONES: Milestone[] = [
-//   {
-//     id: 'milestone-5k',
-//     steps: 5000,
-//     reward: 'xp',
-//     rewardDetails: '+500 XP Boost',
-//     claimed: false
-//   },
-//   {
-//     id: 'milestone-10k',
-//     steps: 10000,
-//     reward: 'appearance',
-//     rewardDetails: 'Pet Appearance Tweak',
-//     claimed: false
-//   },
-//   {
-//     id: 'milestone-25k',
-//     steps: 25000,
-//     reward: 'background',
-//     rewardDetails: 'Background Theme',
-//     claimed: false
-//   },
-//   {
-//     id: 'milestone-50k',
-//     steps: 50000,
-//     reward: 'animation',
-//     rewardDetails: 'Special Animation',
-//     claimed: false
-//   },
-//   {
-//     id: 'milestone-100k',
-//     steps: 100000,
-//     reward: 'badge',
-//     rewardDetails: 'Elite Badge + Animated Background',
-//     claimed: false
-//   }
-// ];
-
-// TEST VALUES
+// Revised Milestones
 export const DEFAULT_MILESTONES: Milestone[] = [
   {
-    id: 'milestone-50',
-    steps: 50,
+    id: 'milestone-5k',
+    steps: 5000,
     reward: 'xp',
-    rewardDetails: '+500 XP Boost',
+    rewardDetails: '+1000 XP Boost',
     claimed: false
   },
   {
-    id: 'milestone-100',
-    steps: 100,
+    id: 'milestone-15k',
+    steps: 15000,
     reward: 'appearance',
     rewardDetails: 'Pet Appearance Tweak',
     claimed: false
   },
   {
-    id: 'milestone-150',
-    steps: 150,
+    id: 'milestone-30k',
+    steps: 30000,
     reward: 'nameColor',
     rewardDetails: 'Pet Name Color',
     claimed: false
   },
   {
-    id: 'milestone-200',
-    steps: 200,
+    id: 'milestone-50k',
+    steps: 50000,
     reward: 'animation',
     rewardDetails: 'Special Animation',
     claimed: false
   },
   {
-    id: 'milestone-250',
-    steps: 250,
+    id: 'milestone-75k',
+    steps: 75000,
+    reward: 'background',
+    rewardDetails: 'Animated Background',
+    claimed: false
+  },
+  {
+    id: 'milestone-90k',
+    steps: 90000,
     reward: 'badge',
     rewardDetails: 'Elite Badge',
     claimed: false
@@ -472,10 +436,10 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     xp: 0,
     xpToNextLevel: LEVEL_REQUIREMENTS[0],
     growthStage: 'Egg' as GrowthStage,
-    stepsToHatch: 25, // Set to 25 steps for testing
+    stepsToHatch: 5000, // Updated to match first level requirement
     stepsSinceHatched: 0,
-    totalSteps: 0, // Start with 0 steps for a new egg
-    startingStepCount: 0, // Start with 0 steps for a new egg
+    totalSteps: 0,
+    startingStepCount: 0,
     appearance: {
       mainColor: '#FFFFFF',
       accentColor: '#FFFFFF',
@@ -537,8 +501,8 @@ export const loadPetData = async (): Promise<PetData | null> => {
 // Update growth stage based on level
 const updateGrowthStage = (pet: PetData): GrowthStage => {
   if (pet.growthStage === 'Egg') return 'Egg';
-  if (pet.level >= 4) return 'Adult';
-  if (pet.level >= 3) return 'Juvenile';
+  if (pet.level >= 11) return 'Adult';
+  if (pet.level >= 6) return 'Juvenile';
   return 'Baby';
 };
 
