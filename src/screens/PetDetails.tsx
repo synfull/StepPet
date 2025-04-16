@@ -43,6 +43,9 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const [showSpecialAnim, setShowSpecialAnim] = useState(route.params?.showSpecialAnimation || false);
   const [editedName, setEditedName] = useState(petData?.name || '');
   
+  // Calculate total lifetime steps
+  const lifetimeSteps = (petData?.stepsSinceHatched || 0) + (petData?.stepsToHatch || 0);
+  
   // Reset special animation after it plays
   useEffect(() => {
     if (showSpecialAnim) {
@@ -278,7 +281,7 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
               <Text style={styles.statLabel}>Weekly Steps</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalSteps.toLocaleString()}</Text>
+              <Text style={styles.statValue}>{lifetimeSteps.toLocaleString()}</Text>
               <Text style={styles.statLabel}>Total Steps</Text>
             </View>
           </View>
