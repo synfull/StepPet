@@ -43,7 +43,7 @@ export const fetchDailySteps = async (startTime?: Date): Promise<number> => {
 };
 
 // Get steps for this week (last 7 days)
-export const fetchWeeklySteps = async (startDate?: Date): Promise<number> => {
+export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: number = 0): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
@@ -52,27 +52,39 @@ export const fetchWeeklySteps = async (startDate?: Date): Promise<number> => {
     }
 
     const now = new Date();
-    // If startDate is provided, use it as the start point
-    // Otherwise, use 7 days ago
-    const startOfWeek = startDate || new Date();
-    if (!startDate) {
-      startOfWeek.setDate(now.getDate() - 7);
-    }
-    startOfWeek.setHours(0, 0, 0, 0);
+    // Use a rolling 7-day window for weekly steps
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
     
-    const { steps } = await Pedometer.getStepCountAsync(startOfWeek, now);
+    // If startDate is provided and it's more recent than 7 days ago, use that instead
+    const startTime = startDate && new Date(startDate) > sevenDaysAgo 
+      ? new Date(startDate) 
+      : sevenDaysAgo;
     
-    // Save to storage
-    await AsyncStorage.setItem('@weekly_steps', steps.toString());
+    const { steps } = await Pedometer.getStepCountAsync(startTime, now);
     
-    return steps;
+    // If we're using the pet's creation date, subtract the starting step count
+    const adjustedSteps = startDate ? Math.max(0, steps - startingStepCount) : steps;
+    
+    // Save to storage with context
+    await AsyncStorage.setItem('@weekly_steps', JSON.stringify({
+      steps: adjustedSteps,
+      startTime: startTime.toISOString(),
+      startingStepCount: startingStepCount
+    }));
+    
+    return adjustedSteps;
   } catch (error) {
     console.error('Error fetching weekly steps:', error);
     
     // Try to get from storage as fallback
     try {
-      const storedSteps = await AsyncStorage.getItem('@weekly_steps');
-      return storedSteps ? parseInt(storedSteps, 10) : 0;
+      const storedData = await AsyncStorage.getItem('@weekly_steps');
+      if (storedData) {
+        const { steps } = JSON.parse(storedData);
+        return steps;
+      }
+      return 0;
     } catch (storageError) {
       console.error('Error reading stored weekly steps:', storageError);
       return 0;
@@ -97,7 +109,12 @@ export const updateTotalSteps = async (newSteps: number): Promise<number> => {
 };
 
 // Subscribe to pedometer updates
-export const subscribeToPedometer = (callback: (steps: number) => void, startTime?: Date) => {
+export const subscribeToPedometer = (
+  callback: (steps: number) => void,
+  startTime?: Date,
+  startingStepCount: number = 0,
+  onWeeklyUpdate?: (weeklySteps: number) => void
+) => {
   const now = new Date();
   const start = startTime || new Date();
   if (!startTime) {
@@ -105,20 +122,53 @@ export const subscribeToPedometer = (callback: (steps: number) => void, startTim
   }
   
   let subscription: { remove: () => void } | null = null;
+  let lastWeeklyUpdate = 0;
+  const WEEKLY_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  let weeklyUpdateInterval: NodeJS.Timeout | null = null;
   
   try {
     // First get the current step count from our start time
     Pedometer.getStepCountAsync(start, now).then(({ steps }) => {
-      callback(steps); // Call immediately with initial steps
+      // Subtract startingStepCount from initial steps
+      const adjustedSteps = Math.max(0, steps - startingStepCount);
+      callback(adjustedSteps);
+      
+      // Update weekly steps if callback provided
+      if (onWeeklyUpdate) {
+        fetchWeeklySteps(startTime, startingStepCount).then(weeklySteps => {
+          onWeeklyUpdate(weeklySteps);
+          lastWeeklyUpdate = Date.now();
+        });
+      }
     }).catch(error => {
       console.error('Error getting initial step count:', error);
     });
+    
+    // Set up periodic weekly updates
+    if (onWeeklyUpdate) {
+      weeklyUpdateInterval = setInterval(() => {
+        fetchWeeklySteps(startTime, startingStepCount).then(weeklySteps => {
+          onWeeklyUpdate(weeklySteps);
+          lastWeeklyUpdate = Date.now();
+        });
+      }, WEEKLY_UPDATE_INTERVAL);
+    }
     
     // Then subscribe to updates
     subscription = Pedometer.watchStepCount(result => {
       // Get current steps from start time to now
       Pedometer.getStepCountAsync(start, new Date()).then(({ steps }) => {
-        callback(steps);
+        // Subtract startingStepCount from updated steps
+        const adjustedSteps = Math.max(0, steps - startingStepCount);
+        callback(adjustedSteps);
+        
+        // Update weekly steps if callback provided and enough time has passed
+        if (onWeeklyUpdate && Date.now() - lastWeeklyUpdate >= WEEKLY_UPDATE_INTERVAL) {
+          fetchWeeklySteps(startTime, startingStepCount).then(weeklySteps => {
+            onWeeklyUpdate(weeklySteps);
+            lastWeeklyUpdate = Date.now();
+          });
+        }
       }).catch(error => {
         console.error('Error getting updated step count:', error);
       });
@@ -127,5 +177,15 @@ export const subscribeToPedometer = (callback: (steps: number) => void, startTim
     console.error('Error subscribing to pedometer:', error);
   }
   
-  return subscription;
+  // Return a cleanup function that clears both the pedometer subscription and interval
+  return {
+    remove: () => {
+      if (subscription) {
+        subscription.remove();
+      }
+      if (weeklyUpdateInterval) {
+        clearInterval(weeklyUpdateInterval);
+      }
+    }
+  };
 }; 
