@@ -176,36 +176,12 @@ const Home: React.FC = () => {
       const petCreationTime = new Date(petData.created);
       
       const subscription = subscribeToPedometer(async (steps: number) => {
-        // For new eggs, calculate steps since creation for total steps
+        // For new eggs, calculate steps since creation
         if (petData.growthStage === 'Egg') {
-          const totalStepsSinceCreation = await fetchDailySteps(petCreationTime);
-          const stepsSinceCreation = Math.max(0, totalStepsSinceCreation - (petData.startingStepCount || 0));
-          console.log('Step counting debug:', {
-            time: new Date().toISOString(),
-            totalStepsSinceCreation,
-            stepsSinceCreation,
-            startingStepCount: petData.startingStepCount,
-            petCreationTime: petCreationTime.toISOString()
-          });
-
-          // Set total steps (for egg progress) based on steps since creation
+          const dailySteps = await fetchDailySteps(petCreationTime);
+          const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
+          setDailySteps(stepsSinceCreation);
           setTotalSteps(stepsSinceCreation);
-
-          // Get daily steps since midnight (for the steps counter only)
-          const dailyStepCount = await fetchDailySteps();
-          console.log('Daily steps debug:', {
-            time: new Date().toISOString(),
-            dailyStepCount,
-            midnight: new Date().setHours(0, 0, 0, 0)
-          });
-          setDailySteps(dailyStepCount);
-
-          // For egg progress bar, use total steps since creation
-          const progress = {
-            progress: stepsSinceCreation / petData.stepsToHatch,
-            currentValue: stepsSinceCreation,
-            maxValue: petData.stepsToHatch
-          };
 
           // Check if egg is ready to hatch
           if (stepsSinceCreation >= petData.stepsToHatch) {
@@ -223,23 +199,11 @@ const Home: React.FC = () => {
             }
           }
         } else {
-          // For hatched pets, get daily steps since midnight
-          const dailyStepCount = await fetchDailySteps();
-          setDailySteps(dailyStepCount);
-
-          // For hatched pets, all new steps should count towards XP
-          const newSteps = dailyStepCount - petData.totalSteps;
-          if (newSteps > 0) {
-            const { updatedPet, leveledUp } = await updatePetWithSteps(petData, newSteps);
-            setPetData(updatedPet);
-            setTotalSteps(dailyStepCount);
-            
-            if (leveledUp) {
-              navigation.navigate('PetLevelUp', { 
-                level: updatedPet.level,
-                petType: updatedPet.type 
-              });
-            }
+          // For hatched pets, calculate XP based on new steps since hatching
+          const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
+          setDailySteps(steps);
+          if (stepsAfterHatch !== petData.xp) {
+            setTotalSteps(steps);
           }
         }
       }, petCreationTime);
@@ -402,10 +366,10 @@ const Home: React.FC = () => {
 
   // Start shake animations when egg is ready to hatch
   useEffect(() => {
-    if (petData?.growthStage === 'Egg' && totalSteps >= petData.stepsToHatch) {
+    if (petData?.growthStage === 'Egg' && dailySteps >= petData.stepsToHatch) {
       startShakeAnimations();
     }
-  }, [petData?.growthStage, totalSteps]);
+  }, [petData?.growthStage, dailySteps]);
   
   // Start floating animation when egg is present
   useEffect(() => {
@@ -436,34 +400,50 @@ const Home: React.FC = () => {
     try {
       // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
-      const totalStepsSinceCreation = await fetchDailySteps(petCreationTime);
-      const dailyStepCount = await fetchDailySteps(); // Get steps since midnight
+      const daily = await fetchDailySteps(petCreationTime);
       const weekly = await fetchWeeklySteps(petCreationTime);
       
       // For new eggs, only count steps after creation time
       if (petData.growthStage === 'Egg') {
-        const stepsSinceCreation = Math.max(0, totalStepsSinceCreation - (petData.startingStepCount || 0));
-        setDailySteps(dailyStepCount);
+        const stepsSinceCreation = Math.max(0, daily - (petData.startingStepCount || 0));
+        setDailySteps(stepsSinceCreation);
         setWeeklySteps(weekly);
         setTotalSteps(stepsSinceCreation);
       } else {
-        // For hatched pets, calculate XP based on new steps
-        setDailySteps(dailyStepCount);
+        // For hatched pets, calculate XP based on new steps since hatching
+        setDailySteps(daily);
         setWeeklySteps(weekly);
         
-        // Calculate new steps since last update
-        const newSteps = dailyStepCount - petData.totalSteps;
-        if (newSteps > 0) {
-          const { updatedPet, leveledUp } = await updatePetWithSteps(petData, newSteps);
-          setPetData(updatedPet);
-          setTotalSteps(dailyStepCount);
+        const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
+        const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+        
+        // Check for level up
+        if (newXP >= petData.xpToNextLevel) {
+          const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(petData, 0);
+          // Preserve only the type after level up
+          const preservedPet = {
+            ...leveledPet,
+            type: petData.type
+          };
+          setPetData(preservedPet);
+          setTotalSteps(preservedPet.totalSteps);
           
           if (leveledUp) {
             navigation.navigate('PetLevelUp', { 
-              level: updatedPet.level,
-              petType: updatedPet.type 
+              level: preservedPet.level,
+              petType: preservedPet.type 
             });
           }
+        } else {
+          // Just update XP without level up
+          const updatedPet = {
+            ...petData,
+            xp: newXP,
+            totalSteps: daily
+          };
+          await savePetData(updatedPet);
+          setPetData(updatedPet);
+          setTotalSteps(updatedPet.totalSteps);
         }
       }
     } catch (error) {
@@ -518,7 +498,7 @@ const Home: React.FC = () => {
     }
     
     if (petData?.growthStage === 'Egg') {
-      if (totalSteps >= petData.stepsToHatch) {
+      if (dailySteps >= petData.stepsToHatch) {
         try {
           // Get current user ID
           const { data: { session } } = await supabase.auth.getSession();
@@ -532,13 +512,12 @@ const Home: React.FC = () => {
           // Update pet data to reflect hatching
           const { type: randomPetType } = getRandomPetType();
           const now = new Date();
-          const dailyStepCount = await fetchDailySteps();
           const updatedPet = {
             ...petData,
             type: randomPetType,
             growthStage: 'Baby' as const,
-            totalSteps: dailyStepCount,
-            stepsSinceHatched: dailyStepCount,
+            totalSteps: dailySteps,
+            stepsSinceHatched: dailySteps,
             xp: 0,
             xpToNextLevel: LEVEL_REQUIREMENTS[0], // Use first level requirement
             miniGames: {
@@ -562,7 +541,7 @@ const Home: React.FC = () => {
           // Update pet data to reflect hatching
           const { updatedPet: hatchedPet } = await updatePetWithSteps(updatedPet, 0);
           setPetData(hatchedPet);
-          setTotalSteps(totalSteps);
+          setTotalSteps(dailySteps);
           navigation.navigate('PetHatching', {
             petType: hatchedPet.type
           });
@@ -577,7 +556,7 @@ const Home: React.FC = () => {
       } else {
         Alert.alert(
           'Not Ready to Hatch',
-          `Your egg needs ${petData.stepsToHatch - totalSteps} more steps to hatch! Keep walking to help it grow.`,
+          `Your egg needs ${petData.stepsToHatch - dailySteps} more steps to hatch! Keep walking to help it grow.`,
           [{ text: 'OK' }]
         );
       }
@@ -865,8 +844,8 @@ const Home: React.FC = () => {
 
     if (petData.growthStage === 'Egg') {
       return {
-        progress: totalSteps / petData.stepsToHatch,
-        currentValue: totalSteps,
+        progress: dailySteps / petData.stepsToHatch,
+        currentValue: dailySteps,
         maxValue: petData.stepsToHatch
       };
     } else {
@@ -1118,7 +1097,7 @@ const Home: React.FC = () => {
                   <Text style={styles.progressHint}>
                     Reach {petData.stepsToHatch} steps to hatch your egg!
                   </Text>
-                  {totalSteps >= petData.stepsToHatch && (
+                  {dailySteps >= petData.stepsToHatch && (
                     <Animated.View style={{
                       transform: [{
                         translateX: buttonShakeAnim

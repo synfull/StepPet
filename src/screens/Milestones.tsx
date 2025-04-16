@@ -149,8 +149,8 @@ const Milestones: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState('#34C759');
   const [currentMilestoneId, setCurrentMilestoneId] = useState<string | null>(null);
   
-  // Calculate total steps since egg creation
-  const totalSteps = (petData?.stepsSinceHatched || 0) + (petData?.stepsToHatch || 0);
+  // Use totalSteps from pedometer context, default to 0 if not available
+  const totalSteps = pedometerContext?.totalSteps || 0;
   
   useEffect(() => {
     if (petData) {
