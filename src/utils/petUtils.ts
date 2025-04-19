@@ -334,7 +334,7 @@ export const DEFAULT_MILESTONES: Milestone[] = [
     id: 'milestone-5k',
     steps: 5000,
     reward: 'xp',
-    rewardDetails: '+1000 XP Boost',
+    rewardDetails: '+500 XP Boost',
     claimed: false
   },
   {

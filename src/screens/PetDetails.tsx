@@ -14,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Pedometer } from 'expo-sensors';
 import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useData } from '../context/DataContext';
@@ -37,11 +38,32 @@ interface PetDetailsProps {
 const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const navigation = useNavigation<PetDetailsNavigationProp>();
   const { petData, setPetData } = useData();
-  const { dailySteps, weeklySteps, totalSteps } = useContext(PedometerContext);
+  const { dailySteps, weeklySteps, totalSteps, setTotalSteps } = useContext(PedometerContext);
   const [isEditing, setIsEditing] = useState(false);
   const [petName, setPetName] = useState(petData?.name || '');
   const [showSpecialAnim, setShowSpecialAnim] = useState(route.params?.showSpecialAnimation || false);
   const [editedName, setEditedName] = useState(petData?.name || '');
+  
+  // Load initial step data
+  useEffect(() => {
+    const loadInitialSteps = async () => {
+      if (petData) {
+        const petCreationTime = new Date(petData.created);
+        try {
+          const { steps: totalStepCount } = await Pedometer.getStepCountAsync(
+            petCreationTime,
+            new Date()
+          );
+          const stepsSinceCreation = Math.max(0, totalStepCount - (petData.startingStepCount || 0));
+          setTotalSteps(stepsSinceCreation);
+        } catch (error) {
+          console.error('Error loading initial steps:', error);
+        }
+      }
+    };
+    
+    loadInitialSteps();
+  }, [petData]);
   
   // Reset special animation after it plays
   useEffect(() => {

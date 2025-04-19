@@ -23,6 +23,7 @@ import ProgressBar from '../components/ProgressBar';
 import { getRandomMilestoneAccessory } from '../utils/petUtils';
 import { useInventory } from '../context/InventoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Pedometer } from 'expo-sensors';
 
 type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;
 
@@ -142,15 +143,33 @@ const MilestoneItem: React.FC<MilestoneItemProps> = ({
 const Milestones: React.FC = () => {
   const navigation = useNavigation<MilestonesNavigationProp>();
   const { petData, setPetData } = useData();
-  const pedometerContext = useContext(PedometerContext);
+  const { totalSteps, setTotalSteps } = useContext(PedometerContext);
   const { purchaseItem } = useInventory();
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#34C759');
   const [currentMilestoneId, setCurrentMilestoneId] = useState<string | null>(null);
   
-  // Use totalSteps from pedometer context, default to 0 if not available
-  const totalSteps = pedometerContext?.totalSteps || 0;
+  // Load initial step data
+  useEffect(() => {
+    const loadInitialSteps = async () => {
+      if (petData) {
+        const petCreationTime = new Date(petData.created);
+        try {
+          const { steps: totalStepCount } = await Pedometer.getStepCountAsync(
+            petCreationTime,
+            new Date()
+          );
+          const stepsSinceCreation = Math.max(0, totalStepCount - (petData.startingStepCount || 0));
+          setTotalSteps(stepsSinceCreation);
+        } catch (error) {
+          console.error('Error loading initial steps:', error);
+        }
+      }
+    };
+    
+    loadInitialSteps();
+  }, [petData]);
   
   useEffect(() => {
     if (petData) {

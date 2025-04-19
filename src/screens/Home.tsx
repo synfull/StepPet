@@ -866,15 +866,18 @@ const Home: React.FC = () => {
     if (petData.growthStage === 'Egg') {
       // For eggs, use total steps since creation for progress
       return {
-        progress: totalSteps / petData.stepsToHatch,
+        progress: Math.min(1, totalSteps / petData.stepsToHatch),
         currentValue: totalSteps,
         maxValue: petData.stepsToHatch
       };
     } else {
+      // Ensure we have valid numbers and calculate the ratio
+      const currentXP = Math.max(0, petData.xp || 0);
+      const maxXP = Math.max(1, petData.xpToNextLevel || 5000); // Fallback to 5000 if undefined
       return {
-        progress: petData.xp / petData.xpToNextLevel,
-        currentValue: petData.xp,
-        maxValue: petData.xpToNextLevel
+        progress: Math.min(1, currentXP / maxXP),
+        currentValue: currentXP,
+        maxValue: maxXP
       };
     }
   };
