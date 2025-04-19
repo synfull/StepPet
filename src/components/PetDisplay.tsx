@@ -19,9 +19,6 @@ const PetDisplay: React.FC<PetDisplayProps> = ({
   size = 'medium',
   showEquippedItems = false,
 }) => {
-  // Debug logging
-  console.log('PetDisplay props:', { petType, growthStage, size, showEquippedItems });
-
   // Function to get image size based on size prop
   const getImageSize = (size: string) => {
     switch (size) {

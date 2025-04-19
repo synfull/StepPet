@@ -506,10 +506,11 @@ const updateGrowthStage = (pet: PetData): GrowthStage => {
   return 'Baby';
 };
 
-// Update pet with new steps
+// Update pet with new steps and/or XP
 export const updatePetWithSteps = async (
   pet: PetData,
-  newSteps: number
+  newSteps: number,
+  xpReward: number = 0 // New parameter for XP rewards
 ): Promise<{ updatedPet: PetData; leveledUp: boolean; milestoneReached: string | null }> => {
   let leveledUp = false;
   let milestoneReached: string | null = null;
@@ -530,9 +531,11 @@ export const updatePetWithSteps = async (
       leveledUp = false;
     }
   } else {
-    // Pet is already hatched, add XP and update level
-    updatedPet.xp += newSteps;
-    updatedPet.stepsSinceHatched += newSteps;
+    // Pet is already hatched, add XP from both steps and rewards
+    updatedPet.xp += newSteps + xpReward;
+    if (newSteps > 0) {
+      updatedPet.stepsSinceHatched += newSteps;
+    }
     
     // Check for level up
     if (updatedPet.xp >= updatedPet.xpToNextLevel) {

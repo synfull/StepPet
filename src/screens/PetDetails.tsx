@@ -108,33 +108,44 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const getEvolutionInfo = () => {
     switch (petData.growthStage) {
       case 'Baby':
-        // Need to reach level 3 for Juvenile
-        if (petData.level === 1) {
+        // Need to reach level 6 for Juvenile
+        if (petData.level < 6) {
+          // Calculate total steps needed to reach level 6
+          let totalStepsNeeded = petData.xpToNextLevel - petData.xp; // Remaining steps for current level
+          
+          // Add steps needed for each level up to level 6
+          for (let level = petData.level; level < 5; level++) {
+            totalStepsNeeded += LEVEL_REQUIREMENTS[level];
+          }
+          
           return {
             nextStage: 'Juvenile',
-            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
-          };
-        } else if (petData.level === 2) {
-          return {
-            nextStage: 'Juvenile',
-            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
+            stepsNeeded: totalStepsNeeded
           };
         }
         return {
           nextStage: 'Juvenile',
-          stepsNeeded: 0 // Already at level 3, should be evolving
+          stepsNeeded: 0 // Already at level 6, should be evolving
         };
       case 'Juvenile':
-        // Need to reach level 4 for Adult
-        if (petData.level === 3) {
+        // Need to reach level 11 for Adult
+        if (petData.level < 11) {
+          // Calculate total steps needed to reach level 11
+          let totalStepsNeeded = petData.xpToNextLevel - petData.xp; // Remaining steps for current level
+          
+          // Add steps needed for each level up to level 11
+          for (let level = petData.level; level < 10; level++) {
+            totalStepsNeeded += LEVEL_REQUIREMENTS[level];
+          }
+          
           return {
             nextStage: 'Adult',
-            stepsNeeded: petData.xpToNextLevel - petData.xp // Remaining steps for current level
+            stepsNeeded: totalStepsNeeded
           };
         }
         return {
           nextStage: 'Adult',
-          stepsNeeded: 0 // Already at level 4, should be evolving
+          stepsNeeded: 0 // Already at level 11, should be evolving
         };
       case 'Adult':
         return {

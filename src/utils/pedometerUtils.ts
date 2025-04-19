@@ -1,5 +1,6 @@
 import { Pedometer } from 'expo-sensors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isSameDay } from './dateUtils';
 
 // Initialize pedometer and check if it's available
 export const pedoInit = async (): Promise<boolean> => {
@@ -7,8 +8,8 @@ export const pedoInit = async (): Promise<boolean> => {
   return isAvailable;
 };
 
-// Get steps for today (since midnight or custom start time)
-export const fetchDailySteps = async (startTime?: Date): Promise<number> => {
+// Get steps for today (since midnight)
+export const fetchDailySteps = async (startTime?: Date, startingStepCount: number = 0): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
     if (!isAvailable) {
@@ -17,12 +18,11 @@ export const fetchDailySteps = async (startTime?: Date): Promise<number> => {
     }
 
     const now = new Date();
-    const start = startTime || new Date();
-    if (!startTime) {
-      start.setHours(0, 0, 0, 0);
-    }
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
     
-    const { steps } = await Pedometer.getStepCountAsync(start, now);
+    // Always use today's midnight for daily steps
+    const { steps } = await Pedometer.getStepCountAsync(todayMidnight, now);
     
     // Save to storage
     await AsyncStorage.setItem('@daily_steps', steps.toString());
@@ -53,24 +53,25 @@ export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: numb
 
     const now = new Date();
     // Use a rolling 7-day window for weekly steps
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
     sevenDaysAgo.setHours(0, 0, 0, 0);
     
-    // If startDate is provided and it's more recent than 7 days ago, use that instead
+    // If startDate (egg creation) is more recent than 7 days ago, use that instead
     const startTime = startDate && new Date(startDate) > sevenDaysAgo 
       ? new Date(startDate) 
       : sevenDaysAgo;
     
+    // Get steps since the start time
     const { steps } = await Pedometer.getStepCountAsync(startTime, now);
     
-    // If we're using the pet's creation date, subtract the starting step count
-    const adjustedSteps = startDate ? Math.max(0, steps - startingStepCount) : steps;
+    // Always subtract the starting step count to only count steps after egg creation
+    const adjustedSteps = Math.max(0, steps - startingStepCount);
     
     // Save to storage with context
     await AsyncStorage.setItem('@weekly_steps', JSON.stringify({
       steps: adjustedSteps,
       startTime: startTime.toISOString(),
-      startingStepCount: startingStepCount
+      startingStepCount
     }));
     
     return adjustedSteps;

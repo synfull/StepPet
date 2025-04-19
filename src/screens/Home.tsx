@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Pedometer } from 'expo-sensors';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -74,7 +75,7 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
     
     // Get current steps
     const petCreationTime = new Date(petData.created);
-    const dailySteps = await fetchDailySteps(petCreationTime);
+    const dailySteps = await fetchDailySteps(petCreationTime, petData.startingStepCount || 0);
     const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
     
     console.log('Steps since creation:', stepsSinceCreation);
@@ -148,6 +149,11 @@ const Home: React.FC = () => {
   
   const appState = useRef(AppState.currentState);
   
+  const lastStepUpdate = useRef<number>(0);
+  const STEP_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+  
+  const [lastKnownDate, setLastKnownDate] = useState(new Date().getDate());
+  
   // Welcome screen animations
   useEffect(() => {
     if (!petData) {
@@ -172,46 +178,74 @@ const Home: React.FC = () => {
   // Pedometer subscription
   useEffect(() => {
     if (isAvailable && petData) {
-      // Use the pet's creation time as the start time for counting steps
       const petCreationTime = new Date(petData.created);
       
       const subscription = subscribeToPedometer(async (steps: number) => {
-        // For new eggs, calculate steps since creation
-        if (petData.growthStage === 'Egg') {
-          const dailySteps = await fetchDailySteps(petCreationTime);
-          const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
-          setDailySteps(stepsSinceCreation);
-          setTotalSteps(stepsSinceCreation);
+        const now = Date.now();
+        if (now - lastStepUpdate.current < STEP_UPDATE_INTERVAL) {
+          return; // Skip update if too soon
+        }
+        lastStepUpdate.current = now;
 
-          // Check if egg is ready to hatch
-          if (stepsSinceCreation >= petData.stepsToHatch) {
-            console.log('Egg is ready to hatch in pedometer subscription!');
-            // Check if we've already sent a notification for this egg
-            const hasSentNotification = await AsyncStorage.getItem(`egg_hatching_notification_${petData.id}`);
-            if (!hasSentNotification) {
-              console.log('Sending hatching notification from pedometer...');
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session?.user?.id) {
-                await sendEggHatchingNotification(session.user.id, petData.name);
-                await AsyncStorage.setItem(`egg_hatching_notification_${petData.id}`, 'true');
-                console.log('Hatching notification sent from pedometer');
-              }
-            }
+        if (petData.growthStage === 'Egg') {
+          // Get steps since egg creation for total steps
+          const { steps: stepsSinceCreation } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+          const stepsAfterCreation = Math.max(0, stepsSinceCreation - (petData.startingStepCount || 0));
+          
+          // Get today's steps separately
+          const todayMidnight = new Date();
+          todayMidnight.setHours(0, 0, 0, 0);
+          const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+          const todayStepsAfterCreation = Math.max(0, todaySteps - (petData.startingStepCount || 0));
+          
+          // Update daily and total steps
+          setDailySteps(todayStepsAfterCreation);
+          setTotalSteps(stepsAfterCreation);
+          
+          // Update pet data with new total steps for progress
+          if (stepsAfterCreation !== petData.totalSteps) {
+            const updatedPet = {
+              ...petData,
+              totalSteps: stepsAfterCreation,
+              // For eggs, progress is based directly on total steps
+              xp: stepsAfterCreation,
+              xpToNextLevel: petData.stepsToHatch
+            };
+            await savePetData(updatedPet);
+            setPetData(updatedPet);
           }
         } else {
-          // For hatched pets, calculate XP based on new steps since hatching
-          const stepsAfterHatch = Math.max(0, steps - petData.stepsSinceHatched);
-          setDailySteps(steps);
-          if (stepsAfterHatch !== petData.xp) {
-            setTotalSteps(steps);
+          // For hatched pets, maintain XP and evolution progress based on total steps since hatch
+          const todayMidnight = new Date();
+          todayMidnight.setHours(0, 0, 0, 0);
+          const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+          setDailySteps(todaySteps);
+          
+          // Calculate total steps since creation
+          const { steps: totalSteps } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+          const stepsSinceCreation = Math.max(0, totalSteps - (petData.startingStepCount || 0));
+          
+          // Only update if total steps have changed
+          if (stepsSinceCreation !== petData.totalSteps) {
+            setTotalSteps(stepsSinceCreation);
+            
+            // Calculate XP based on total steps since hatch, not daily steps
+            const totalStepsSinceHatch = Math.max(0, stepsSinceCreation - (petData.stepsSinceHatched || 0));
+            const newXP = Math.min(totalStepsSinceHatch, petData.xpToNextLevel);
+            
+            const updatedPet = {
+              ...petData,
+              totalSteps: stepsSinceCreation,
+              xp: newXP
+            };
+            await savePetData(updatedPet);
+            setPetData(updatedPet);
           }
         }
-      }, petCreationTime);
+      }, petCreationTime, petData.startingStepCount || 0);
 
       return () => {
-        if (subscription) {
-          subscription.remove();
-        }
+        subscription.remove();
       };
     }
   }, [isAvailable, petData]);
@@ -395,55 +429,69 @@ const Home: React.FC = () => {
   
   // Refresh step data
   const refreshStepData = async () => {
-    if (!isAvailable || !petData) return;
-    
     try {
-      // Use the pet's creation time as the start time for counting steps
+      if (!petData) return;
+      
       const petCreationTime = new Date(petData.created);
-      const daily = await fetchDailySteps(petCreationTime);
-      const weekly = await fetchWeeklySteps(petCreationTime);
       
       // For new eggs, only count steps after creation time
       if (petData.growthStage === 'Egg') {
-        const stepsSinceCreation = Math.max(0, daily - (petData.startingStepCount || 0));
-        setDailySteps(stepsSinceCreation);
-        setWeeklySteps(weekly);
-        setTotalSteps(stepsSinceCreation);
-      } else {
-        // For hatched pets, calculate XP based on new steps since hatching
-        setDailySteps(daily);
-        setWeeklySteps(weekly);
+        // Get steps since egg creation
+        const { steps: stepsSinceCreation } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+        const stepsAfterCreation = Math.max(0, stepsSinceCreation - (petData.startingStepCount || 0));
         
-        const stepsAfterHatch = Math.max(0, daily - petData.stepsSinceHatched);
-        const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+        // Get today's steps separately
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+        const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+        const todayStepsAfterCreation = Math.max(0, todaySteps - (petData.startingStepCount || 0));
         
-        // Check for level up
-        if (newXP >= petData.xpToNextLevel) {
-          const { updatedPet: leveledPet, leveledUp } = await updatePetWithSteps(petData, 0);
-          // Preserve only the type after level up
-          const preservedPet = {
-            ...leveledPet,
-            type: petData.type
-          };
-          setPetData(preservedPet);
-          setTotalSteps(preservedPet.totalSteps);
-          
-          if (leveledUp) {
-            navigation.navigate('PetLevelUp', { 
-              level: preservedPet.level,
-              petType: preservedPet.type 
-            });
-          }
-        } else {
-          // Just update XP without level up
+        // Get weekly steps
+        const weeklyStepsCount = await fetchWeeklySteps(petCreationTime, petData.startingStepCount || 0);
+        
+        // Set all step counts
+        setDailySteps(todayStepsAfterCreation);
+        setWeeklySteps(weeklyStepsCount);
+        
+        // Only update total steps if different
+        if (stepsAfterCreation !== petData.totalSteps) {
+          setTotalSteps(stepsAfterCreation);
           const updatedPet = {
             ...petData,
-            xp: newXP,
-            totalSteps: daily
+            totalSteps: stepsAfterCreation
           };
           await savePetData(updatedPet);
           setPetData(updatedPet);
-          setTotalSteps(updatedPet.totalSteps);
+        }
+      } else {
+        // For hatched pets, calculate XP based on new steps since hatching
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+        const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+        
+        // Get weekly steps
+        const weeklyStepsCount = await fetchWeeklySteps(petCreationTime, petData.startingStepCount || 0);
+        
+        setDailySteps(todaySteps);
+        setWeeklySteps(weeklyStepsCount);
+        
+        // Calculate total steps since creation
+        const { steps: totalSteps } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+        const stepsSinceCreation = Math.max(0, totalSteps - (petData.startingStepCount || 0));
+        
+        // Only update total steps if different
+        if (stepsSinceCreation !== petData.totalSteps) {
+          setTotalSteps(stepsSinceCreation);
+          const stepsAfterHatch = Math.max(0, todaySteps - petData.stepsSinceHatched);
+          const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+          
+          const updatedPet = {
+            ...petData,
+            xp: newXP,
+            totalSteps: stepsSinceCreation
+          };
+          await savePetData(updatedPet);
+          setPetData(updatedPet);
         }
       }
     } catch (error) {
@@ -635,39 +683,30 @@ const Home: React.FC = () => {
     const updatedPet = { ...petData };
     updatedPet.miniGames.feed.lastClaimed = now.toISOString();
     updatedPet.miniGames.feed.claimedToday = true;
-    updatedPet.xp += 100;
     
-    // Check for level up
-    if (updatedPet.xp >= updatedPet.xpToNextLevel) {
-      Alert.alert(
-        'Pet Fed',
-        'Your pet is happy and well-fed! You earned 100 XP, which leveled up your pet!',
-        [{ text: 'Great!' }]
-      );
+    // Save and update with XP reward
+    updatePetWithSteps(updatedPet, 0, 100).then(({ updatedPet: newPet, leveledUp }) => {
+      setPetData(newPet);
       
-      // Save and update
-      updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
-        setPetData(updatedPet);
+      if (leveledUp) {
+        Alert.alert(
+          'Pet Fed',
+          'Your pet is happy and well-fed! You earned 100 XP, which leveled up your pet!',
+          [{ text: 'Great!' }]
+        );
         
-        if (leveledUp) {
-          navigation.navigate('PetLevelUp', { 
-            level: updatedPet.level,
-            petType: updatedPet.type 
-          });
-        }
-      });
-    } else {
-      // Just add XP, no level up
-      Alert.alert(
-        'Pet Fed',
-        'Your pet is happy and well-fed! You earned 100 XP.',
-        [{ text: 'Great!' }]
-      );
-      
-      setPetData(updatedPet);
-      // Save the updated pet
-      updatePetWithSteps(petData, 0);
-    }
+        navigation.navigate('PetLevelUp', { 
+          level: newPet.level,
+          petType: newPet.type 
+        });
+      } else {
+        Alert.alert(
+          'Pet Fed',
+          'Your pet is happy and well-fed! You earned 100 XP.',
+          [{ text: 'Great!' }]
+        );
+      }
+    });
   };
   
   // Handle fetch game
@@ -703,39 +742,30 @@ const Home: React.FC = () => {
     // Update claims
     updatedPet.miniGames.fetch.claimsToday = claims + 1;
     updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
-    updatedPet.xp += 50;
     
-    // Check for level up
-    if (updatedPet.xp >= updatedPet.xpToNextLevel) {
-      Alert.alert(
-        'Fetch Complete',
-        'Your pet had fun playing fetch! You earned 50 XP, which leveled up your pet!',
-        [{ text: 'Great!' }]
-      );
+    // Save and update with XP reward
+    updatePetWithSteps(updatedPet, 0, 50).then(({ updatedPet: newPet, leveledUp }) => {
+      setPetData(newPet);
       
-      // Save and update
-      updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
-        setPetData(updatedPet);
+      if (leveledUp) {
+        Alert.alert(
+          'Fetch Complete',
+          'Your pet had fun playing fetch! You earned 50 XP, which leveled up your pet!',
+          [{ text: 'Great!' }]
+        );
         
-        if (leveledUp) {
-          navigation.navigate('PetLevelUp', { 
-            level: updatedPet.level,
-            petType: updatedPet.type 
-          });
-        }
-      });
-    } else {
-      // Just add XP, no level up
-      Alert.alert(
-        'Fetch Complete',
-        'Your pet had fun playing fetch! You earned 50 XP.',
-        [{ text: 'Great!' }]
-      );
-      
-      setPetData(updatedPet);
-      // Save the updated pet
-      updatePetWithSteps(petData, 0);
-    }
+        navigation.navigate('PetLevelUp', { 
+          level: newPet.level,
+          petType: newPet.type 
+        });
+      } else {
+        Alert.alert(
+          'Fetch Complete',
+          'Your pet had fun playing fetch! You earned 50 XP.',
+          [{ text: 'Great!' }]
+        );
+      }
+    });
   };
   
   // Handle adventure walk
@@ -772,39 +802,30 @@ const Home: React.FC = () => {
         updatedPet.miniGames.adventure.isActive = false;
         updatedPet.miniGames.adventure.lastCompleted = now.toISOString();
         updatedPet.miniGames.adventure.currentProgress = 15000;
-        updatedPet.xp += 300;
         
-        // Check for level up
-        if (updatedPet.xp >= updatedPet.xpToNextLevel) {
-          Alert.alert(
-            'Adventure Complete',
-            'Congratulations! You completed the adventure walk with your pet! You earned 300 XP, which leveled up your pet!',
-            [{ text: 'Great!' }]
-          );
+        // Save and update with XP reward
+        updatePetWithSteps(updatedPet, 0, 300).then(({ updatedPet: newPet, leveledUp }) => {
+          setPetData(newPet);
           
-          // Save and update
-          updatePetWithSteps(petData, 0).then(({ updatedPet, leveledUp }) => {
-            setPetData(updatedPet);
+          if (leveledUp) {
+            Alert.alert(
+              'Adventure Complete',
+              'Congratulations! You completed the adventure walk with your pet! You earned 300 XP, which leveled up your pet!',
+              [{ text: 'Great!' }]
+            );
             
-            if (leveledUp) {
-              navigation.navigate('PetLevelUp', { 
-                level: updatedPet.level,
-                petType: updatedPet.type 
-              });
-            }
-          });
-        } else {
-          // Just add XP, no level up
-          Alert.alert(
-            'Adventure Complete',
-            'Congratulations! You completed the adventure walk with your pet! You earned 300 XP.',
-            [{ text: 'Great!' }]
-          );
-          
-          setPetData(updatedPet);
-          // Save the updated pet
-          updatePetWithSteps(petData, 0);
-        }
+            navigation.navigate('PetLevelUp', { 
+              level: newPet.level,
+              petType: newPet.type 
+            });
+          } else {
+            Alert.alert(
+              'Adventure Complete',
+              'Congratulations! You completed the adventure walk with your pet! You earned 300 XP.',
+              [{ text: 'Great!' }]
+            );
+          }
+        });
       } else {
         // Adventure in progress
         Alert.alert(
@@ -828,7 +849,7 @@ const Home: React.FC = () => {
       
       setPetData(updatedPet);
       // Save the updated pet
-      updatePetWithSteps(petData, 0);
+      updatePetWithSteps(updatedPet, 0);
     }
   };
   
@@ -843,9 +864,10 @@ const Home: React.FC = () => {
     }
 
     if (petData.growthStage === 'Egg') {
+      // For eggs, use total steps since creation for progress
       return {
-        progress: dailySteps / petData.stepsToHatch,
-        currentValue: dailySteps,
+        progress: totalSteps / petData.stepsToHatch,
+        currentValue: totalSteps,
         maxValue: petData.stepsToHatch
       };
     } else {
@@ -931,6 +953,56 @@ const Home: React.FC = () => {
 
     registerForPushNotifications();
   }, []);
+  
+  // Handle midnight reset for daily steps
+  const handleMidnightReset = async () => {
+    try {
+      if (!petData) return;
+      
+      // ONLY reset daily steps to 0
+      setDailySteps(0);
+      
+      // Do NOT update any other pet data to preserve progress
+      
+    } catch (error) {
+      console.error('Error handling midnight reset:', error);
+    }
+  };
+
+  // Set up midnight reset timer
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    const midnightTimer = setTimeout(() => {
+      handleMidnightReset();
+      setLastKnownDate(new Date().getDate());
+    }, timeUntilMidnight);
+    
+    return () => clearTimeout(midnightTimer);
+  }, [lastKnownDate]); // Reset timer when date changes
+
+  // Handle app state changes
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        const currentDate = new Date().getDate();
+        if (currentDate !== lastKnownDate) {
+          // Day changed while app was in background
+          handleMidnightReset();
+          setLastKnownDate(currentDate);
+        }
+      }
+    });
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [lastKnownDate]);
   
   // If no pet data, show pet selection screen
   if (!petData) {

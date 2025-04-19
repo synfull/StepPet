@@ -24,12 +24,8 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
 }) => {
   const { equippedItems } = useInventory();
 
-  // Debug log input props
-  console.log('EquippedItems props:', { petType, growthStage, size });
-
   // Skip empty pet type or Egg stage
   if (!petType || growthStage === 'Egg') {
-    console.log('Skipping EquippedItems: No pet type or Egg stage');
     return null;
   }
 
@@ -37,11 +33,7 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
   const anchorPoints = PET_ANCHOR_POINTS[petType as keyof typeof PET_ANCHOR_POINTS];
   const offsets = PET_OFFSETS[petType as keyof typeof PET_OFFSETS];
   
-  console.log('Anchor points for pet:', petType, anchorPoints);
-  console.log('Offsets for pet:', petType, offsets);
-  
   if (!anchorPoints || !offsets) {
-    console.log('Skipping EquippedItems: No anchor points or offsets for pet type:', petType);
     return null;
   }
 
@@ -49,10 +41,7 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
   const stage = growthStage.toLowerCase() as 'baby' | 'juvenile' | 'adult';
   const anchors = anchorPoints[stage];
 
-  console.log('Anchors for stage:', stage, anchors);
-
   if (!anchors) {
-    console.log('Skipping EquippedItems: No anchors for growth stage:', stage);
     return null;
   }
 
@@ -85,19 +74,16 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
     const anchorPoint = anchors[anchorName];
     
     if (!anchorPoint) {
-      console.log('No anchor point found for category:', category, 'anchor name:', anchorName);
       return null;
     }
 
     const stageOffsets = offsets[stage];
     if (!stageOffsets) {
-      console.log('No offsets found for stage:', stage);
       return null;
     }
 
     const offset = stageOffsets[category];
     if (!offset) {
-      console.log('No offset found for category:', category);
       return null;
     }
 
@@ -111,20 +97,15 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
     };
   };
 
-  // Debug log equipped items
-  console.log('Equipped items:', equippedItems);
-
   return (
     <View style={styles.container}>
       {Object.entries(equippedItems).map(([category, item]) => {
         if (!item) {
-          console.log('Skipping empty item for category:', category);
           return null;
         }
 
         const anchorPoint = getAnchorPoint(category as ItemCategory);
         if (!anchorPoint) {
-          console.log('No anchor point found for equipped item:', category, item);
           return null;
         }
 
@@ -139,8 +120,6 @@ const EquippedItems: React.FC<EquippedItemsProps> = ({
             { translateY: -anchorPoint.size / 2 },
           ],
         };
-
-        console.log('Rendering item:', category, item, 'with style:', itemStyle);
 
         return (
           <Image
