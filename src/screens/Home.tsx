@@ -464,7 +464,7 @@ const Home: React.FC = () => {
           setPetData(updatedPet);
         }
       } else {
-        // For hatched pets, calculate XP based on new steps since hatching
+        // For hatched pets, calculate XP based on total steps since hatching
         const todayMidnight = new Date();
         todayMidnight.setHours(0, 0, 0, 0);
         const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
@@ -482,8 +482,8 @@ const Home: React.FC = () => {
         // Only update total steps if different
         if (stepsSinceCreation !== petData.totalSteps) {
           setTotalSteps(stepsSinceCreation);
-          const stepsAfterHatch = Math.max(0, todaySteps - petData.stepsSinceHatched);
-          const newXP = Math.min(stepsAfterHatch, petData.xpToNextLevel);
+          const stepsSinceHatch = Math.max(0, stepsSinceCreation - (petData.stepsSinceHatched || 0));
+          const newXP = Math.min(stepsSinceHatch, petData.xpToNextLevel);
           
           const updatedPet = {
             ...petData,
@@ -896,12 +896,13 @@ const Home: React.FC = () => {
         const status = await BackgroundFetch.getStatusAsync();
         console.log('Current background fetch status:', status);
         
+        // Register with 5-minute interval (300 seconds)
         await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-          minimumInterval: 1 * 60, // 1 minute for testing
+          minimumInterval: 300, // 5 minutes
           stopOnTerminate: false,
           startOnBoot: true,
         });
-        console.log('Background task registered successfully');
+        console.log('Background task registered successfully with 5-minute interval');
       } catch (error) {
         console.error('Error registering background task:', error);
       }

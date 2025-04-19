@@ -266,7 +266,7 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
         <View style={styles.progressSection}>
           <Text style={styles.sectionTitle}>Progress</Text>
           <ProgressBar 
-            progress={xpProgress} 
+            progress={evolutionInfo.stepsNeeded === 0 ? 1 : Math.max(0, 1 - (evolutionInfo.stepsNeeded / (evolutionInfo.stepsNeeded + totalSteps)))}
             height={12}
             backgroundColor="#F0F0F0"
             fillColor="#8C52FF"
