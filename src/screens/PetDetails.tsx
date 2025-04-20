@@ -164,8 +164,10 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const evolutionInfo = getEvolutionInfo();
   
   // Determine which step values to display based on pet state
-  const displayDailySteps = dailySteps;
-  const displayWeeklySteps = petData.growthStage === 'Egg' ? petData.totalSteps : weeklySteps;
+  const displayDailySteps = dailySteps; // Daily steps from context are correct
+  // For Egg weekly display, use the cumulative petData.totalSteps
+  const displayWeeklySteps = petData.growthStage === 'Egg' ? petData.totalSteps : weeklySteps; 
+  // Total steps always come from petData
   const displayTotalSteps = petData.totalSteps;
   
   return (

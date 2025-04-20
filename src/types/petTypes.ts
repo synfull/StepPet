@@ -62,6 +62,7 @@ export interface PetData {
   stepsSinceHatched: number;
   totalSteps: number;
   startingStepCount: number;
+  totalStepsBeforeToday?: number;
   appearance: PetAppearance;
   miniGames: MiniGames;
   milestones: Milestone[];

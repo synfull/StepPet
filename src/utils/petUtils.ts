@@ -445,6 +445,7 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     stepsToHatch: 5000, // Updated to match first level requirement
     stepsSinceHatched: 0,
     totalSteps: 0,
+    totalStepsBeforeToday: 0, // Initialize new field
     startingStepCount: currentDaySteps, // Set the starting point to current day's steps
     appearance: {
       mainColor: '#FFFFFF',
