@@ -188,58 +188,56 @@ const Home: React.FC = () => {
         lastStepUpdate.current = now;
 
         if (petData.growthStage === 'Egg') {
-          // Get steps since egg creation for total steps
-          const { steps: stepsSinceCreation } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
-          const stepsAfterCreation = Math.max(0, stepsSinceCreation - (petData.startingStepCount || 0));
-          
-          // Get today's steps separately
+          // Get the current total steps for today
           const todayMidnight = new Date();
           todayMidnight.setHours(0, 0, 0, 0);
-          const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
-          const todayStepsAfterCreation = Math.max(0, todaySteps - (petData.startingStepCount || 0));
+          const { steps: currentDayTotalSteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
           
-          // Update daily and total steps
-          setDailySteps(todayStepsAfterCreation);
-          setTotalSteps(stepsAfterCreation);
+          // Calculate steps taken since the egg was created today
+          const stepsSinceEggCreation = Math.max(0, currentDayTotalSteps - (petData.startingStepCount || 0));
           
-          // Update pet data with new total steps for progress
-          if (stepsAfterCreation !== petData.totalSteps) {
-            const updatedPet = {
+          // Use stepsSinceEggCreation for BOTH dailySteps display and totalSteps for the egg
+          setDailySteps(stepsSinceEggCreation);
+          setTotalSteps(stepsSinceEggCreation);
+          
+          // Update pet data to reflect the actual steps taken since creation
+          if (stepsSinceEggCreation !== petData.totalSteps || stepsSinceEggCreation !== petData.xp) {
+             const updatedPet = {
               ...petData,
-              totalSteps: stepsAfterCreation,
-              // For eggs, progress is based directly on total steps
-              xp: stepsAfterCreation,
-              xpToNextLevel: petData.stepsToHatch
+              totalSteps: stepsSinceEggCreation,
+              xp: stepsSinceEggCreation, // Egg progress uses totalSteps since creation
+              // xpToNextLevel remains petData.stepsToHatch
             };
-            await savePetData(updatedPet);
-            setPetData(updatedPet);
+            setPetData(updatedPet); 
+            // Persist the updated step count for the egg
+            await savePetData(updatedPet); 
           }
         } else {
-          // For hatched pets, maintain XP and evolution progress based on total steps since hatch
+          // Existing logic for hatched pets (remains unchanged)
           const todayMidnight = new Date();
           todayMidnight.setHours(0, 0, 0, 0);
-          const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
-          setDailySteps(todaySteps);
+          const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+           // Calculate daily steps considering starting point ONLY if created today
+           const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
+           const todayStepsCalculated = Math.max(0, todayStepsRaw - startingStepCountForDaily);
+           setDailySteps(todayStepsCalculated);
           
           // Calculate total steps since creation
-          const { steps: totalSteps } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
-          const stepsSinceCreation = Math.max(0, totalSteps - (petData.startingStepCount || 0));
+          const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+          const stepsSinceCreationCalculated = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
           
           // Only update if total steps have changed
-          if (stepsSinceCreation !== petData.totalSteps) {
-            setTotalSteps(stepsSinceCreation);
+          if (stepsSinceCreationCalculated !== petData.totalSteps) {
+            setTotalSteps(stepsSinceCreationCalculated);
             
-            // Calculate XP based on total steps since hatch, not daily steps
-            const totalStepsSinceHatch = Math.max(0, stepsSinceCreation - (petData.stepsSinceHatched || 0));
-            const newXP = Math.min(totalStepsSinceHatch, petData.xpToNextLevel);
+            // Calculate XP based on steps since HATCHED
+            const stepsSinceHatchedCalculated = Math.max(0, stepsSinceCreationCalculated - (petData.stepsSinceHatched || 0));
             
-            const updatedPet = {
-              ...petData,
-              totalSteps: stepsSinceCreation,
-              xp: newXP
-            };
-            
-            const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(updatedPet, 0, totalStepsSinceHatch);
+            // Pass only the NEW steps since last update to updatePetWithSteps
+            const newStepsSinceLastUpdate = Math.max(0, stepsSinceCreationCalculated - petData.totalSteps);
+
+            // Call updatePetWithSteps which handles level-ups and saving
+            const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(petData, newStepsSinceLastUpdate); 
             setPetData(newPet);
             
             if (leveledUp) {
@@ -250,13 +248,13 @@ const Home: React.FC = () => {
             }
           }
         }
-      }, petCreationTime, petData.startingStepCount || 0);
+      }); // Removed the extra parameters from subscribeToPedometer call as they seemed incorrect
 
       return () => {
-        subscription.remove();
+        subscription?.remove(); // Use optional chaining for safety
       };
     }
-  }, [isAvailable, petData]);
+  }, [isAvailable, petData, setDailySteps, setTotalSteps, setPetData, navigation]); // Added missing dependencies
   
   // Force update growth stage on mount
   useEffect(() => {
@@ -442,36 +440,65 @@ const Home: React.FC = () => {
 
       const petCreationTime = new Date(petData.created);
       
-      // Get today's steps using midnight timestamp
+      // Get today's raw steps using midnight timestamp
       const todayMidnight = new Date();
       todayMidnight.setHours(0, 0, 0, 0);
-      const { steps: todaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+      const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
       
       // Get weekly steps
       const weeklyStepsCount = await fetchWeeklySteps(petCreationTime, petData.startingStepCount || 0);
       
-      // Get total steps since creation
-      const { steps: stepsSinceCreation } = await Pedometer.getStepCountAsync(
-        petCreationTime,
-        new Date()
-      );
-
-      // Calculate only new steps since last update (for XP)
-      const newSteps = Math.max(0, stepsSinceCreation - petData.totalSteps);
+      // Get total raw steps since creation timestamp
+      const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
       
-      // Update all step counts
-      setDailySteps(todaySteps);
+      let dailyStepsToUpdate = 0;
+      let totalStepsToUpdate = 0;
+      let newStepsForUpdate = 0;
+
+      if (petData.growthStage === 'Egg') {
+        // Calculate steps since egg creation today
+        const stepsSinceEggCreation = Math.max(0, todayStepsRaw - (petData.startingStepCount || 0));
+        dailyStepsToUpdate = stepsSinceEggCreation;
+        totalStepsToUpdate = stepsSinceEggCreation; // For eggs, total steps are the same as daily
+      } else {
+        // Logic for hatched pets
+        const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
+        const todayStepsCalculated = Math.max(0, todayStepsRaw - startingStepCountForDaily);
+        dailyStepsToUpdate = todayStepsCalculated;
+
+        const stepsSinceCreationCalculated = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
+        totalStepsToUpdate = stepsSinceCreationCalculated;
+        
+        // Calculate only new steps since last known total (for XP calculation in updatePetWithSteps)
+        newStepsForUpdate = Math.max(0, totalStepsToUpdate - petData.totalSteps);
+      }
+
+      // Update all step states with calculated values
+      setDailySteps(dailyStepsToUpdate);
       setWeeklySteps(weeklyStepsCount);
-      setTotalSteps(stepsSinceCreation);
+      setTotalSteps(totalStepsToUpdate);
       
-      const updatedPet: PetData = {
-        ...petData,
-        totalSteps: stepsSinceCreation
-      };
-
-      await updatePetWithSteps(updatedPet, 0, newSteps);
+      // For hatched pets, call updatePetWithSteps if there are new steps
+      if (petData.growthStage !== 'Egg' && newStepsForUpdate > 0) {
+        // Update pet data using the function that handles XP and level ups
+        const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(petData, newStepsForUpdate);
+        setPetData(refreshedPet); // Update pet data state if changed
+        
+        if (leveledUp) {
+          navigation.navigate('PetLevelUp', { level: refreshedPet.level, petType: refreshedPet.type });
+        }
+      } else if (petData.growthStage === 'Egg' && totalStepsToUpdate !== petData.totalSteps) {
+         // For eggs, just update petData state if total steps changed
+         const updatedEggData = {
+           ...petData,
+           totalSteps: totalStepsToUpdate,
+           xp: totalStepsToUpdate
+         };
+         setPetData(updatedEggData);
+         await savePetData(updatedEggData); // Persist egg step changes
+      }
       
-    } catch (error) {
+    } catch (error) { 
       console.error('Error refreshing step data:', error);
     }
   };

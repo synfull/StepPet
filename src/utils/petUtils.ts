@@ -8,6 +8,7 @@ import {
 } from '../types/petTypes';
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
+import { Pedometer } from 'expo-sensors';
 
 // Pet Categories
 export const PET_CATEGORIES: Record<PetCategory, {
@@ -426,6 +427,11 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
   if (!session?.user?.id) {
     throw new Error('No user found');
   }
+
+  // Get the current day's steps to use as the starting point
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const { steps: currentDaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
   
   return {
     id: generateUUID(),
@@ -439,7 +445,7 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     stepsToHatch: 5000, // Updated to match first level requirement
     stepsSinceHatched: 0,
     totalSteps: 0,
-    startingStepCount: 0,
+    startingStepCount: currentDaySteps, // Set the starting point to current day's steps
     appearance: {
       mainColor: '#FFFFFF',
       accentColor: '#FFFFFF',
