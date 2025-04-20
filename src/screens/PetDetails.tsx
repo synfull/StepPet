@@ -241,23 +241,26 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
             </View>
           )}
           <Text style={styles.petType}>
-            {PET_TYPES[petData.type].name}
+            {petData.growthStage === 'Egg' ? 'Mysterious Egg' : PET_TYPES[petData.type].name}
           </Text>
-          <View style={styles.categoryContainer}>
-            <Ionicons 
-              name={
-                petData.category === 'forest' ? 'leaf' :
-                petData.category === 'mythic' ? 'star' :
-                petData.category === 'elemental' ? 'flame' :
-                'moon'  // for shadow category
-              } 
-              size={16} 
-              color="#8C52FF" 
-            />
-            <Text style={styles.categoryText}>
-              {PET_CATEGORIES[petData.category].name}
-            </Text>
-          </View>
+          {/* Only show category if not an Egg */}
+          {petData.growthStage !== 'Egg' && (
+            <View style={styles.categoryContainer}>
+              <Ionicons 
+                name={
+                  petData.category === 'forest' ? 'leaf' :
+                  petData.category === 'mythic' ? 'star' :
+                  petData.category === 'elemental' ? 'flame' :
+                  'moon'  // for shadow category
+                } 
+                size={16} 
+                color="#8C52FF" 
+              />
+              <Text style={styles.categoryText}>
+                {PET_CATEGORIES[petData.category].name}
+              </Text>
+            </View>
+          )}
         </View>
         
         {/* Evolution Chain */}
@@ -272,13 +275,19 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
         <View style={styles.progressSection}>
           <Text style={styles.sectionTitle}>Progress</Text>
           <ProgressBar 
-            progress={evolutionInfo.stepsNeeded === 0 ? 1 : Math.max(0, 1 - (evolutionInfo.stepsNeeded / (evolutionInfo.stepsNeeded + totalSteps)))}
+            progress={petData.growthStage === 'Egg' 
+              ? (petData.totalSteps / petData.stepsToHatch) 
+              : (evolutionInfo.stepsNeeded === 0 ? 1 : Math.max(0, 1 - (evolutionInfo.stepsNeeded / (evolutionInfo.stepsNeeded + petData.totalSteps))))}
             height={12}
             backgroundColor="#F0F0F0"
             fillColor="#8C52FF"
+            currentValue={petData.growthStage === 'Egg' ? petData.totalSteps : (petData.xp || 0)}
+            maxValue={petData.growthStage === 'Egg' ? petData.stepsToHatch : petData.xpToNextLevel}
           />
           <Text style={styles.progressText}>
-            {evolutionInfo.stepsNeeded.toLocaleString()} steps to {evolutionInfo.nextStage.toLowerCase()}
+            {petData.growthStage === 'Egg'
+              ? `${Math.max(0, petData.stepsToHatch - petData.totalSteps).toLocaleString()} steps to hatch`
+              : `${evolutionInfo.stepsNeeded.toLocaleString()} steps to ${evolutionInfo.nextStage.toLowerCase()}`}
           </Text>
         </View>
         
