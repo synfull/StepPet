@@ -44,27 +44,6 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const [showSpecialAnim, setShowSpecialAnim] = useState(route.params?.showSpecialAnimation || false);
   const [editedName, setEditedName] = useState(petData?.name || '');
   
-  // Load initial step data
-  useEffect(() => {
-    const loadInitialSteps = async () => {
-      if (petData) {
-        const petCreationTime = new Date(petData.created);
-        try {
-          const { steps: totalStepCount } = await Pedometer.getStepCountAsync(
-            petCreationTime,
-            new Date()
-          );
-          const stepsSinceCreation = Math.max(0, totalStepCount - (petData.startingStepCount || 0));
-          setTotalSteps(stepsSinceCreation);
-        } catch (error) {
-          console.error('Error loading initial steps:', error);
-        }
-      }
-    };
-    
-    loadInitialSteps();
-  }, [petData]);
-  
   // Reset special animation after it plays
   useEffect(() => {
     if (showSpecialAnim) {
@@ -184,6 +163,11 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   
   const evolutionInfo = getEvolutionInfo();
   
+  // Determine which step values to display based on pet state
+  const displayDailySteps = dailySteps;
+  const displayWeeklySteps = petData.growthStage === 'Egg' ? petData.totalSteps : weeklySteps;
+  const displayTotalSteps = petData.totalSteps;
+  
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -298,20 +282,20 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           </Text>
         </View>
         
-        {/* Stats Section */}
+        {/* Pet Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{dailySteps.toLocaleString()}</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{displayDailySteps}</Text>
               <Text style={styles.statLabel}>Today's Steps</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{weeklySteps.toLocaleString()}</Text>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{displayWeeklySteps}</Text>
               <Text style={styles.statLabel}>Weekly Steps</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalSteps.toLocaleString()}</Text>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{displayTotalSteps}</Text>
               <Text style={styles.statLabel}>Total Steps</Text>
             </View>
           </View>
@@ -425,18 +409,16 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 20,
   },
-  statsGrid: {
+  statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
-  statItem: {
+  statBox: {
     flex: 1,
     alignItems: 'center',
     padding: 12,
     backgroundColor: '#F8F8F8',
     borderRadius: 12,
-    marginHorizontal: 4,
   },
   statValue: {
     fontFamily: 'Montserrat-Bold',
