@@ -62,23 +62,6 @@ const Settings: React.FC = () => {
     }
   };
   
-  const handleToggleBackgroundTheme = async () => {
-    if (!petData) return;
-    
-    const updatedPet = { ...petData };
-    if (updatedPet.appearance.backgroundTheme) {
-      // Remove background theme
-      updatedPet.appearance.backgroundTheme = '';
-    } else {
-      // Set default background theme
-      updatedPet.appearance.backgroundTheme = '#34C759';
-    }
-    
-    await savePetData(updatedPet);
-    setPetData(updatedPet);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-  
   // Reset data handler
   const handleResetData = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -312,14 +295,6 @@ const Settings: React.FC = () => {
             hapticFeedback,
             toggleHapticFeedback,
             'hand-left-outline'
-          )}
-          
-          {renderToggleItem(
-            'Background Theme',
-            'Enable or disable the background theme for your pet',
-            !!petData?.appearance.backgroundTheme,
-            handleToggleBackgroundTheme,
-            'color-palette-outline'
           )}
         </View>
         
