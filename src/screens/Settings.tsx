@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
   Platform,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -214,6 +215,34 @@ const Settings: React.FC = () => {
     }
   };
   
+  // Handler for reporting a bug
+  const handleReportBug = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const recipient = 'support@steppet.app';
+    const subject = 'StepPet Bug Report';
+    const body = 'Please describe the bug you encountered:\n\n[Describe bug here]\n\nDevice Info (Optional):\nOS: ${Platform.OS} ${Platform.Version}\nApp Version: [Add App Version if available]\n'; // Add template
+
+    const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    try {
+      const supported = await Linking.canOpenURL(mailtoUrl);
+      if (supported) {
+        await Linking.openURL(mailtoUrl);
+      } else {
+        Alert.alert(
+          'Cannot Open Email',
+          'It seems you do not have an email client configured on your device.'
+        );
+      }
+    } catch (error) {
+      console.error('Error opening mail client:', error);
+      Alert.alert(
+        'Error',
+        'Could not open email client. Please manually send your report to support@steppet.app'
+      );
+    }
+  };
+  
   // Render a settings item with a toggle switch
   const renderToggleItem = (
     title: string,
@@ -314,6 +343,13 @@ const Settings: React.FC = () => {
             'Invite friends to join StepPet',
             handleShareApp,
             'share-social-outline'
+          )}
+          
+          {renderActionItem(
+            'Report A Bug',
+            'Help us improve by reporting issues',
+            handleReportBug,
+            'bug-outline'
           )}
           
           {renderActionItem(
