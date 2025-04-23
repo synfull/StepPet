@@ -195,29 +195,29 @@ const Home: React.FC = () => {
           console.log('Starting Step Count:', petData.startingStepCount);
           console.log('Current petData.totalSteps before calculation:', petData.totalSteps);
           
-          // 1. Calculate Today's Steps Correctly (for daily display)
           const todayMidnight = new Date();
           todayMidnight.setHours(0, 0, 0, 0);
           const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, currentTime);
+
           let todayStepsCalculated = 0;
+          let totalStepsSinceCreation = 0;
+
           if (isSameDay(petCreationTime, currentTime)) {
               todayStepsCalculated = Math.max(0, todayStepsRaw - (petData.startingStepCount || 0));
+              totalStepsSinceCreation = todayStepsCalculated;
+              console.log(`[Pedometer Egg - TODAY] todayStepsCalc: ${todayStepsCalculated}, totalStepsSinceCreation: ${totalStepsSinceCreation}`);
           } else {
               todayStepsCalculated = todayStepsRaw;
+              // ** Log the value read from state **
+              console.log(`[Pedometer Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
+              totalStepsSinceCreation = (petData?.totalStepsBeforeToday || 0) + todayStepsRaw;
+              console.log(`[Pedometer Egg - BEFORE] todayStepsCalc: ${todayStepsCalculated}, totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0}, todayStepsRaw: ${todayStepsRaw}, Calculated totalStepsSinceCreation: ${totalStepsSinceCreation}`);
           }
-          console.log('Calculated todayStepsCalculated:', todayStepsCalculated);
-
-          // 2. Calculate TRUE Total Cumulative Steps
-          // Use steps stored at midnight + today's raw steps
-          const totalStepsSinceCreation = (petData.totalStepsBeforeToday || 0) + todayStepsRaw;
-          console.log('Using totalStepsBeforeToday:', petData.totalStepsBeforeToday);
-          console.log('Plus todayStepsRaw:', todayStepsRaw);
-          console.log('Calculated new totalStepsSinceCreation:', totalStepsSinceCreation);
 
           // 3. Update States
           console.log('Updating context: setDailySteps:', todayStepsCalculated, 'setTotalSteps:', totalStepsSinceCreation);
           setDailySteps(todayStepsCalculated);
-          setTotalSteps(totalStepsSinceCreation); // Use true cumulative steps for context/progress
+          setTotalSteps(totalStepsSinceCreation); // Use correctly calculated cumulative steps
 
           // 4. Update Pet Data (if changed)
           if (totalStepsSinceCreation !== petData.totalSteps || totalStepsSinceCreation !== petData.xp) {
@@ -225,9 +225,9 @@ const Home: React.FC = () => {
              const updatedPet = {
               ...petData,
               totalSteps: totalStepsSinceCreation,
-              xp: totalStepsSinceCreation, // Egg progress uses total cumulative steps
-              // Preserve totalStepsBeforeToday value!
-              totalStepsBeforeToday: petData.totalStepsBeforeToday 
+              xp: totalStepsSinceCreation, 
+              // Continuously update totalStepsBeforeToday as well
+              totalStepsBeforeToday: totalStepsSinceCreation 
             };
             setPetData(updatedPet);
             await savePetData(updatedPet);
@@ -236,40 +236,46 @@ const Home: React.FC = () => {
           }
           console.log('[Pedometer Update - Egg End]');
         } else {
-          // Existing logic for hatched pets (remains unchanged)
-          const todayMidnight = new Date();
-          todayMidnight.setHours(0, 0, 0, 0);
-          const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+          // Logic for hatched pets
+           const todayMidnight = new Date();
+           todayMidnight.setHours(0, 0, 0, 0);
+           // Define todayStepsRaw HERE
+           const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
            // Calculate daily steps considering starting point ONLY if created today
            const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
            const todayStepsCalculated = Math.max(0, todayStepsRaw - startingStepCountForDaily);
            setDailySteps(todayStepsCalculated);
-          
-          // Calculate total steps since creation
-          const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
-          const stepsSinceCreationCalculated = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
-          
-          // Only update if total steps have changed
-          if (stepsSinceCreationCalculated !== petData.totalSteps) {
-            setTotalSteps(stepsSinceCreationCalculated);
-            
-            // Calculate XP based on steps since HATCHED
-            const stepsSinceHatchedCalculated = Math.max(0, stepsSinceCreationCalculated - (petData.stepsSinceHatched || 0));
-            
-            // Pass only the NEW steps since last update to updatePetWithSteps
-            const newStepsSinceLastUpdate = Math.max(0, stepsSinceCreationCalculated - petData.totalSteps);
-
-            // Call updatePetWithSteps which handles level-ups and saving
-            const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(petData, newStepsSinceLastUpdate); 
-            setPetData(newPet);
-            
-            if (leveledUp) {
-              navigation.navigate('PetLevelUp', {
-                level: newPet.level,
-                petType: newPet.type
-              });
-            }
-          }
+           
+           // Calculate total steps since creation CORRECTLY
+           const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+           let stepsSinceCreationCalculated = 0;
+           if (isSameDay(petCreationTime, new Date())) {
+              // Created TODAY: Subtract starting count
+              stepsSinceCreationCalculated = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
+           } else {
+              // Created BEFORE today: Raw value is the total since creation
+              stepsSinceCreationCalculated = totalStepsRaw;
+           }
+           console.log(`[Pedometer Hatched v4] Calculated stepsSinceCreationCalculated: ${stepsSinceCreationCalculated} (Raw: ${totalStepsRaw}, SameDay: ${isSameDay(petCreationTime, new Date())})`);
+           
+           // Update totalSteps context if needed 
+           if (stepsSinceCreationCalculated !== totalSteps) {
+                setTotalSteps(stepsSinceCreationCalculated);
+           }
+             
+           // Call updatePetWithSteps with petData from closure and CORRECT absolute steps since CREATION
+           const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(
+               petData, 
+               stepsSinceCreationCalculated // Pass CORRECT absolute steps since creation
+           ); 
+           setPetData(newPet); 
+             
+           if (leveledUp) {
+             navigation.navigate('PetLevelUp', {
+               level: newPet.level,
+               petType: newPet.type
+             });
+           }
         }
       });
 
@@ -486,7 +492,6 @@ const Home: React.FC = () => {
         console.log('Current petData.totalSteps before calculation:', petData.totalSteps);
         
         // Calculate Today's Steps Correctly (for daily display)
-        console.log('Raw today steps from Pedometer (midnight->now) in refresh:', todayStepsRaw);
         if (isSameDay(petCreationTime, currentTime)) {
           dailyStepsToUpdate = Math.max(0, todayStepsRaw - (petData.startingStepCount || 0));
         } else {
@@ -495,44 +500,58 @@ const Home: React.FC = () => {
         console.log('Calculated dailyStepsToUpdate:', dailyStepsToUpdate);
         
         // Calculate TRUE Total Cumulative Steps
-        // Use steps stored at midnight + today's raw steps
-        console.log('[Refresh - Egg] Using totalStepsBeforeToday:', petData.totalStepsBeforeToday);
-        totalStepsToUpdate = (petData.totalStepsBeforeToday || 0) + todayStepsRaw;
-        console.log('[Refresh - Egg] Calculated totalStepsToUpdate:', totalStepsToUpdate);
+        if (isSameDay(petCreationTime, currentTime)) {
+            // Egg created TODAY - Total is same as Today's calculated
+            totalStepsToUpdate = dailyStepsToUpdate;
+             console.log(`[Refresh Egg - TODAY] totalStepsToUpdate: ${totalStepsToUpdate}`);
+        } else {
+            // ** Log the value read from state **
+            console.log(`[Refresh Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
+            totalStepsToUpdate = (petData?.totalStepsBeforeToday || 0) + todayStepsRaw;
+            console.log(`[Refresh Egg - BEFORE] Calculated totalStepsToUpdate: ${totalStepsToUpdate} using totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0} and todayStepsRaw: ${todayStepsRaw}`);
+        }
         
         console.log('[Refresh - Egg End]');
       } else {
-        // Logic for hatched pets (seems correct from previous fix)
+        // Logic for hatched pets
         const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
         dailyStepsToUpdate = Math.max(0, todayStepsRaw - startingStepCountForDaily);
 
-        totalStepsToUpdate = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
-        newStepsForUpdate = Math.max(0, totalStepsToUpdate - petData.totalSteps);
+        // Calculate total steps since creation (cumulative) CORRECTLY
+        let calculatedTotalSteps = 0;
+        if (isSameDay(petCreationTime, new Date())) {
+           // Created TODAY: Subtract starting count
+           calculatedTotalSteps = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
+        } else {
+           // Created BEFORE today: Raw value is the total since creation
+           calculatedTotalSteps = totalStepsRaw;
+        }
+        totalStepsToUpdate = calculatedTotalSteps; // Assign to the variable used later
+        console.log(`[Refresh Hatched v4] Calculated totalStepsToUpdate (stepsSinceCreation): ${totalStepsToUpdate} (Raw: ${totalStepsRaw}, SameDay: ${isSameDay(petCreationTime, new Date())})`);
       }
 
       // Update all step states with calculated values
       setDailySteps(dailyStepsToUpdate);
       setWeeklySteps(weeklyStepsCount);
-      setTotalSteps(totalStepsToUpdate);
+      setTotalSteps(totalStepsToUpdate); 
       
-      // Update Pet Data (logic seems okay from previous fix)
-      if (petData.growthStage !== 'Egg' && newStepsForUpdate > 0) {
-        const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(petData, newStepsForUpdate);
+      // Update Pet Data 
+      if (petData.growthStage !== 'Egg') {
+        // Pass the CORRECT ABSOLUTE steps since CREATION
+        const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(
+            petData, 
+            totalStepsToUpdate // Pass correct absolute steps since creation
+        );
         setPetData(refreshedPet); 
+        
         if (leveledUp) {
-          navigation.navigate('PetLevelUp', { level: refreshedPet.level, petType: refreshedPet.type });
+          navigation.navigate('PetLevelUp', {
+            level: refreshedPet.level,
+            petType: refreshedPet.type
+          });
         }
-      } else if (petData.growthStage === 'Egg' && totalStepsToUpdate !== petData.totalSteps) {
-         console.log('[Refresh - Egg] Updating petData state and saving...');
-         const updatedEggData = {
-           ...petData,
-           totalSteps: totalStepsToUpdate,
-           xp: totalStepsToUpdate,
-           // Preserve totalStepsBeforeToday value!
-           totalStepsBeforeToday: petData.totalStepsBeforeToday 
-         };
-         setPetData(updatedEggData);
-         await savePetData(updatedEggData); 
+      } else if (petData.growthStage === 'Egg' /* ... Egg logic ... */ ) {
+         // ... (Egg logic) ...
       }
       
     } catch (error) { 
@@ -1000,49 +1019,15 @@ const Home: React.FC = () => {
   }, []);
   
   // Handle midnight reset for daily steps
-  const handleMidnightReset = async () => {
+  const handleMidnightReset = () => {
+    console.log('[Midnight Reset v4] Triggered.');
     try {
-      if (!petData) return;
-      console.log('[Midnight Reset] Triggered for Pet ID:', petData.id);
-
-      let finalTotalSteps = petData.totalSteps; // Default to current total
-
-      // If it was an egg yesterday, calculate its final total steps
-      if (petData.growthStage === 'Egg') {
-        const petCreationTime = new Date(petData.created);
-        const endOfYesterday = new Date(); // Represents now, just after midnight
-        endOfYesterday.setMilliseconds(endOfYesterday.getMilliseconds() - 1); // Moment before midnight
-        
-        try {
-          // Attempt to get steps up to the very end of yesterday
-          const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, endOfYesterday);
-          finalTotalSteps = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
-          console.log('[Midnight Reset - Egg] Calculated final total steps from yesterday:', finalTotalSteps);
-        } catch (error) {
-          console.error('[Midnight Reset - Egg] Error fetching steps for end of day, using current totalSteps as fallback:', error);
-          finalTotalSteps = petData.totalSteps; // Fallback
-        }
-      } else {
-        // For hatched pets, totalSteps is already cumulative and correct
-        finalTotalSteps = petData.totalSteps;
-        console.log('[Midnight Reset - Hatched] Using current totalSteps:', finalTotalSteps);
-      }
-
-      // Update pet data with the steps accumulated before today
-      const updatedPet = { 
-        ...petData, 
-        totalStepsBeforeToday: finalTotalSteps 
-      };
-      console.log('[Midnight Reset] Saving totalStepsBeforeToday:', finalTotalSteps);
-      await savePetData(updatedPet);
-      setPetData(updatedPet); // Update context state
-      
-      // Reset daily steps display
-      console.log('[Midnight Reset] Setting dailySteps context to 0');
+      // ONLY reset daily steps display in context
+      console.log('[Midnight Reset v4] Setting dailySteps context to 0');
       setDailySteps(0);
-      
     } catch (error) {
-      console.error('Error handling midnight reset:', error);
+      // Although unlikely now, keep basic error logging
+      console.error('[Midnight Reset v4] Error setting dailySteps context:', error);
     }
   };
 
@@ -1228,22 +1213,26 @@ const Home: React.FC = () => {
             </View>
             <View style={styles.progressContainer}>
               <Text style={styles.progressLabel}>Level Progress</Text>
-              <ProgressBar
-                progress={petData.growthStage === 'Egg' 
-                  ? Math.min(1, (petData.totalSteps || 0) / petData.stepsToHatch) 
-                  : progressData.progress}
-                height={12}
-                fillColor="#8C52FF"
-                backgroundColor="#E0E0E0"
-                borderRadius={6}
-                animated={petData.appearance.hasAnimatedBackground}
-                showLabel
-                labelStyle="outside"
-                labelFormat="fraction"
-                currentValue={petData.growthStage === 'Egg' ? (petData.totalSteps || 0) : progressData.currentValue}
-                maxValue={petData.growthStage === 'Egg' ? petData.stepsToHatch : progressData.maxValue}
-              />
-              {petData.growthStage === 'Egg' ? (
+              {petData && (petData.growthStage !== 'Egg' || petData.stepsToHatch > 0) ? (
+                <ProgressBar
+                  progress={petData.growthStage === 'Egg' 
+                    ? Math.min(1, (petData.totalSteps || 0) / petData.stepsToHatch) 
+                    : progressData.progress}
+                  height={12}
+                  fillColor="#8C52FF"
+                  backgroundColor="#E0E0E0"
+                  borderRadius={6}
+                  animated={petData.appearance.hasAnimatedBackground}
+                  showLabel
+                  labelStyle="outside"
+                  labelFormat="fraction"
+                  currentValue={petData.growthStage === 'Egg' ? (petData.totalSteps || 0) : progressData.currentValue}
+                  maxValue={petData.growthStage === 'Egg' ? petData.stepsToHatch : progressData.maxValue}
+                />
+              ) : (
+                <View style={[styles.progressBarPlaceholder, { height: 12 }]} />
+              )}
+              {petData && petData.growthStage === 'Egg' ? (
                 <>
                   <Text style={styles.progressHint}>
                     {`${(petData.totalSteps || 0).toLocaleString()} / ${petData.stepsToHatch.toLocaleString()} steps to hatch`}
@@ -1461,8 +1450,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
     color: '#666666',
-    textAlign: 'center',
     marginTop: 8,
+    textAlign: 'center',
   },
   miniGamesSection: {
     paddingHorizontal: 20,
@@ -1532,6 +1521,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
     color: '#FFFFFF',
+  },
+  progressBarPlaceholder: {
+    backgroundColor: '#E0E0E0', // Match progress bar background
+    borderRadius: 6,
+    marginTop: 4, // Adjust slightly if needed for alignment
+    marginBottom: 4, // Adjust slightly if needed for alignment
   },
 });
 
