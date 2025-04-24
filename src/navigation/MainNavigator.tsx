@@ -72,7 +72,11 @@ const MainNavigator: React.FC = () => {
           <Stack.Screen name="PetDetails" component={PetDetails} />
           <Stack.Screen name="PetNaming" component={PetNaming} />
           <Stack.Screen name="PetHatching" component={PetHatching} />
-          <Stack.Screen name="PetLevelUp" component={PetLevelUp} />
+          <Stack.Screen 
+            name="PetLevelUp" 
+            component={PetLevelUp} 
+            options={{ contentStyle: { backgroundColor: 'transparent' } }} 
+          />
           <Stack.Screen name="Paywall" component={PaywallScreen} />
           <Stack.Screen name="Share" component={Share} />
           <Stack.Screen name="AboutApp" component={AboutApp} />

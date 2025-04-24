@@ -208,7 +208,6 @@ const Home: React.FC = () => {
               console.log(`[Pedometer Egg - TODAY] todayStepsCalc: ${todayStepsCalculated}, totalStepsSinceCreation: ${totalStepsSinceCreation}`);
           } else {
               todayStepsCalculated = todayStepsRaw;
-              // ** Log the value read from state **
               console.log(`[Pedometer Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
               totalStepsSinceCreation = (petData?.totalStepsBeforeToday || 0) + todayStepsRaw;
               console.log(`[Pedometer Egg - BEFORE] todayStepsCalc: ${todayStepsCalculated}, totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0}, todayStepsRaw: ${todayStepsRaw}, Calculated totalStepsSinceCreation: ${totalStepsSinceCreation}`);
@@ -217,22 +216,30 @@ const Home: React.FC = () => {
           // 3. Update States
           console.log('Updating context: setDailySteps:', todayStepsCalculated, 'setTotalSteps:', totalStepsSinceCreation);
           setDailySteps(todayStepsCalculated);
-          setTotalSteps(totalStepsSinceCreation); // Use correctly calculated cumulative steps
+          setTotalSteps(totalStepsSinceCreation);
 
           // 4. Update Pet Data (if changed)
-          if (totalStepsSinceCreation !== petData.totalSteps || totalStepsSinceCreation !== petData.xp) {
+          // Calculate delta for XP update
+          const newStepsDelta = Math.max(0, totalStepsSinceCreation - (petData.totalSteps || 0));
+          console.log(`[Pedometer Egg] Calculated newStepsDelta: ${newStepsDelta}`);
+          
+          // Update only if total steps actually changed
+          if (newStepsDelta > 0) { 
              console.log('Updating petData state and saving...');
              const updatedPet = {
               ...petData,
               totalSteps: totalStepsSinceCreation,
-              xp: totalStepsSinceCreation, 
-              // Continuously update totalStepsBeforeToday as well
-              totalStepsBeforeToday: totalStepsSinceCreation 
+              // FIX: Add delta to existing XP, don't overwrite
+              xp: (petData.xp || 0) + newStepsDelta, 
+              // FIX: Remove incorrect update to totalStepsBeforeToday
+              // totalStepsBeforeToday: totalStepsSinceCreation 
+              // Ensure the already correctly stored value is preserved:
+              totalStepsBeforeToday: petData.totalStepsBeforeToday 
             };
             setPetData(updatedPet);
             await savePetData(updatedPet);
           } else {
-            console.log('No change detected in totalSteps/xp, petData not updated.');
+            console.log('No step delta detected, petData not updated.');
           }
           console.log('[Pedometer Update - Egg End]');
         } else {
@@ -435,10 +442,10 @@ const Home: React.FC = () => {
 
   // Start shake animations when egg is ready to hatch
   useEffect(() => {
-    if (petData?.growthStage === 'Egg' && dailySteps >= petData.stepsToHatch) {
+    if (petData?.growthStage === 'Egg' && petData.totalSteps >= petData.stepsToHatch) {
       startShakeAnimations();
     }
-  }, [petData?.growthStage, dailySteps]);
+  }, [petData?.growthStage, petData?.totalSteps, petData?.stepsToHatch]);
   
   // Start floating animation when egg is present
   useEffect(() => {
@@ -606,7 +613,7 @@ const Home: React.FC = () => {
     }
     
     if (petData?.growthStage === 'Egg') {
-      if (dailySteps >= petData.stepsToHatch) {
+      if (petData.totalSteps >= petData.stepsToHatch) {
         try {
           // Get current user ID
           const { data: { session } } = await supabase.auth.getSession();
@@ -624,10 +631,10 @@ const Home: React.FC = () => {
             ...petData,
             type: randomPetType,
             growthStage: 'Baby' as const,
-            totalSteps: dailySteps,
-            stepsSinceHatched: dailySteps,
+            totalSteps: petData.stepsToHatch, 
+            stepsSinceHatched: 0, 
             xp: 0,
-            xpToNextLevel: LEVEL_REQUIREMENTS[0], // Use first level requirement
+            xpToNextLevel: LEVEL_REQUIREMENTS[0], 
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -643,16 +650,15 @@ const Home: React.FC = () => {
                 currentProgress: 0,
                 isActive: true
               }
-            }
+            },
+            totalStepsBeforeToday: petData.totalStepsBeforeToday // Preserve this
           };
           
-          // Update pet data to reflect hatching
-          const { updatedPet: hatchedPet } = await updatePetWithSteps(updatedPet, 0);
-          setPetData(hatchedPet);
-          setTotalSteps(dailySteps);
-          navigation.navigate('PetHatching', {
-            petType: hatchedPet.type
-          });
+          setPetData(updatedPet);
+          await savePetData(updatedPet); 
+
+          navigation.navigate('PetHatching', { petType: updatedPet.type });
+
         } catch (error) {
           console.error('Error hatching egg:', error);
           Alert.alert(
@@ -664,7 +670,7 @@ const Home: React.FC = () => {
       } else {
         Alert.alert(
           'Not Ready to Hatch',
-          `Your egg needs ${petData.stepsToHatch - dailySteps} more steps to hatch! Keep walking to help it grow.`,
+          `Your egg needs ${Math.max(0, petData.stepsToHatch - petData.totalSteps).toLocaleString()} more steps to hatch! Keep walking to help it grow.`,
           [{ text: 'OK' }]
         );
       }
@@ -1237,7 +1243,7 @@ const Home: React.FC = () => {
                   <Text style={styles.progressHint}>
                     {`${(petData.totalSteps || 0).toLocaleString()} / ${petData.stepsToHatch.toLocaleString()} steps to hatch`}
                   </Text>
-                  {dailySteps >= petData.stepsToHatch && (
+                  {petData.totalSteps >= petData.stepsToHatch && (
                     <Animated.View style={{
                       transform: [{
                         translateX: buttonShakeAnim

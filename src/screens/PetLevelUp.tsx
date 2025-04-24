@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 24,
+    marginBottom: 16,
     textAlign: 'center',
   },
   button: {
