@@ -31,7 +31,7 @@ import {
   PET_TYPES 
 } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
-import { isSameDay } from '../utils/dateUtils';
+import { isSameDay, getTodayDateString } from '../utils/dateUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
@@ -631,10 +631,12 @@ const Home: React.FC = () => {
             ...petData,
             type: randomPetType,
             growthStage: 'Baby' as const,
-            totalSteps: petData.stepsToHatch, 
-            stepsSinceHatched: 0, 
+            totalSteps: petData.stepsToHatch,
+            stepsSinceHatched: 0,
             xp: 0,
-            xpToNextLevel: LEVEL_REQUIREMENTS[0], 
+            xpToNextLevel: LEVEL_REQUIREMENTS[0],
+            hatchDate: getTodayDateString(),
+            dailyStepsAtHatch: dailySteps,
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -651,7 +653,7 @@ const Home: React.FC = () => {
                 isActive: true
               }
             },
-            totalStepsBeforeToday: petData.totalStepsBeforeToday // Preserve this
+            totalStepsBeforeToday: petData.totalStepsBeforeToday
           };
           
           setPetData(updatedPet);
@@ -1267,33 +1269,45 @@ const Home: React.FC = () => {
         <View style={styles.miniGamesSection}>
           <Text style={styles.sectionTitle}>Daily Activities</Text>
           
-          {/* Fetch Mini Game */}
-          <MiniGameCard
-            title="Play Fetch"
-            description={`Walk ${(fetchClaimsToday + 1) * 1000} steps to play fetch ${fetchClaimsToday === 0 ? '(first time)' : '(second time)'}.`}
-            icon="tennisball-outline"
-            stepsRequired={(fetchClaimsToday + 1) * 1000}
-            stepsProgress={dailySteps}
-            isActive={canFetchToday}
-            isComplete={fetchClaimsToday >= 2}
-            isLocked={petData.growthStage === 'Egg'}
-            onPress={() => handleMiniGamePress('fetch')}
-            color="#8C52FF"
-          />
-          
-          {/* Feed Mini Game */}
-          <MiniGameCard
-            title="Feed Your Pet"
-            description="Walk 2,500 steps to feed your pet."
-            icon="nutrition-outline"
-            stepsRequired={2500}
-            stepsProgress={dailySteps}
-            isActive={canFeedToday}
-            isComplete={!canFeedToday}
-            isLocked={petData.growthStage === 'Egg'}
-            onPress={() => handleMiniGamePress('feed')}
-            color="#8C52FF"
-          />
+          {(() => {
+            // Determine steps progress for feed/fetch based on hatch date
+            let activityStepsProgress = dailySteps;
+            if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), new Date())) {
+              activityStepsProgress = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
+            }
+
+            return (
+              <>
+                {/* Fetch Mini Game */}
+                <MiniGameCard
+                  title="Play Fetch"
+                  description={`Walk ${(fetchClaimsToday + 1) * 1000} steps to play fetch ${fetchClaimsToday === 0 ? '(first time)' : '(second time)'}.`}
+                  icon="tennisball-outline"
+                  stepsRequired={(fetchClaimsToday + 1) * 1000}
+                  stepsProgress={activityStepsProgress}
+                  isActive={canFetchToday}
+                  isComplete={fetchClaimsToday >= 2}
+                  isLocked={petData.growthStage === 'Egg'}
+                  onPress={() => handleMiniGamePress('fetch')}
+                  color="#8C52FF"
+                />
+
+                {/* Feed Mini Game */}
+                <MiniGameCard
+                  title="Feed Your Pet"
+                  description="Walk 2,500 steps to feed your pet."
+                  icon="nutrition-outline"
+                  stepsRequired={2500}
+                  stepsProgress={activityStepsProgress}
+                  isActive={canFeedToday}
+                  isComplete={!canFeedToday}
+                  isLocked={petData.growthStage === 'Egg'}
+                  onPress={() => handleMiniGamePress('feed')}
+                  color="#8C52FF"
+                />
+              </>
+            );
+          })()}
           
           {/* Adventure Walk */}
           <MiniGameCard

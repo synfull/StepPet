@@ -150,26 +150,26 @@ const Milestones: React.FC = () => {
   const [selectedColor, setSelectedColor] = useState('#34C759');
   const [currentMilestoneId, setCurrentMilestoneId] = useState<string | null>(null);
   
-  // Load initial step data
-  useEffect(() => {
-    const loadInitialSteps = async () => {
-      if (petData) {
-        const petCreationTime = new Date(petData.created);
-        try {
-          const { steps: totalStepCount } = await Pedometer.getStepCountAsync(
-            petCreationTime,
-            new Date()
-          );
-          const stepsSinceCreation = Math.max(0, totalStepCount - (petData.startingStepCount || 0));
-          setTotalSteps(stepsSinceCreation);
-        } catch (error) {
-          console.error('Error loading initial steps:', error);
-        }
-      }
-    };
-    
-    loadInitialSteps();
-  }, [petData]);
+  // // Load initial step data - COMMENTED OUT - This was incorrectly setting totalSteps in context
+  // useEffect(() => {
+  //   const loadInitialSteps = async () => {
+  //     if (petData) {
+  //       const petCreationTime = new Date(petData.created);
+  //       try {
+  //         const { steps: totalStepCount } = await Pedometer.getStepCountAsync(
+  //           petCreationTime,
+  //           new Date()
+  //         );
+  //         const stepsSinceCreation = Math.max(0, totalStepCount - (petData.startingStepCount || 0));
+  //         setTotalSteps(stepsSinceCreation);
+  //       } catch (error) {
+  //         console.error('Error loading initial steps:', error);
+  //       }
+  //     }
+  //   };
+
+  //   loadInitialSteps();
+  // }, [petData]);
   
   useEffect(() => {
     if (petData) {
@@ -347,6 +347,12 @@ const Milestones: React.FC = () => {
   // Sort milestones by steps required (ascending)
   const sortedMilestones = [...milestones].sort((a, b) => a.steps - b.steps);
   
+  const completedMilestones = milestones.filter(m => m.claimed).length;
+  const totalMilestones = milestones.length;
+
+  // Use petData.totalSteps for display and progress
+  const displayTotalSteps = petData?.totalSteps ?? 0;
+  
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -358,7 +364,7 @@ const Milestones: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{totalSteps.toLocaleString()}</Text>
+            <Text style={styles.statValue}>{displayTotalSteps.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Total Steps</Text>
           </View>
           
@@ -366,7 +372,7 @@ const Milestones: React.FC = () => {
           
           <View style={styles.statItem}>
             <Text style={styles.statValue}>
-              {sortedMilestones.filter(m => m.claimed).length}/{sortedMilestones.length}
+              {completedMilestones}/{totalMilestones}
             </Text>
             <Text style={styles.statLabel}>Milestones Completed</Text>
           </View>
@@ -379,7 +385,7 @@ const Milestones: React.FC = () => {
             <MilestoneItem
               key={milestone.id}
               milestone={milestone}
-              totalSteps={totalSteps}
+              totalSteps={displayTotalSteps}
               onClaim={handleClaimMilestone}
             />
           ))}

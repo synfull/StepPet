@@ -64,8 +64,15 @@ export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: numb
     // Get steps since the start time
     const { steps } = await Pedometer.getStepCountAsync(startTime, now);
     
-    // Always subtract the starting step count to only count steps after egg creation
-    const adjustedSteps = Math.max(0, steps - startingStepCount);
+    // Subtract startingStepCount ONLY if the calculation period starts today.
+    let adjustedSteps = 0;
+    if (isSameDay(startTime, now)) {
+      // If start time is today, subtract the initial steps from that day
+      adjustedSteps = Math.max(0, steps - startingStepCount);
+    } else {
+      // If start time was before today, use the raw steps since then
+      adjustedSteps = steps;
+    }
     
     // Save to storage with context
     await AsyncStorage.setItem('@weekly_steps', JSON.stringify({
