@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Animated, Text, ViewStyle } from 'react-native';
 import debounce from 'lodash/debounce';
 
@@ -39,9 +39,9 @@ const ProgressBar: React.FC<ProgressBarProps> = React.memo(({
 }) => {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const prevProgress = useRef(0);
+  const isInitialRender = useRef(true);
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
 
-  // Debounced animation function
   const startAnimation = useCallback(
     debounce((toValue: number) => {
       if (animated) {
@@ -53,23 +53,29 @@ const ProgressBar: React.FC<ProgressBarProps> = React.memo(({
       } else {
         progressAnim.setValue(toValue);
       }
-    }, 16), // Debounce at 60fps rate
+    }, 16),
     [animated, duration]
   );
 
   useEffect(() => {
-    // Only animate if the change is significant enough
-    if (Math.abs(clampedProgress - prevProgress.current) >= MIN_PROGRESS_CHANGE) {
-      startAnimation(clampedProgress);
+    if (isInitialRender.current && clampedProgress > 0) {
+      console.log(`[ProgressBar Initial] Setting value directly: ${clampedProgress}`);
+      progressAnim.setValue(clampedProgress);
       prevProgress.current = clampedProgress;
+      isInitialRender.current = false;
+    } else if (!isInitialRender.current) {
+      if (Math.abs(clampedProgress - prevProgress.current) >= MIN_PROGRESS_CHANGE) {
+        console.log(`[ProgressBar Update] Calling startAnimation for: ${clampedProgress}`);
+        startAnimation(clampedProgress);
+        prevProgress.current = clampedProgress;
+      }
     }
 
     return () => {
-      startAnimation.cancel(); // Cancel any pending animations on cleanup
+      startAnimation.cancel();
     };
   }, [clampedProgress, startAnimation]);
 
-  // Memoize label calculation
   const label = useMemo(() => {
     if (customLabel) return customLabel;
     
@@ -86,7 +92,6 @@ const ProgressBar: React.FC<ProgressBarProps> = React.memo(({
     }
   }, [clampedProgress, customLabel, labelFormat, currentValue, maxValue]);
 
-  // Memoize styles
   const containerStyle = useMemo(() => [styles.container, style], [style]);
   const progressContainerStyle = useMemo(() => [
     styles.progressContainer,
