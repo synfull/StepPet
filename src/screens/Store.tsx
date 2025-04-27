@@ -477,31 +477,45 @@ const AllItemsTab = () => {
       contentContainerStyle={styles.gridContent}
       showsVerticalScrollIndicator={false}
     >
-      {allItems.map((item) => (
-        <TouchableOpacity 
-          key={`${item.category}-${item.id}`} 
-          style={styles.itemCard}
-          onPress={() => handleItemPurchase(item)}
-        >
-          <View style={styles.itemImageContainer}>
-            {item.image && (
-              <Image 
-                source={item.image} 
-                style={styles.itemImage}
-                contentFit="cover"
-                transition={200}
-              />
-            )}
-          </View>
-          <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{item.category}</Text>
+      {allItems.map((item) => {
+        const owned = isItemOwned(item.id);
+
+        return (
+          <TouchableOpacity 
+            key={`${item.category}-${item.id}`} 
+            style={[
+              styles.itemCard,
+              owned && styles.ownedItemCard
+            ]}
+            onPress={() => handleItemPurchase(item)}
+            disabled={owned}
+            activeOpacity={owned ? 1 : 0.7}
+          >
+            <View style={styles.itemImageContainer}>
+              {item.image && (
+                <Image 
+                  source={item.image} 
+                  style={styles.itemImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+              )}
+              {owned && (
+                <View style={styles.ownedBadge}>
+                  <Text style={styles.ownedBadgeText}>Owned</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.itemPrice}>{item.price} Gems</Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{item.category}</Text>
+              </View>
+              <Text style={styles.itemPrice}>{item.price} Gems</Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
     </ScrollView>
   );
 };
@@ -753,12 +767,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 14,
     color: '#333333',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   itemPrice: {
-    fontFamily: 'Montserrat-Medium',
+    fontFamily: 'Montserrat-Bold',
     fontSize: 14,
     color: '#8C52FF',
+    marginTop: 4,
   },
   categoryBadge: {
     backgroundColor: '#F0E8FF',
@@ -823,6 +838,23 @@ const styles = StyleSheet.create({
   headerContainer: {
     marginHorizontal: 16,
     marginBottom: 24,
+  },
+  ownedItemCard: {
+    opacity: 0.6,
+  },
+  ownedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#8C52FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  ownedBadgeText: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 12,
+    color: '#FFFFFF',
   },
 });
 
