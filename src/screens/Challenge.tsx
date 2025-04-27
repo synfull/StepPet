@@ -9,7 +9,7 @@ const Challenge: React.FC = () => {
       <View style={styles.content}>
         <Text style={styles.title}>Coming Soon!</Text>
         <Text style={styles.description}>
-          Compete against your friends for the most steps completed in a week & earn XP + bragging rights
+          Compete against your friends for the most steps completed!
         </Text>
       </View>
     </View>
