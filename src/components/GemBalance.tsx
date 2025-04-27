@@ -32,8 +32,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   gemCount: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 14,
     color: '#8C52FF',
   },
 }); 

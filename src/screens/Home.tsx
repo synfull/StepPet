@@ -1411,7 +1411,7 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
-    marginLeft: 8,
+    marginLeft: 4,
   },
   gemButtonHome: {
     padding: 8,
