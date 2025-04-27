@@ -1240,17 +1240,21 @@ const Home: React.FC = () => {
           {/* Pet Info */}
           <View style={styles.petInfo}>
             <Text style={[
-              styles.petName,
-              petData?.appearance.nameColor && { color: petData.appearance.nameColor }
+              styles.petName, 
+              petData.growthStage === 'Egg' ? { marginBottom: 12 } : null, 
+              petData.growthStage === 'Egg' ? { marginTop: -8 } : null, 
+              petData?.appearance.nameColor && { color: petData.appearance.nameColor } 
             ]}>
               {petData?.name}
             </Text>
-            <Text style={styles.petTypeText}>
-              {petData.growthStage === 'Egg' ? 'Egg' : PET_TYPES[petData.type].name}
-              {petData.appearance.hasEliteBadge && (
-                <Ionicons name="shield-checkmark" size={20} color="#8C52FF" style={styles.badgeIcon} />
-              )}
-            </Text>
+            {petData.growthStage !== 'Egg' && (
+              <Text style={styles.petTypeText}>
+                {PET_TYPES[petData.type].name}
+                {petData.appearance.hasEliteBadge && (
+                  <Ionicons name="shield-checkmark" size={20} color="#8C52FF" style={styles.badgeIcon} />
+                )}
+              </Text>
+            )}
             <View style={styles.levelBadge}>
               <Text style={styles.levelBadgeText}>
                 Level {petData.growthStage === 'Egg' ? '0' : petData.level}
@@ -1304,7 +1308,7 @@ const Home: React.FC = () => {
         
         {/* Mini Games Section */}
         <View style={styles.miniGamesSection}>
-          <Text style={styles.sectionTitle}>Daily Activities</Text>
+          <Text style={styles.sectionTitle}>Activities</Text>
           
           {(() => {
             // Determine steps progress for feed/fetch based on hatch date
@@ -1489,7 +1493,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 16,
     alignSelf: 'center',
   },
   levelBadgeText: {
@@ -1523,6 +1527,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#333333',
     marginBottom: 16,
+    textAlign: 'center',
   },
   refreshInfo: {
     flexDirection: 'row',
