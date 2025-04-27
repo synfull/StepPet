@@ -367,8 +367,8 @@ export const DEFAULT_MILESTONES: Milestone[] = [
     claimed: false
   },
   {
-    id: 'milestone-90k',
-    steps: 90000,
+    id: 'milestone-200k',
+    steps: 200000,
     reward: 'badge',
     rewardDetails: 'Elite Badge',
     claimed: false
