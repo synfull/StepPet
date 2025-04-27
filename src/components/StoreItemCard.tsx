@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'rea
 import { Image } from 'expo-image';
 import { useInventory } from '../context/InventoryContext';
 import { useGems } from '../context/GemContext';
+import { playSound } from '../utils/soundUtils';
 
 interface StoreItem {
   id: string;
@@ -26,8 +27,11 @@ export const StoreItemCard: React.FC<StoreItemCardProps> = ({ item, onPurchaseSu
     setIsProcessing(true);
     try {
       const success = await purchaseItem(item.id, item.price);
-      if (success && onPurchaseSuccess) {
-        onPurchaseSuccess();
+      if (success) {
+        playSound('activity-claim');
+        if (onPurchaseSuccess) {
+          onPurchaseSuccess();
+        }
       }
     } catch (error) {
       console.error('Purchase failed:', error);
