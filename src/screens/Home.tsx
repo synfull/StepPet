@@ -32,6 +32,7 @@ import {
 } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
 import { isSameDay, getTodayDateString } from '../utils/dateUtils';
+import { playSound } from '../utils/soundUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
@@ -604,6 +605,7 @@ const Home: React.FC = () => {
   const handlePetTap = async () => {
     if (showPulseHint) {
       setShowPulseHint(false);
+      playSound('ui-tap');
       try {
         await AsyncStorage.setItem('hasInteractedWithPet', 'true');
         setHasInteractedWithPet(true);
@@ -662,6 +664,7 @@ const Home: React.FC = () => {
           navigation.navigate('PetHatching', { petType: updatedPet.type });
 
         } catch (error) {
+          playSound('action-fail');
           console.error('Error hatching egg:', error);
           Alert.alert(
             'Error',
@@ -670,6 +673,7 @@ const Home: React.FC = () => {
           );
         }
       } else {
+        playSound('action-fail');
         Alert.alert(
           'Not Ready to Hatch',
           `Your egg needs ${Math.max(0, petData.stepsToHatch - petData.totalSteps).toLocaleString()} more steps to hatch! Keep walking to help it grow.`,
@@ -677,6 +681,7 @@ const Home: React.FC = () => {
         );
       }
     } else {
+      playSound('ui-tap');
       // Check if 200-step milestone is claimed
       const has200StepMilestone = petData?.milestones.some(m => m.id === '200_steps' && m.claimed);
       if (has200StepMilestone && petData) {
@@ -696,7 +701,9 @@ const Home: React.FC = () => {
   
   // Handle mini game press
   const handleMiniGamePress = (game: 'feed' | 'fetch' | 'adventure') => {
+    playSound('ui-tap');
     if (!petData || petData.growthStage === 'Egg') {
+      playSound('action-fail');
       Alert.alert(
         'Pet Still in Egg',
         'Your pet needs to hatch before you can play mini-games!',
@@ -729,6 +736,7 @@ const Home: React.FC = () => {
       : null;
     
     if (lastFed && isSameDay(lastFed, now) && petData.miniGames.feed.claimedToday) {
+      playSound('action-fail');
       Alert.alert(
         'Already Fed Today',
         'You have already fed your pet today. Come back tomorrow!',
@@ -739,6 +747,7 @@ const Home: React.FC = () => {
     
     // Check if enough steps
     if (dailySteps < 2500) {
+      playSound('action-fail');
       Alert.alert(
         'More Steps Needed',
         `You need 2,500 steps to feed your pet. You currently have ${dailySteps} steps.`,
@@ -755,6 +764,7 @@ const Home: React.FC = () => {
     // Save and update with XP reward
     updatePetWithSteps(updatedPet, 0, 100).then(({ updatedPet: newPet, leveledUp }) => {
       setPetData(newPet);
+      playSound('activity-claim');
       
       if (leveledUp) {
         Alert.alert(
@@ -784,6 +794,7 @@ const Home: React.FC = () => {
     // Check fetch claims today
     const claims = petData.miniGames.fetch.claimsToday || 0;
     if (claims >= 2) {
+      playSound('action-fail');
       Alert.alert(
         'Fetch Limit Reached',
         'Your pet has already played fetch twice today. Come back tomorrow!',
@@ -795,6 +806,7 @@ const Home: React.FC = () => {
     // Check if enough steps
     const stepsNeeded = (claims + 1) * 1000; // 1000 steps for first claim, 2000 for second
     if (dailySteps < stepsNeeded) {
+      playSound('action-fail');
       Alert.alert(
         'More Steps Needed',
         `You need ${stepsNeeded} steps to play fetch. You currently have ${dailySteps} steps.`,
@@ -814,6 +826,7 @@ const Home: React.FC = () => {
     // Save and update with XP reward
     updatePetWithSteps(updatedPet, 0, 50).then(({ updatedPet: newPet, leveledUp }) => {
       setPetData(newPet);
+      playSound('activity-claim');
       
       if (leveledUp) {
         Alert.alert(
