@@ -76,10 +76,10 @@ export const unloadAllSounds = async () => {
   console.log('All sounds unloaded.');
 };
 
-// Configure audio mode for playback even in silent mode (optional but recommended for effects)
+// Configure audio mode
 Audio.setAudioModeAsync({
   allowsRecordingIOS: false,
-  playsInSilentModeIOS: true, // Allows playback in silent mode on iOS
-  shouldDuckAndroid: true, // Ducks background audio on Android
+  playsInSilentModeIOS: false,
+  shouldDuckAndroid: true,
   playThroughEarpieceAndroid: false,
 });
