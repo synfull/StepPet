@@ -258,6 +258,7 @@ const GemsTab = () => {
       
       // Mock purchase success (this will be replaced with real StoreKit logic)
       await addGems(pack.gems + pack.bonus);
+      playSound('activity-claim');
       setPurchaseState('success');
       
       Alert.alert(
