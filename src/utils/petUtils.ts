@@ -342,7 +342,7 @@ export const DEFAULT_MILESTONES: Milestone[] = [
     id: 'milestone-15k',
     steps: 15000,
     reward: 'appearance',
-    rewardDetails: 'Pet Appearance Tweak',
+    rewardDetails: 'Pet Accessory',
     claimed: false
   },
   {
