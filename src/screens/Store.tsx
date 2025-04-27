@@ -9,6 +9,8 @@ import { hatItems } from './StoreHats';
 import { neckItems } from './StoreNeck';
 import { eyewearItems } from './StoreEyewear';
 import { useGems } from '../context/GemContext';
+import { useInventory } from '../context/InventoryContext';
+import { playSound } from '../utils/soundUtils';
 
 type StoreNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Store'>;
 type StoreRouteProp = RouteProp<RootStackParamList, 'Store'>;
@@ -305,11 +307,11 @@ const GemsTab = () => {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.devWarning}>
+      {/* <View style={styles.devWarning}>
         <Text style={styles.devWarningText}>
           Development Mode: Purchases are simulated and gems are added instantly.
         </Text>
-      </View>
+      </View> */}
       
       <Text style={styles.sectionTitle}>Select Gem Package</Text>
       {gemPackages.map((pack) => (
@@ -424,6 +426,8 @@ const Store = () => {
 
 const AllItemsTab = () => {
   const navigation = useNavigation<StoreNavigationProp>();
+  const { gemBalance, deductGems } = useGems();
+  const { purchaseItem, isItemOwned } = useInventory();
 
   const allItems: CategorizedItem[] = [
     ...hatItems.map((item: StoreItem) => ({ ...item, category: 'Hats' })),
@@ -431,14 +435,41 @@ const AllItemsTab = () => {
     ...eyewearItems.map((item: StoreItem) => ({ ...item, category: 'Eyewear' })),
   ];
 
-  const handleItemPress = (item: CategorizedItem) => {
-    if (item.category === 'Hats') {
-      navigation.navigate('StoreHats');
-    } else if (item.category === 'Neck') {
-      navigation.navigate('StoreNeck');
-    } else if (item.category === 'Eyewear') {
-      navigation.navigate('StoreEyewear');
+  const handleItemPurchase = async (item: CategorizedItem) => {
+    if (isItemOwned(item.id)) {
+       playSound('action-fail');
+       Alert.alert("Already Owned", "You already own this item.");
+       return;
     }
+
+    if (gemBalance < item.price) {
+      playSound('action-fail');
+      Alert.alert("Not Enough Gems", `You need ${item.price} gems to purchase the ${item.name}, but you only have ${gemBalance}.`);
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Purchase",
+      `Purchase ${item.name} for ${item.price} gems?`,
+      [
+        { text: "Cancel", style: "cancel", onPress: () => playSound('action-fail') },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            const success = await purchaseItem(item.id, item.price);
+            
+            if (success) {
+              playSound('activity-claim');
+              Alert.alert("Purchase Successful", `${item.name} added to your inventory!`);
+            } else {
+              console.error("Error purchasing item (likely failed gem deduction or storage error).");
+              playSound('action-fail');
+              Alert.alert("Purchase Failed", "There was an error completing your purchase.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -451,7 +482,7 @@ const AllItemsTab = () => {
         <TouchableOpacity 
           key={`${item.category}-${item.id}`} 
           style={styles.itemCard}
-          onPress={() => handleItemPress(item)}
+          onPress={() => handleItemPurchase(item)}
         >
           <View style={styles.itemImageContainer}>
             {item.image && (
