@@ -23,6 +23,7 @@ import { RegistrationStatus } from './src/types/userTypes';
 import { AuthProvider } from './src/context/AuthContext';
 import * as Linking from 'expo-linking';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { Pedometer } from 'expo-sensors';
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
@@ -90,20 +91,9 @@ export default function App() {
           const available = await pedoInit();
           setIsAvailable(available);
           
-          if (available) {
-            const daily = await fetchDailySteps();
-            // Get pet data to use its creation date for weekly steps
-            const petDataStr = await AsyncStorage.getItem('@pet_data');
-            const petData = petDataStr ? JSON.parse(petDataStr) : null;
-            const petCreationTime = petData ? new Date(petData.created) : undefined;
-            const weekly = await fetchWeeklySteps(petCreationTime);
-            
-            // Get total steps from storage
-            const storedTotal = await AsyncStorage.getItem('@total_steps');
-            if (storedTotal) {
-              setTotalSteps(parseInt(storedTotal, 10));
-            }
-          }
+          // NOTE: Initial step state (daily, weekly, total) remains 0 here.
+          // The first calculation will be triggered by Home.tsx when petData is ready.
+          
         }
       } catch (error) {
         console.error('Error initializing app:', error);
@@ -129,14 +119,39 @@ export default function App() {
       setIsAvailable(available);
       
       if (available) {
+        // Fetch daily steps
         const daily = await fetchDailySteps();
-        // Get pet data to use its creation date for weekly steps
+
+        // Initialize calculated steps
+        let initialAdjustedTotalSteps = 0;
+
+        // Get pet data from storage
         const petDataStr = await AsyncStorage.getItem('@pet_data');
         const petData = petDataStr ? JSON.parse(petDataStr) : null;
-        const petCreationTime = petData ? new Date(petData.created) : undefined;
-        const weekly = await fetchWeeklySteps(petCreationTime);
+
+        // Calculate initial adjusted total steps if pet data is available
+        if (petData && petData.created) {
+          const petCreationTime = new Date(petData.created);
+          const startingStepCount = petData.startingStepCount || 0;
+          try {
+            // Get raw steps since creation
+            const { steps: rawStepsSinceCreation } = await Pedometer.getStepCountAsync(
+              petCreationTime,
+              new Date()
+            );
+            // Calculate the adjusted steps
+            initialAdjustedTotalSteps = Math.max(0, rawStepsSinceCreation - startingStepCount);
+          } catch (pedometerError) {
+            console.error('Error fetching initial steps from Pedometer:', pedometerError);
+            // Optionally try to load from storage as a fallback?
+            // For now, will default to 0 if Pedometer fails
+          }
+        }
+
+        // Update state: Set daily, and set both weekly and total to the calculated adjusted value
         setDailySteps(daily);
-        setWeeklySteps(weekly);
+        setWeeklySteps(initialAdjustedTotalSteps);
+        setTotalSteps(initialAdjustedTotalSteps);
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);

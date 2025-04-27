@@ -139,6 +139,7 @@ const Home: React.FC = () => {
   const [showPulseHint, setShowPulseHint] = useState(false);
   const [hasInteractedWithPet, setHasInteractedWithPet] = useState(false);
   const [isPetAnimating, setIsPetAnimating] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -175,6 +176,17 @@ const Home: React.FC = () => {
       ]).start();
     }
   }, [petData]);
+  
+  // ---> MODIFIED: Trigger initial step refresh only ONCE when petData is loaded <--- 
+  useEffect(() => {
+    // Only run if petData exists AND initial load hasn't completed yet
+    if (petData && !initialLoadComplete) {
+      console.log('[Home.tsx] PetData loaded, triggering initial refreshStepData...');
+      refreshStepData(); 
+      setInitialLoadComplete(true); // Set flag to prevent re-running
+    }
+  }, [petData, initialLoadComplete]); // Add flag to dependency array
+  // ---> END MODIFIED <---
   
   // Pedometer subscription
   useEffect(() => {
