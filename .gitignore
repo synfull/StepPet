@@ -38,3 +38,6 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+
+# Sensitive config files
+GoogleService-Info.plist
