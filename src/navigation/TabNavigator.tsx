@@ -113,7 +113,8 @@ const TabNavigator = () => {
         />
       </Tab.Navigator>
 
-      <View style={[
+      {/* REMOVED: Absolutely positioned GemBalance that caused overlap */}
+      {/* <View style={[
         styles.gemContainer,
         {
           top: insets.top - (Platform.OS === 'ios' ? 40 : 30),
@@ -126,7 +127,7 @@ const TabNavigator = () => {
         >
           <GemBalance />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <GemPurchaseModal
         visible={isPurchaseModalVisible}

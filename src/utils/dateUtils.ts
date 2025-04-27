@@ -98,4 +98,13 @@ export const formatDuration = (minutes: number): string => {
   }
   
   return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}`;
+};
+
+// Get today's date as YYYY-MM-DD string
+export const getTodayDateString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = (today.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
+  const day = today.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }; 

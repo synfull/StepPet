@@ -11,6 +11,7 @@ import { eyewearItems } from './StoreEyewear';
 import { useGems } from '../context/GemContext';
 import { useInventory } from '../context/InventoryContext';
 import { playSound } from '../utils/soundUtils';
+import HeaderWithGems from '../components/HeaderWithGems';
 
 type StoreNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Store'>;
 type StoreRouteProp = RouteProp<RootStackParamList, 'Store'>;
@@ -368,9 +369,7 @@ const Store = () => {
     <View style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Store</Text>
-      </View>
+      <HeaderWithGems title="Store" />
 
       <View style={styles.tabBar}>
         <TouchableOpacity 
@@ -548,9 +547,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    marginLeft: 'auto',
-    position: 'relative',
-    top: -1,
   },
   tabBar: {
     flexDirection: 'row',

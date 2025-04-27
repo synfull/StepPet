@@ -24,6 +24,7 @@ import { getRandomMilestoneAccessory } from '../utils/petUtils';
 import { useInventory } from '../context/InventoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pedometer } from 'expo-sensors';
+import HeaderWithGems from '../components/HeaderWithGems';
 
 type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;
 
@@ -357,9 +358,7 @@ const Milestones: React.FC = () => {
     <View style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Milestones</Text>
-      </View>
+      <HeaderWithGems title="Milestones" />
       
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.statsContainer}>
@@ -478,37 +477,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FFFFFF',
-  },
-  headerTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 24,
-    color: '#333333',
-  },
-  gemCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    position: 'absolute',
-    right: 16,
-    top: 12,
   },
   content: {
     flexGrow: 1,

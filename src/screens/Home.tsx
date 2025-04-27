@@ -45,6 +45,7 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GemBalance } from '../components/GemBalance';
 
 // Define the background task
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
@@ -1176,7 +1177,18 @@ const Home: React.FC = () => {
             <Ionicons name="footsteps" size={20} color="#8C52FF" />
             <Text style={styles.stepText}>{dailySteps.toLocaleString()} steps today</Text>
           </View>
+
+          {/* Add flexible spacer */}
+          <View style={{ flex: 1 }} /> 
+
           <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.gemButtonHome} 
+              onPress={() => navigation.navigate('Store', { initialTab: 'gems' })}
+            >
+              <GemBalance />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => navigation.navigate('Settings')}
@@ -1374,7 +1386,6 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -1399,6 +1410,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  gemButtonHome: {
     padding: 8,
     marginLeft: 8,
   },

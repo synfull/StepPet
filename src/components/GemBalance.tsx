@@ -9,7 +9,7 @@ export const GemBalance: React.FC = () => {
   return (
     <View style={styles.container}>
       <Ionicons name="diamond" size={20} color="#8C52FF" style={styles.gemIcon} />
-      <Text style={styles.gemCount}>{gemBalance}</Text>
+      <Text style={styles.gemCount}>{gemBalance.toLocaleString()}</Text>
     </View>
   );
 };

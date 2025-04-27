@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
 import { PET_ICONS } from '../utils/petUtils';
 import { formatRelativeTime } from '../utils/dateUtils';
-import Header from '../components/Header';
+import HeaderWithGems from '../components/HeaderWithGems';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
 import { useUser } from '../context/UserContext';
@@ -383,12 +383,9 @@ const Friends: React.FC = () => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
-      <Header 
-        title="Friends"
-        rightComponent={headerRightComponent}
-      />
+      <HeaderWithGems title="Friends" />
       
       <View style={styles.content}>
         <View style={styles.userInfoContainer}>

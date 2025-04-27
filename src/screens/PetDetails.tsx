@@ -298,15 +298,15 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
           <Text style={styles.sectionTitle}>Stats</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{displayDailySteps}</Text>
+              <Text style={styles.statValue}>{displayDailySteps.toLocaleString()}</Text>
               <Text style={styles.statLabel}>Today's Steps</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{displayWeeklySteps}</Text>
+              <Text style={styles.statValue}>{displayWeeklySteps.toLocaleString()}</Text>
               <Text style={styles.statLabel}>Weekly Steps</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statValue}>{displayTotalSteps}</Text>
+              <Text style={styles.statValue}>{displayTotalSteps.toLocaleString()}</Text>
               <Text style={styles.statLabel}>Total Steps</Text>
             </View>
           </View>

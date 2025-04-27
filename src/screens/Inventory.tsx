@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInventory, ItemCategory } from '../context/InventoryContext';
+import HeaderWithGems from '../components/HeaderWithGems';
 import { hatItems, StoreItem } from './StoreHats';
 import { eyewearItems } from './StoreEyewear';
 import { neckItems } from './StoreNeck';
@@ -85,12 +86,10 @@ const Inventory = () => {
   const filteredItems = getOwnedItemsForCategory(selectedCategory);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Inventory</Text>
-      </View>
+      <HeaderWithGems title="Inventory" />
 
       {/* Currently Equipped Section */}
       <View style={styles.equippedSection}>
@@ -186,17 +185,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 32,
-    color: '#333333',
   },
   equippedSection: {
     padding: 16,
