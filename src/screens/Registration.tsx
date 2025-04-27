@@ -42,6 +42,7 @@ const Registration: React.FC = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +86,12 @@ const Registration: React.FC = () => {
   };
 
   const handleRegister = async () => {
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
     if (!validateUsername(username) || !validateEmail(email) || !validatePassword(password)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -95,34 +102,28 @@ const Registration: React.FC = () => {
 
     try {
       // Check if username is already taken in Supabase
+      console.log(`Checking username: ${username}`);
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('username')
-        .ilike('username', username)
-        .single();
+        .select('username', { count: 'exact', head: true })
+        .ilike('username', username);
+
+      console.log(`Username check result - existingProfile: ${JSON.stringify(existingProfile)}, checkError: ${JSON.stringify(checkError)}`);
 
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking username:', checkError);
-        throw new Error('Failed to check username availability');
-      }
-
-      if (existingProfile) {
-        setError('Username is already taken');
+        console.error('Database error checking username:', checkError);
+        setError('Failed to check username availability. Please try again.');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setIsLoading(false);
         return;
       }
 
-      // Check if username is already taken in local storage
-      const existingUser = await AsyncStorage.getItem('@user_data');
-      if (existingUser) {
-        const user = JSON.parse(existingUser);
-        if (user.username.toLowerCase() === username.toLowerCase()) {
-          setError('Username is already taken');
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          setIsLoading(false);
-          return;
-        }
+      if (existingProfile && existingProfile.length > 0) {
+        console.log('Username already taken.');
+        setError('Username is already taken');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setIsLoading(false);
+        return;
       }
 
       // Sign up with Supabase using the provided email
@@ -138,8 +139,9 @@ const Registration: React.FC = () => {
         throw new Error('Failed to get user session');
       }
 
-      // Create profile in Supabase
-      const { error: profileError } = await supabase
+      // --- Refined Error Handling ---
+      // 1. Attempt Profile Insertion
+      const { data: insertedProfileData, error: profileInsertError } = await supabase
         .from('profiles')
         .insert({
           id: session.user.id,
@@ -154,15 +156,30 @@ const Registration: React.FC = () => {
           last_active: new Date().toISOString(),
           created_at: new Date().toISOString()
         })
-        .select()
-        .single();
+        .select() // Select after insert (optional, but can confirm insert)
+        .single(); // Use single if you expect one row back on success
 
-      if (profileError) {
-        // Log the full error for debugging
-        console.error('Profile creation error:', JSON.stringify(profileError));
-        // Continue with registration as the auth part succeeded
-        console.warn('Failed to create profile, but continuing with registration');
+      // 2. Check specifically for profile insertion errors
+      if (profileInsertError) {
+          console.error('Profile insertion failed:', JSON.stringify(profileInsertError));
+
+          // Determine specific error message
+          let specificErrorMessage: string;
+          if (profileInsertError.code === '23505') {
+             specificErrorMessage = 'Username is already taken. Please choose another.';
+          } else {
+             specificErrorMessage = 'Failed to save user profile. Please try again.';
+          }
+
+          // --- Modification Start --- 
+          // Throw error instead of setting state and returning here
+          throw new Error(specificErrorMessage);
+          // --- Modification End ---
       }
+
+      // 3. If no error, profile creation was successful
+       console.log('Profile created successfully:', insertedProfileData);
+      // --- End Refined Error Handling ---
 
       // Create new user data
       const newUser: UserData = {
@@ -240,6 +257,14 @@ const Registration: React.FC = () => {
             placeholderTextColor="#999999"
             value={password}
             onChangeText={setPassword}
+            secureTextEntry
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            placeholderTextColor="#999999"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
             secureTextEntry
           />
           {error && <Text style={styles.errorText}>{error}</Text>}
