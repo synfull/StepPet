@@ -45,21 +45,33 @@ const slides: SlideItem[] = [
   },
   {
     id: '3',
-    title: 'Mini-Games & Challenges',
-    description: 'Complete daily activities to earn rewards and help your pet grow!',
+    title: 'Step Tracking',
+    description: 'Track your daily steps automatically to power your pet\'s growth!',
     image: require('../../assets/images/onboarding3.png'),
   },
   {
     id: '4',
-    title: 'Milestone Rewards',
-    description: 'Unlock special rewards as you hit step milestones!',
+    title: 'Play Mini-Games',
+    description: 'Care for your pet and earn extra rewards by playing fun mini-games!',
     image: require('../../assets/images/onboarding4.png'),
   },
   {
     id: '5',
-    title: 'Connect With Friends',
-    description: 'Add friends, compete on leaderboards, and share your progress!',
+    title: 'Milestone Rewards',
+    description: 'Unlock special rewards as you hit step milestones!',
     image: require('../../assets/images/onboarding5.png'),
+  },
+  {
+    id: '6',
+    title: 'Compete With Friends',
+    description: 'Connect with friends, climb the leaderboards, and see who walks the most!',
+    image: require('../../assets/images/onboarding6.png'),
+  },
+  {
+    id: '7',
+    title: 'Customize Your Pet',
+    description: 'Use gems earned from steps and rewards to buy fun accessories and personalize your pet!',
+    image: require('../../assets/images/onboarding7.png'),
   },
 ];
 
