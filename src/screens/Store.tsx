@@ -12,6 +12,7 @@ import { useGems } from '../context/GemContext';
 import { useInventory } from '../context/InventoryContext';
 import { playSound } from '../utils/soundUtils';
 import HeaderWithGems from '../components/HeaderWithGems';
+import analytics from '@react-native-firebase/analytics';
 
 type StoreNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Store'>;
 type StoreRouteProp = RouteProp<RootStackParamList, 'Store'>;
@@ -250,6 +251,19 @@ const GemsTab = () => {
   };
 
   const processPurchase = async (pack: GemPackage) => {
+    // Log purchase_gems_start event
+    try {
+      await analytics().logEvent('purchase_gems_start', { 
+        package_id: pack.id, 
+        package_gems: pack.gems,
+        package_bonus: pack.bonus,
+        package_price: pack.price
+      });
+      console.log(`[Analytics] Logged purchase_gems_start event: ${pack.id}`);
+    } catch (analyticsError) {
+      console.error('[Analytics] Error logging purchase_gems_start event:', analyticsError);
+    }
+    
     setPurchaseState('processing');
     
     try {
@@ -261,6 +275,19 @@ const GemsTab = () => {
       playSound('activity-claim');
       setPurchaseState('success');
       
+      // Log purchase_gems_complete event
+      try {
+        await analytics().logEvent('purchase_gems_complete', { 
+          package_id: pack.id, 
+          package_gems: pack.gems,
+          package_bonus: pack.bonus,
+          package_price: pack.price
+        });
+        console.log(`[Analytics] Logged purchase_gems_complete event: ${pack.id}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging purchase_gems_complete event:', analyticsError);
+      }
+      
       Alert.alert(
         'Purchase Successful!',
         `${pack.gems + pack.bonus} gems have been added to your account.`,
@@ -269,6 +296,29 @@ const GemsTab = () => {
     } catch (error) {
       console.error('Purchase failed:', error);
       setPurchaseState('failed');
+      
+      // Log purchase_gems_fail event
+      try {
+        // Use selectedPackage if pack is not available in catch scope (though it should be)
+        const failedPack = pack || selectedPackage;
+        if (failedPack) {
+          await analytics().logEvent('purchase_gems_fail', { 
+            package_id: failedPack.id, 
+            package_gems: failedPack.gems,
+            package_bonus: failedPack.bonus,
+            package_price: failedPack.price,
+            error_message: error instanceof Error ? error.message : String(error) // Capture error message
+          });
+          console.log(`[Analytics] Logged purchase_gems_fail event: ${failedPack.id}`);
+        } else {
+          console.log(`[Analytics] Logged purchase_gems_fail event (unknown package)`);
+          await analytics().logEvent('purchase_gems_fail', { 
+             error_message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging purchase_gems_fail event:', analyticsError);
+      }
       
       Alert.alert(
         'Purchase Failed',
@@ -352,6 +402,21 @@ const Store = () => {
   const [activeTab, setActiveTab] = useState<'Gems' | 'Items' | 'All'>('Gems');
 
   useEffect(() => {
+    const initialTab = route.params?.initialTab || (activeTab.toLowerCase() as 'gems' | 'items');
+    // Log view_store event on mount or when tab changes
+    const logViewStore = async () => {
+      try {
+        await analytics().logEvent('view_store', { 
+          initial_tab: initialTab
+        });
+        console.log(`[Analytics] Logged view_store event (tab: ${initialTab})`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging view_store event:', analyticsError);
+      }
+    };
+    logViewStore();
+
+    // Set active tab based on route params (runs only once on mount)
     if (route.params?.initialTab) {
       switch (route.params.initialTab) {
         case 'gems':
@@ -364,7 +429,25 @@ const Store = () => {
           break;
       }
     }
-  }, [route.params?.initialTab]);
+  }, [route.params?.initialTab]); // Depend only on route params for initial setting
+
+  // Log event when tab is manually changed by user
+  useEffect(() => {
+    const logTabChange = async () => {
+      try {
+        await analytics().logEvent('view_store', { 
+          initial_tab: activeTab.toLowerCase() as 'gems' | 'items' | 'all'
+        });
+        console.log(`[Analytics] Logged view_store event (tab changed to: ${activeTab})`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging view_store tab change event:', analyticsError);
+      }
+    };
+    // Avoid logging on initial mount if route.params existed
+    if (!route.params?.initialTab) {
+       logTabChange(); 
+    }
+  }, [activeTab]); // Log when activeTab changes
 
   return (
     <View style={styles.container}>
@@ -442,8 +525,21 @@ const AllItemsTab = () => {
        return;
     }
 
+    // Log purchase_item_fail event (insufficient funds)
     if (gemBalance < item.price) {
       playSound('action-fail');
+      try {
+        await analytics().logEvent('purchase_item_fail', { 
+          item_id: item.id,
+          item_name: item.name,
+          item_category: item.category,
+          item_price: item.price,
+          reason: 'insufficient_gems'
+        });
+        console.log(`[Analytics] Logged purchase_item_fail (insufficient_gems) event: ${item.id}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging purchase_item_fail (insufficient_gems) event:', analyticsError);
+      }
       Alert.alert("Not Enough Gems", `You need ${item.price} gems to purchase the ${item.name}, but you only have ${gemBalance}.`);
       return;
     }
@@ -452,16 +548,59 @@ const AllItemsTab = () => {
       "Confirm Purchase",
       `Purchase ${item.name} for ${item.price} gems?`,
       [
-        { text: "Cancel", style: "cancel", onPress: () => playSound('action-fail') },
+        { text: "Cancel", style: "cancel", onPress: () => {
+            playSound('action-fail');
+            // Log purchase_item_fail event (user cancelled)
+            try {
+              analytics().logEvent('purchase_item_fail', { 
+                item_id: item.id,
+                item_name: item.name,
+                item_category: item.category,
+                item_price: item.price,
+                reason: 'user_cancelled'
+              }); // No await needed for cancel
+              console.log(`[Analytics] Logged purchase_item_fail (user_cancelled) event: ${item.id}`);
+            } catch (analyticsError) {
+              console.error('[Analytics] Error logging purchase_item_fail (user_cancelled) event:', analyticsError);
+            }
+          } 
+        },
         {
           text: "Confirm",
           onPress: async () => {
             const success = await purchaseItem(item.id, item.price);
             
             if (success) {
+              // Log purchase_item_complete event
+              try {
+                await analytics().logEvent('purchase_item_complete', { 
+                  item_id: item.id,
+                  item_name: item.name,
+                  item_category: item.category,
+                  item_price: item.price
+                });
+                console.log(`[Analytics] Logged purchase_item_complete event: ${item.id}`);
+              } catch (analyticsError) {
+                console.error('[Analytics] Error logging purchase_item_complete event:', analyticsError);
+              }
+              
               playSound('activity-claim');
               Alert.alert("Purchase Successful", `${item.name} added to your inventory!`);
             } else {
+              // Log purchase_item_fail event (general failure)
+              try {
+                await analytics().logEvent('purchase_item_fail', { 
+                  item_id: item.id,
+                  item_name: item.name,
+                  item_category: item.category,
+                  item_price: item.price,
+                  reason: 'purchase_error' // General error during purchase logic
+                });
+                console.log(`[Analytics] Logged purchase_item_fail (purchase_error) event: ${item.id}`);
+              } catch (analyticsError) {
+                console.error('[Analytics] Error logging purchase_item_fail (purchase_error) event:', analyticsError);
+              }
+              
               console.error("Error purchasing item (likely failed gem deduction or storage error).");
               playSound('action-fail');
               Alert.alert("Purchase Failed", "There was an error completing your purchase.");

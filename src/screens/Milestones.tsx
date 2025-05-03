@@ -23,8 +23,9 @@ import ProgressBar from '../components/ProgressBar';
 import { getRandomMilestoneAccessory } from '../utils/petUtils';
 import { useInventory } from '../context/InventoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { Pedometer } from 'expo-sensors';
 import HeaderWithGems from '../components/HeaderWithGems';
+import analytics from '@react-native-firebase/analytics';
+// import { Pedometer } from 'expo-sensors';
 
 type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;
 
@@ -207,6 +208,17 @@ const Milestones: React.FC = () => {
     // Close color picker and navigate to milestone unlocked screen
     setShowColorPicker(false);
     const milestone = updatedPet.milestones[milestoneIndex];
+    if (milestone) {
+      try {
+        await analytics().logEvent('milestone_claim', {
+          milestone_id: milestone.id,
+          reward_type: milestone.reward
+        });
+        console.log(`[Analytics] Logged milestone_claim (color/bg) event: ${milestone.id}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging milestone_claim (color/bg) event:', analyticsError);
+      }
+    }
     navigation.navigate('MilestoneUnlocked', { milestone });
   };
   
@@ -227,6 +239,17 @@ const Milestones: React.FC = () => {
     const milestoneIndex = updatedPet.milestones.findIndex(m => m.id === milestoneId);
     
     if (milestoneIndex === -1) return;
+    
+    // Log milestone_claim event before updating state
+    try {
+      await analytics().logEvent('milestone_claim', {
+        milestone_id: milestone.id,
+        reward_type: milestone.reward
+      });
+      console.log(`[Analytics] Logged milestone_claim event: ${milestone.id}`);
+    } catch (analyticsError) {
+      console.error('[Analytics] Error logging milestone_claim event:', analyticsError);
+    }
     
     // Mark as claimed
     updatedPet.milestones[milestoneIndex].claimed = true;
@@ -285,8 +308,22 @@ const Milestones: React.FC = () => {
     await savePetData(updatedPet);
     setPetData(updatedPet);
     
+    // Log milestone_claim event after color confirmation
+    const updatedMilestone = updatedPet.milestones[milestoneIndex];
+    if (updatedMilestone) {
+      try {
+        await analytics().logEvent('milestone_claim', {
+          milestone_id: updatedMilestone.id,
+          reward_type: updatedMilestone.reward
+        });
+        console.log(`[Analytics] Logged milestone_claim (color/bg) event: ${updatedMilestone.id}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging milestone_claim (color/bg) event:', analyticsError);
+      }
+    }
+
     // Navigate to milestone unlocked screen
-    navigation.navigate('MilestoneUnlocked', { milestone });
+    navigation.navigate('MilestoneUnlocked', { milestone: updatedMilestone });
   };
   
   const handleAddMilestone = () => {

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserData, SubscriptionTier } from '../types/userTypes';
+import analytics from '@react-native-firebase/analytics';
 
 // Export the type
 export interface AuthContextType {
@@ -111,6 +112,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: signInError };
       }
 
+      // Log sign_up event after successful auto-login
+      try {
+        await analytics().logEvent('sign_up');
+        console.log('[Analytics] Logged sign_up event');
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging sign_up event:', analyticsError);
+      }
+
       console.log('Signup and auto-login successful:', data);
       console.log('[AuthContext] signUp successful, setting loading false');
       setLoading(false);
@@ -184,6 +193,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const registrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
         console.log(`[AuthContext] Saving registrationStatus to AsyncStorage: ${JSON.stringify(registrationStatus)}`);
         await AsyncStorage.setItem('@registration_status', JSON.stringify(registrationStatus));
+
+        // Log login event after successful sign in and data processing
+        try {
+          await analytics().logEvent('login');
+          console.log('[Analytics] Logged login event');
+        } catch (analyticsError) {
+          console.error('[Analytics] Error logging login event:', analyticsError);
+        }
       }
       
       console.log('[AuthContext] signIn successful, setting loading false');
@@ -199,6 +216,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Log sign_out event before clearing data
+      try {
+        await analytics().logEvent('sign_out');
+        console.log('[Analytics] Logged sign_out event');
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging sign_out event:', analyticsError);
+      }
+
       // Clear all user-related data
       const keysToRemove = [
         SESSION_KEY,

@@ -46,6 +46,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GemBalance } from '../components/GemBalance';
+import analytics from '@react-native-firebase/analytics';
 
 // Define the background task
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
@@ -628,6 +629,16 @@ const Home: React.FC = () => {
   
   // Handle tap on pet
   const handlePetTap = async () => {
+    // Log pet_tap event at the beginning
+    try {
+      await analytics().logEvent('pet_tap', { 
+        is_egg: petData?.growthStage === 'Egg' // Differentiate if it's an egg
+      });
+      console.log(`[Analytics] Logged pet_tap event (is_egg: ${petData?.growthStage === 'Egg'})`);
+    } catch (analyticsError) {
+      console.error('[Analytics] Error logging pet_tap event:', analyticsError);
+    }
+
     if (showPulseHint) {
       setShowPulseHint(false);
       playSound('ui-tap');
@@ -683,6 +694,16 @@ const Home: React.FC = () => {
             totalStepsBeforeToday: petData.totalStepsBeforeToday
           };
           
+          // Log egg_hatch event
+          try {
+            await analytics().logEvent('egg_hatch', { 
+              pet_type: updatedPet.type // Add pet_type parameter
+            });
+            console.log(`[Analytics] Logged egg_hatch event for type: ${updatedPet.type}`);
+          } catch (analyticsError) {
+            console.error('[Analytics] Error logging egg_hatch event:', analyticsError);
+          }
+
           setPetData(updatedPet);
           await savePetData(updatedPet); 
 
@@ -787,10 +808,18 @@ const Home: React.FC = () => {
     updatedPet.miniGames.feed.claimedToday = true;
     
     // Save and update with XP reward
-    updatePetWithSteps(updatedPet, 0, 100).then(({ updatedPet: newPet, leveledUp }) => {
+    updatePetWithSteps(updatedPet, 0, 100).then(async ({ updatedPet: newPet, leveledUp }) => {
       setPetData(newPet);
       playSound('activity-claim');
       
+      // Log activity_feed_complete event
+      try {
+        await analytics().logEvent('activity_feed_complete');
+        console.log('[Analytics] Logged activity_feed_complete event');
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging activity_feed_complete event:', analyticsError);
+      }
+
       if (leveledUp) {
         Alert.alert(
           'Pet Fed',
@@ -849,10 +878,20 @@ const Home: React.FC = () => {
     updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
     
     // Save and update with XP reward
-    updatePetWithSteps(updatedPet, 0, 50).then(({ updatedPet: newPet, leveledUp }) => {
+    updatePetWithSteps(updatedPet, 0, 50).then(async ({ updatedPet: newPet, leveledUp }) => {
       setPetData(newPet);
       playSound('activity-claim');
       
+      // Log activity_fetch_complete event
+      try {
+        await analytics().logEvent('activity_fetch_complete', { 
+          attempt_number: claims + 1 // Log which attempt (1st or 2nd)
+        });
+        console.log(`[Analytics] Logged activity_fetch_complete event for attempt: ${claims + 1}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging activity_fetch_complete event:', analyticsError);
+      }
+
       if (leveledUp) {
         Alert.alert(
           'Fetch Complete',
@@ -910,9 +949,17 @@ const Home: React.FC = () => {
         updatedPet.miniGames.adventure.currentProgress = 15000;
         
         // Save and update with XP reward
-        updatePetWithSteps(updatedPet, 0, 300).then(({ updatedPet: newPet, leveledUp }) => {
+        updatePetWithSteps(updatedPet, 0, 300).then(async ({ updatedPet: newPet, leveledUp }) => {
           setPetData(newPet);
           
+          // Log activity_adventure_complete event
+          try {
+            await analytics().logEvent('activity_adventure_complete');
+            console.log('[Analytics] Logged activity_adventure_complete event');
+          } catch (analyticsError) {
+            console.error('[Analytics] Error logging activity_adventure_complete event:', analyticsError);
+          }
+
           if (leveledUp) {
             Alert.alert(
               'Adventure Complete',
@@ -1137,6 +1184,14 @@ const Home: React.FC = () => {
                 console.log('[Home.tsx] Get Your Egg pressed');
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 try {
+                  // Log get_first_egg event
+                  try {
+                    await analytics().logEvent('get_first_egg');
+                    console.log('[Analytics] Logged get_first_egg event');
+                  } catch (analyticsError) {
+                    console.error('[Analytics] Error logging get_first_egg event:', analyticsError);
+                  }
+
                   console.log('[Home.tsx] Calling createNewPet...');
                   const newPet = await createNewPet(0, '', 'mythic', 'Egg');
                   console.log('[Home.tsx] createNewPet returned:', JSON.stringify(newPet));

@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Pedometer } from 'expo-sensors';
+import analytics from '@react-native-firebase/analytics';
 
 // Pet Categories
 export const PET_CATEGORIES: Record<PetCategory, {
@@ -534,6 +535,11 @@ const updateGrowthStage = (pet: PetData): GrowthStage => {
   return 'Baby';
 };
 
+// Helper to determine if growth stage changed
+const didGrowthStageChange = (oldStage: GrowthStage, newStage: GrowthStage): boolean => {
+  return oldStage !== newStage && oldStage !== 'Egg'; // Only track changes after hatching
+};
+
 // Update pet with new steps and/or XP
 export const updatePetWithSteps = async (
   pet: PetData,
@@ -548,6 +554,8 @@ export const updatePetWithSteps = async (
 
   // Deep clone the pet to avoid mutation
   const updatedPet: PetData = JSON.parse(JSON.stringify(pet));
+  const originalLevel = updatedPet.level; // Store original level
+  const originalGrowthStage = updatedPet.growthStage; // Store original stage
   
   let newStepsDelta = 0;
 
@@ -607,10 +615,33 @@ export const updatePetWithSteps = async (
       updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[nextLevelIndex];
       
       leveledUp = true;
+
+      // Log level_up event
+      try {
+        await analytics().logEvent('level_up', { 
+          pet_level: updatedPet.level // Use the new level
+        });
+        console.log(`[Analytics] Logged level_up event to level: ${updatedPet.level}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging level_up event:', analyticsError);
+      }
     }
     
     // Update growth stage
     updatedPet.growthStage = updateGrowthStage(updatedPet);
+
+    // Log pet_evolve event if stage changed (and not from Egg)
+    if (didGrowthStageChange(originalGrowthStage, updatedPet.growthStage)) {
+      try {
+        await analytics().logEvent('pet_evolve', { 
+          new_stage: updatedPet.growthStage,
+          pet_type: updatedPet.type 
+        });
+        console.log(`[Analytics] Logged pet_evolve event to stage: ${updatedPet.growthStage} for type: ${updatedPet.type}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging pet_evolve event:', analyticsError);
+      }
+    }
   }
   
   // Check for milestones 

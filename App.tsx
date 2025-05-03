@@ -25,6 +25,8 @@ import * as Linking from 'expo-linking';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { Pedometer } from 'expo-sensors';
 import Purchases from 'react-native-purchases';
+import analytics from '@react-native-firebase/analytics'; // Import analytics
+import firebase from '@react-native-firebase/app'; // <-- Import Firebase App
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
@@ -81,6 +83,39 @@ export default function App() {
     'Montserrat-SemiBold': require('./assets/fonts/Montserrat-SemiBold.ttf'),
   });
 
+  // Initialize Firebase (Relying on native auto-initialization)
+  useEffect(() => {
+    if (firebase.apps.length === 0) {
+      console.log('[Firebase] Native initialization pending...');
+      // We removed the explicit initializeApp call here.
+      // The native layer should initialize automatically if config files are correct.
+      // We add a small delay check just for logging purposes.
+      const checkInterval = setInterval(() => {
+        if (firebase.apps.length > 0) {
+          console.log('[Firebase] Native initialization complete (detected).');
+          clearInterval(checkInterval);
+        }
+      }, 500); // Check every 500ms
+      
+      // Set a timeout to stop checking after a while
+      const checkTimeout = setTimeout(() => {
+        if(firebase.apps.length === 0) {
+           console.warn('[Firebase] Native initialization did not complete after timeout.');
+        }
+        clearInterval(checkInterval); // Ensure interval is cleared
+      }, 5000); // Stop checking after 5 seconds
+      
+      // Cleanup interval and timeout on component unmount
+      return () => {
+        clearInterval(checkInterval);
+        clearTimeout(checkTimeout);
+      };
+      
+    } else {
+      console.log('[Firebase] Already initialized (detected on mount).');
+    }
+  }, []);
+
   // Initialize app data
   useEffect(() => {
     async function initializeApp() {
@@ -131,6 +166,14 @@ export default function App() {
       await AsyncStorage.setItem('@onboarding_complete', 'true');
       setIsOnboardingComplete(true);
       
+      // Log onboarding_complete event
+      try {
+        await analytics().logEvent('onboarding_complete');
+        console.log('[Analytics] Logged onboarding_complete event');
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging onboarding_complete event:', analyticsError);
+      }
+
       // Initialize pedometer after completing onboarding
       const available = await pedoInit();
       setIsAvailable(available);

@@ -18,6 +18,7 @@ import { captureRef } from 'react-native-view-shot';
 import { DataContext } from '../context/DataContext';
 import { RootStackParamList } from '../types/navigationTypes';
 import { Share as RNShare } from 'react-native';
+import analytics from '@react-native-firebase/analytics';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
@@ -37,6 +38,10 @@ const Share: React.FC<ShareProps> = ({ route }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
     
+    let shareMethod = 'unknown';
+    let shareContentType = type;
+    let shareItemId = type === 'levelUp' ? `level_${data.level}` : `milestone_${data.steps}`;
+    
     try {
       // Capture the card as an image
       const uri = await captureRef(shareCardRef, {
@@ -46,16 +51,40 @@ const Share: React.FC<ShareProps> = ({ route }) => {
       
       // Check if sharing is available
       if (await Sharing.isAvailableAsync()) {
+        shareMethod = 'image';
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Share your achievement',
         });
+        // Log share event (image)
+        try {
+           await analytics().logEvent('share', { 
+             method: shareMethod,
+             content_type: shareContentType,
+             item_id: shareItemId
+           });
+           console.log(`[Analytics] Logged share event (image): ${shareContentType} - ${shareItemId}`);
+        } catch (analyticsError) {
+          console.error('[Analytics] Error logging share event (image):', analyticsError);
+        }
       } else {
         // Fallback to text sharing if image sharing is not available
-        shareAsText();
+        await shareAsText();
       }
     } catch (error) {
       console.error('Error sharing:', error);
+       // Log share failure (optional, depends on requirements)
+      try {
+         await analytics().logEvent('share_fail', {
+           method: shareMethod,
+           content_type: shareContentType,
+           item_id: shareItemId,
+           error_message: error instanceof Error ? error.message : String(error)
+         });
+         console.log(`[Analytics] Logged share_fail event: ${shareContentType} - ${shareItemId}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging share_fail event:', analyticsError);
+      }
       Alert.alert(
         'Error',
         'There was a problem sharing your achievement. Please try again.',
@@ -69,6 +98,10 @@ const Share: React.FC<ShareProps> = ({ route }) => {
   const shareAsText = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
+    let shareMethod = 'text';
+    let shareContentType = type;
+    let shareItemId = type === 'levelUp' ? `level_${data.level}` : `milestone_${data.steps}`;
+    
     try {
       let message = '';
       
@@ -81,8 +114,31 @@ const Share: React.FC<ShareProps> = ({ route }) => {
       await RNShare.share({
         message,
       });
+      // Log share event (text)
+      try {
+         await analytics().logEvent('share', { 
+           method: shareMethod,
+           content_type: shareContentType,
+           item_id: shareItemId
+         });
+         console.log(`[Analytics] Logged share event (text): ${shareContentType} - ${shareItemId}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging share event (text):', analyticsError);
+      }
     } catch (error) {
       console.error('Error sharing text:', error);
+       // Log share failure (text)
+      try {
+         await analytics().logEvent('share_fail', { 
+           method: shareMethod,
+           content_type: shareContentType,
+           item_id: shareItemId,
+           error_message: error instanceof Error ? error.message : String(error)
+         });
+         console.log(`[Analytics] Logged share_fail event (text): ${shareContentType} - ${shareItemId}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging share_fail event (text):', analyticsError);
+      }
     }
   };
   

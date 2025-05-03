@@ -27,6 +27,7 @@ import Header from '../components/Header';
 import EvolutionChain from '../components/EvolutionChain';
 import { PET_TYPES, PET_CATEGORIES } from '../utils/petUtils';
 import { PetType, GrowthStage } from '../types/petTypes';
+import analytics from '@react-native-firebase/analytics';
 // import { Pedometer } from 'expo-sensors'; // Removed incorrect import
 
 type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
@@ -44,6 +45,26 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
   const [petName, setPetName] = useState(petData?.name || '');
   const [showSpecialAnim, setShowSpecialAnim] = useState(route.params?.showSpecialAnimation || false);
   const [editedName, setEditedName] = useState(petData?.name || '');
+  
+  // Log screen view on mount
+  useEffect(() => {
+    const logScreenView = async () => {
+      try {
+        await analytics().logEvent('view_pet_details', { 
+          pet_id: petData?.id, 
+          pet_type: petData?.type,
+          pet_stage: petData?.growthStage
+        });
+        console.log(`[Analytics] Logged view_pet_details event for pet: ${petData?.id}`);
+      } catch (analyticsError) {
+        console.error('[Analytics] Error logging view_pet_details event:', analyticsError);
+      }
+    };
+
+    if (petData) { // Only log if petData is available
+      logScreenView();
+    }
+  }, [petData]); // Depend on petData to ensure it's loaded
   
   // Reset special animation after it plays
   useEffect(() => {
