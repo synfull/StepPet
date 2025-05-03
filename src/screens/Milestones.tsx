@@ -23,7 +23,7 @@ import ProgressBar from '../components/ProgressBar';
 import { getRandomMilestoneAccessory } from '../utils/petUtils';
 import { useInventory } from '../context/InventoryContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Pedometer } from 'expo-sensors';
+// import { Pedometer } from 'expo-sensors';
 import HeaderWithGems from '../components/HeaderWithGems';
 
 type MilestonesNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Milestones'>;

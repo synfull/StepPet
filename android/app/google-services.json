@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "834026630278",
+    "project_id": "steppet-app",
+    "storage_bucket": "steppet-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:834026630278:android:e532001162f601ac563507",
+        "android_client_info": {
+          "package_name": "app.steppet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCsswuzg64km44J7-e0ZrWRmtxYBU_QlI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

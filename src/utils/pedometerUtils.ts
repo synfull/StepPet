@@ -1,10 +1,13 @@
 import { Pedometer } from 'expo-sensors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { isSameDay } from './dateUtils';
 
 // Initialize pedometer and check if it's available
 export const pedoInit = async (): Promise<boolean> => {
   const isAvailable = await Pedometer.isAvailableAsync();
+  // console.warn('[pedometerUtils] Skipping Pedometer.isAvailableAsync check, assuming unavailable.');
+  // const isAvailable = false; // Removed
   return isAvailable;
 };
 
@@ -12,11 +15,14 @@ export const pedoInit = async (): Promise<boolean> => {
 export const fetchDailySteps = async (startTime?: Date, startingStepCount: number = 0): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
+    // const isAvailable = false; // Removed
     if (!isAvailable) {
       console.log('Pedometer is not available');
       return 0;
     }
 
+    // --- Restore Pedometer logic ---
+    // /* // Removed comment block
     const now = new Date();
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
@@ -28,6 +34,8 @@ export const fetchDailySteps = async (startTime?: Date, startingStepCount: numbe
     await AsyncStorage.setItem('@daily_steps', steps.toString());
     
     return steps;
+    // */ // Removed comment block
+    // return 0; // Removed default return
   } catch (error) {
     console.error('Error fetching daily steps:', error);
     
@@ -46,11 +54,14 @@ export const fetchDailySteps = async (startTime?: Date, startingStepCount: numbe
 export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: number = 0): Promise<number> => {
   try {
     const isAvailable = await Pedometer.isAvailableAsync();
+    // const isAvailable = false; // Removed
     if (!isAvailable) {
       console.log('Pedometer is not available');
       return 0;
     }
 
+    // --- Restore Pedometer logic ---
+    // /* // Removed comment block
     const now = new Date();
     // Use a rolling 7-day window for weekly steps
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
@@ -82,6 +93,8 @@ export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: numb
     }));
     
     return adjustedSteps;
+    // */ // Removed comment block
+    // return 0; // Removed default return
   } catch (error) {
     console.error('Error fetching weekly steps:', error);
     
@@ -102,6 +115,7 @@ export const fetchWeeklySteps = async (startDate?: Date, startingStepCount: numb
 
 // Update total steps
 export const updateTotalSteps = async (newSteps: number): Promise<number> => {
+  // This function doesn't use Pedometer, so it remains unchanged.
   try {
     const currentTotalStr = await AsyncStorage.getItem('@total_steps');
     const currentTotal = currentTotalStr ? parseInt(currentTotalStr, 10) : 0;
@@ -111,8 +125,7 @@ export const updateTotalSteps = async (newSteps: number): Promise<number> => {
     
     return updatedTotal;
   } catch (error) {
-    console.error('Error updating total steps:', error);
-    return 0;
+    console.error('Error updating total steps:', error);    return 0;
   }
 };
 
@@ -123,6 +136,14 @@ export const subscribeToPedometer = (
   startingStepCount: number = 0,
   onWeeklyUpdate?: (weeklySteps: number) => void
 ) => {
+  // console.warn('[pedometerUtils] Skipping Pedometer subscription.'); // Removed warning
+  // Return a dummy subscription object with a no-op remove function // Removed dummy
+  // return {
+  //  remove: () => {},
+  // };
+
+  // --- Restore original logic ---
+  // /* // Removed comment block
   const now = new Date();
   const start = startTime || new Date();
   if (!startTime) {
@@ -136,7 +157,7 @@ export const subscribeToPedometer = (
   
   try {
     // First get the current step count from our start time
-    Pedometer.getStepCountAsync(start, now).then(({ steps }) => {
+    Pedometer.getStepCountAsync(start, now).then(({ steps }: { steps: number }) => {
       // Subtract startingStepCount from initial steps
       const adjustedSteps = Math.max(0, steps - startingStepCount);
       callback(adjustedSteps);
@@ -148,7 +169,7 @@ export const subscribeToPedometer = (
           lastWeeklyUpdate = Date.now();
         });
       }
-    }).catch(error => {
+    }).catch((error: any) => {
       console.error('Error getting initial step count:', error);
     });
     
@@ -163,9 +184,9 @@ export const subscribeToPedometer = (
     }
     
     // Then subscribe to updates
-    subscription = Pedometer.watchStepCount(result => {
+    subscription = Pedometer.watchStepCount((result: any) => {
       // Get current steps from start time to now
-      Pedometer.getStepCountAsync(start, new Date()).then(({ steps }) => {
+      Pedometer.getStepCountAsync(start, new Date()).then(({ steps }: { steps: number }) => {
         // Subtract startingStepCount from updated steps
         const adjustedSteps = Math.max(0, steps - startingStepCount);
         callback(adjustedSteps);
@@ -177,7 +198,7 @@ export const subscribeToPedometer = (
             lastWeeklyUpdate = Date.now();
           });
         }
-      }).catch(error => {
+      }).catch((error: any) => {
         console.error('Error getting updated step count:', error);
       });
     });
@@ -196,4 +217,5 @@ export const subscribeToPedometer = (
       }
     }
   };
+  // */ // Removed comment block
 }; 

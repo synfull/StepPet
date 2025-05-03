@@ -260,7 +260,6 @@ const Home: React.FC = () => {
           // Logic for hatched pets
            const todayMidnight = new Date();
            todayMidnight.setHours(0, 0, 0, 0);
-           // Define todayStepsRaw HERE
            const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
            // Calculate daily steps considering starting point ONLY if created today
            const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
@@ -488,18 +487,31 @@ const Home: React.FC = () => {
     try {
       if (!petData) return;
 
+      // console.warn('[Home.tsx - refreshStepData] --- SKIPPING PEDOMETER CALLS ---'); // Reverted
+
       const petCreationTime = new Date(petData.created);
       
+      // --- TEMP: Comment out Pedometer calls --- // Reverted
+      // /*
       // Get today's raw steps 
       const todayMidnight = new Date();
       todayMidnight.setHours(0, 0, 0, 0);
       const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
       
-      // Get weekly steps (This seems okay, uses its own util)
+      // Get weekly steps 
       const weeklyStepsCount = await fetchWeeklySteps(petCreationTime, petData.startingStepCount || 0);
       
       // Get total raw steps since creation timestamp
       const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
+      // */
+      // --- END TEMP --- // Reverted
+      
+      // --- TEMP: Hardcode values for testing --- // Reverted
+      // const todayStepsRaw = 0;
+      // const weeklyStepsCount = 0;
+      // const totalStepsRaw = 0;
+      // console.warn('[Home.tsx - refreshStepData] Using hardcoded step values (0)');
+      // --- END TEMP --- // Reverted
       
       let dailyStepsToUpdate = 0;
       let totalStepsToUpdate = 0;
@@ -1122,14 +1134,33 @@ const Home: React.FC = () => {
             <Button
               title="Get Your Egg"
               onPress={async () => {
+                console.log('[Home.tsx] Get Your Egg pressed');
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                const newPet = await createNewPet(0, '', 'mythic', 'Egg');
-                await savePetData(newPet);
-                setPetData(newPet);
-                // Reset step counters to 0 since we're starting fresh
-                setDailySteps(0);
-                setWeeklySteps(0);
-                setTotalSteps(0);
+                try {
+                  console.log('[Home.tsx] Calling createNewPet...');
+                  const newPet = await createNewPet(0, '', 'mythic', 'Egg');
+                  console.log('[Home.tsx] createNewPet returned:', JSON.stringify(newPet));
+                  
+                  console.log('[Home.tsx] Calling savePetData...');
+                  await savePetData(newPet);
+                  console.log('[Home.tsx] savePetData completed.');
+                  
+                  console.log('[Home.tsx] Calling setPetData...');
+                  setPetData(newPet);
+                  console.log('[Home.tsx] Calling step setters...');
+                  setDailySteps(0);
+                  setWeeklySteps(0);
+                  setTotalSteps(0);
+                  console.log('[Home.tsx] State updates complete.');
+                } catch (error) {
+                  // Keep the catch block from previous attempt just in case
+                  console.error('[Home.tsx] Error getting first egg:', error);
+                  Alert.alert(
+                    'Error',
+                    'Could not get your first egg. Please ensure permissions are granted and try again.',
+                    [{ text: 'OK' }]
+                  );
+                }
               }}
               size="large"
               style={styles.startButton}

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from './UserContext';
 
 interface GemContextType {
   gemBalance: number;
@@ -11,34 +12,56 @@ interface GemContextType {
 
 const GemContext = createContext<GemContextType | undefined>(undefined);
 
-const GEM_BALANCE_KEY = '@gem_balance';
+// Function to generate user-specific key
+const getGemBalanceKey = (userId: string | undefined): string | null => {
+  return userId ? `@gem_balance_${userId}` : null;
+};
 
 export const GemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { userData } = useUser();
+  const userId = userData?.id;
+
   const [gemBalance, setGemBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load gem balance from storage on mount
+  // Load gem balance from storage on mount or user change
   useEffect(() => {
     const loadGemBalance = async () => {
-      try {
-        const storedBalance = await AsyncStorage.getItem(GEM_BALANCE_KEY);
-        if (storedBalance !== null) {
-          setGemBalance(parseInt(storedBalance, 10));
+      setIsLoading(true);
+      const storageKey = getGemBalanceKey(userId);
+      
+      if (storageKey) {
+        try {
+          const storedBalance = await AsyncStorage.getItem(storageKey);
+          if (storedBalance !== null) {
+            setGemBalance(parseInt(storedBalance, 10));
+          } else {
+            setGemBalance(0);
+          }
+        } catch (error) {
+          console.error('Error loading gem balance:', error);
+          setGemBalance(0);
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading gem balance:', error);
-      } finally {
+      } else {
+        setGemBalance(0);
         setIsLoading(false);
       }
     };
 
     loadGemBalance();
-  }, []);
+  }, [userId]);
 
   const addGems = async (amount: number) => {
+    const storageKey = getGemBalanceKey(userId);
+    if (!storageKey) {
+      console.error('Cannot add gems: No user logged in.');
+      return;
+    } 
     try {
       const newBalance = gemBalance + amount;
-      await AsyncStorage.setItem(GEM_BALANCE_KEY, newBalance.toString());
+      await AsyncStorage.setItem(storageKey, newBalance.toString());
       setGemBalance(newBalance);
     } catch (error) {
       console.error('Error adding gems:', error);
@@ -47,13 +70,19 @@ export const GemProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deductGems = async (amount: number): Promise<boolean> => {
+    const storageKey = getGemBalanceKey(userId);
+    if (!storageKey) {
+      console.error('Cannot deduct gems: No user logged in.');
+      return false;
+    }
+    
     if (gemBalance < amount) {
       return false;
     }
 
     try {
       const newBalance = gemBalance - amount;
-      await AsyncStorage.setItem(GEM_BALANCE_KEY, newBalance.toString());
+      await AsyncStorage.setItem(storageKey, newBalance.toString());
       setGemBalance(newBalance);
       return true;
     } catch (error) {

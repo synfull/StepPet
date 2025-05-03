@@ -14,7 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Pedometer } from 'expo-sensors';
+// import { Pedometer } from 'expo-sensors';
 import LottieView from 'lottie-react-native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useData } from '../context/DataContext';
@@ -27,6 +27,7 @@ import Header from '../components/Header';
 import EvolutionChain from '../components/EvolutionChain';
 import { PET_TYPES, PET_CATEGORIES } from '../utils/petUtils';
 import { PetType, GrowthStage } from '../types/petTypes';
+// import { Pedometer } from 'expo-sensors'; // Removed incorrect import
 
 type PetDetailsRouteProp = RouteProp<RootStackParamList, 'PetDetails'>;
 type PetDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PetDetails'>;

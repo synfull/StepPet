@@ -16,7 +16,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.steppet.app",
+      "bundleIdentifier": "app.steppet",
+      "buildNumber": "1",
       "infoPlist": {
         "NSMotionUsageDescription": "StepPet uses your step count to help your virtual pet grow and evolve.",
         "UIViewControllerBasedStatusBarAppearance": true,
@@ -29,7 +30,8 @@
         "foregroundImage": "assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.steppet.app",
+      "package": "app.steppet",
+      "versionCode": 1,
       "permissions": [
         "android.permission.ACTIVITY_RECOGNITION"
       ]
@@ -46,7 +48,8 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ],
     "extra": {
       "eas": {

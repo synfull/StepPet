@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { useUser } from '../context/UserContext';
 import Login from '../screens/Login';
 import Registration from '../screens/Registration';
 import TabNavigator from '@navigation/TabNavigator';
@@ -47,10 +48,26 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const MainNavigator: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { registrationStatus, isLoading: userLoading } = useUser();
+  
+  // Log state values on each render
+  console.log(`[MainNavigator] Rendering. Auth Loading: ${authLoading}, User Loading: ${userLoading}, User: ${!!user}, Reg Status: ${registrationStatus?.isRegistered}`);
 
-  if (loading) {
+  if (authLoading || userLoading) {
+    console.log('[MainNavigator] Rendering Loading State (null)');
     return null; // Or a loading screen
+  }
+
+  // Determine which stack to show
+  const showMainStack = user && registrationStatus.isRegistered;
+  console.log(`[MainNavigator] Determined showMainStack: ${showMainStack}`);
+
+  // Log which stack is about to be rendered
+  if (showMainStack) {
+    console.log('[MainNavigator] Rendering Main Stack');
+  } else {
+    console.log('[MainNavigator] Rendering Auth Stack');
   }
 
   return (
@@ -59,13 +76,7 @@ const MainNavigator: React.FC = () => {
         headerShown: false,
       }}
     >
-      {!user ? (
-        // Auth screens
-        <>
-          <Stack.Screen name="Login" component={Login} />
-          <Stack.Screen name="Registration" component={Registration} />
-        </>
-      ) : (
+      {showMainStack ? (
         // Protected screens
         <>
           <Stack.Screen name="Main" component={TabNavigator} />
@@ -89,6 +100,12 @@ const MainNavigator: React.FC = () => {
           <Stack.Screen name="StoreEyewear" component={StoreEyewear} />
           <Stack.Screen name="MilestoneUnlocked" component={MilestoneUnlocked} />
           <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+        </>
+      ) : (
+        // Auth screens
+        <>
+          <Stack.Screen name="Login" component={Login} />
+          <Stack.Screen name="Registration" component={Registration} />
         </>
       )}
     </Stack.Navigator>

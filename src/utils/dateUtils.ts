@@ -98,7 +98,7 @@ export const formatDuration = (minutes: number): string => {
   }
   
   return `${hours} hour${hours !== 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}`;
-};
+}; 
 
 // Get today's date as YYYY-MM-DD string
 export const getTodayDateString = (): string => {

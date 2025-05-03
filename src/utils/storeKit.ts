@@ -1,10 +1,13 @@
 // StoreKit Product IDs for in-app purchases
 export const PRODUCT_IDS = {
-  GEMS_100: 'com.steppet.gems.100',
-  GEMS_350: 'com.steppet.gems.350',
-  GEMS_800: 'com.steppet.gems.800',
-  GEMS_1700: 'com.steppet.gems.1700',
-  GEMS_4500: 'com.steppet.gems.4500',
+  GEMS_100: 'app.steppet.gems.100',
+  GEMS_350: 'app.steppet.gems.350',
+  GEMS_800: 'app.steppet.gems.800',
+  GEMS_1700: 'app.steppet.gems.1700',
+  GEMS_4500: 'app.steppet.gems.4500',
+  PREMIUM_LIFETIME: 'app.steppet.premium.lifetime',
+  SUBSCRIPTION_MONTHLY: 'app.steppet.subscription.monthly',
+  SUBSCRIPTION_ANNUAL: 'app.steppet.subscription.annual',
 };
 
 // Map gem packages to their respective product IDs

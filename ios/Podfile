@@ -7,15 +7,49 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 
+# Ensure ENV variable override is removed
+
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 install! 'cocoapods',
   :deterministic_uuids => false
 
+# Add modular headers globally
+# use_modular_headers!
+
 prepare_react_native_project!
+
+# Explicitly declare pods needing modular headers
+pod 'GoogleUtilities', :modular_headers => true
+pod 'FirebaseCore', :modular_headers => true
+pod 'FirebaseInstallations', :modular_headers => true
+pod 'FirebaseABTesting', :modular_headers => true
+# Note: Pods listed here might also be pulled in by use_native_modules! later,
+# but declaring them here should influence Cocoapods' resolution.
+
+# Define config command and config variable globally
+# if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+#   config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+# else
+#   config_command = [
+#     'node',
+#     '--no-warnings',
+#     '--eval',
+#     'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
+#     'react-native-config',
+#     '--json',
+#     '--platform',
+#     'ios'
+#   ]
+# end
+# $config = use_native_modules!(config_command)
+
+# Remove or comment out global modular headers
+# use_modular_headers!
 
 target 'StepPet' do
   use_expo_modules!
 
+  # Restore config definition inside target
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
   else
@@ -30,11 +64,16 @@ target 'StepPet' do
       'ios'
     ]
   end
-
   config = use_native_modules!(config_command)
 
-  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
-  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+  # Force static frameworks
+  # use_frameworks! :linkage => :static
+  $RNFirebaseAsStaticFramework = true # Add this flag for Firebase
+
+  # Remove explicit dynamic framework logic
+  # framework_linkage = :dynamic
+  # use_frameworks! :linkage => framework_linkage if podfile_properties['ios.useFrameworks']
+  # use_frameworks! :linkage => framework_linkage if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -44,7 +83,15 @@ target 'StepPet' do
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
 
+  # Restore post_install hook inside target
   post_install do |installer|
+    # Remove custom modular header logic for now
+    # pods_to_enable_modular_headers = [...]
+    # installer.pods_project.targets.each do |target|
+    #  ...
+    # end
+
+    # Call react_native_post_install here with local config
     react_native_post_install(
       installer,
       config[:reactNativePath],
@@ -52,8 +99,7 @@ target 'StepPet' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
-    # when building for devices.
+    # Keep signing fix logic
     installer.target_installation_results.pod_target_installation_results
       .each do |pod_name, target_installation_result|
       target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
@@ -63,4 +109,9 @@ target 'StepPet' do
       end
     end
   end
-end
+end # End target 'StepPet'
+
+# Remove the global post_install hook if it exists
+# post_install do |installer|
+#  ...
+# end

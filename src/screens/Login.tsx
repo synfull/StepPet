@@ -21,6 +21,7 @@ import { Image } from 'expo-image';
 type LoginScreenNavigationProp = NavigationProp<RootStackParamList>;
 
 const Login: React.FC = () => {
+  console.log('[Login.tsx] Component rendering');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

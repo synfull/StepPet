@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import Button from '../components/Button';
 import { Pedometer } from 'expo-sensors';
 import { Image as ExpoImage } from 'expo-image';
+import { useData } from '../context/DataContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -105,7 +106,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ completeOnboarding }) => {
       
       // For iOS, just checking availability is enough as permission will be requested when needed
       // For Android, we'd need to check permissions separately
-      setHasPermission(true);
+      setHasPermission(isAvailable); // Use the actual value
     } catch (error) {
       console.error('Error checking pedometer:', error);
       setHasPermission(false);

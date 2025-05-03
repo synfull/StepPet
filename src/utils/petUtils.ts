@@ -429,9 +429,30 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
   }
 
   // Get the current day's steps to use as the starting point
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
-  const { steps: currentDaySteps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+  let currentDaySteps = 0;
+  // --- Restore Pedometer call ---
+  try {
+    console.log('[petUtils.ts] Requesting Pedometer permissions...');
+    const perm = await Pedometer.requestPermissionsAsync();
+    console.log('[petUtils.ts] Pedometer permission status:', perm.status);
+    
+    if (perm.status !== 'granted') {
+      console.error('[petUtils.ts] Pedometer permission not granted.');
+      throw new Error('Pedometer permission denied.');
+    } else {
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+        console.log('[petUtils.ts] Getting pedometer steps...');
+        const { steps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
+        currentDaySteps = steps;
+        console.log('[petUtils.ts] Pedometer steps received:', currentDaySteps);
+    }
+  } catch (err) {
+    console.error('[petUtils.ts] Error interacting with Pedometer:', err);
+    currentDaySteps = 0;
+    console.warn('[petUtils.ts] Proceeding with startingStepCount = 0 due to Pedometer error.');
+  }
+  // --- END Restore --- 
   
   return {
     id: generateUUID(),

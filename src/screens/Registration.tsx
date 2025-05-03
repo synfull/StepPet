@@ -199,8 +199,10 @@ const Registration: React.FC = () => {
 
       // Save user data
       await AsyncStorage.setItem('@user_data', JSON.stringify(newUser));
+      console.log('[Registration.tsx] Calling setUserData');
       setUserData(newUser);
-      setRegistrationStatus({ isRegistered: true, lastCheck: new Date().toISOString() });
+      console.log('[Registration.tsx] Calling setRegistrationStatus');
+      setRegistrationStatus({ isRegistered: true, lastCheck: new Date().toISOString() }, 'handleRegister');
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       

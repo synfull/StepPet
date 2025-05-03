@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Animated, Text, ViewStyle } from 'react-native';
-import debounce from 'lodash/debounce';
+import { debounce } from 'lodash';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1

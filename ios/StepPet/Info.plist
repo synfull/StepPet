@@ -39,6 +39,8 @@
 	<string>StepPet needs access to your location in the background to track your steps and notify you when your egg is ready to hatch.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>StepPet needs access to your location in the background to track your steps and notify you when your egg is ready to hatch.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>StepPet uses your motion data to track your steps, which helps your virtual pet grow and evolve.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

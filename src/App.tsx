@@ -5,19 +5,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerForPushNotifications } from './utils/notificationUtils';
 import { preloadOnboardingImages, preloadLogo } from './utils/imagePreloader';
 import { DataProvider } from './context/DataContext';
-import { PedometerProvider } from './context/PedometerContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { GemProvider } from './context/GemContext';
-import RootNavigator from './navigation/RootNavigator';
+import AppNavigator from './navigation/AppNavigator';
+import { UserProvider } from './context/UserContext';
+import { AuthProvider } from './context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 
 const App = () => {
   useEffect(() => {
-    // Register for push notifications when app starts
     registerForPushNotifications();
-    
-    // Preload images
     preloadOnboardingImages();
     preloadLogo();
   }, []);
@@ -25,15 +23,17 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <DataProvider>
-          <PedometerProvider>
-            <NotificationProvider>
-              <GemProvider>
-                <RootNavigator />
-              </GemProvider>
-            </NotificationProvider>
-          </PedometerProvider>
-        </DataProvider>
+        <UserProvider>
+          <AuthProvider>
+            <DataProvider>
+              <NotificationProvider>
+                <GemProvider>
+                  <AppNavigator />
+                </GemProvider>
+              </NotificationProvider>
+            </DataProvider>
+          </AuthProvider>
+        </UserProvider>
       </NavigationContainer>
     </SafeAreaProvider>
   );

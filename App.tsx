@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { PedometerContext } from '@context/PedometerContext';
-import { DataProvider } from '@context/DataContext';
-import { GemProvider } from '@context/GemContext';
+import { PedometerContext } from './src/context/PedometerContext';
+import { DataProvider, useData } from './src/context/DataContext';
+import { GemProvider } from './src/context/GemContext';
 import { InventoryProvider } from '@context/InventoryContext';
-import { UserProvider } from '@context/UserContext';
+import { UserProvider } from './src/context/UserContext';
 import MainNavigator from '@navigation/MainNavigator';
 import Onboarding from '@screens/Onboarding';
 import { View, ActivityIndicator, Text, Platform, StyleSheet } from 'react-native';
@@ -24,6 +24,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import * as Linking from 'expo-linking';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { Pedometer } from 'expo-sensors';
+import Purchases from 'react-native-purchases';
 
 // Keep the splash screen visible until we're fully ready
 SplashScreen.preventAutoHideAsync();
@@ -53,6 +54,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 });
+
+// --- PASTE YOUR KEYS HERE ---
+const APPLE_API_KEY = 'appl_thURISdMzCDMIJRfZJyYDcsYqZm'; // Updated Apple Key
+const GOOGLE_API_KEY = 'goog_YKKvIwNcCFxemlhJsKBhYmGxnyH'; // Updated Google Key
+// ---------------------------
 
 export default function App() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
@@ -106,6 +112,17 @@ export default function App() {
     }
     
     initializeApp();
+  }, []);
+
+  // Initialize RevenueCat
+  useEffect(() => {
+    Purchases.setLogLevel(Purchases.LOG_LEVEL.VERBOSE);
+    if (Platform.OS === 'ios') {
+      Purchases.configure({ apiKey: APPLE_API_KEY });
+    } else if (Platform.OS === 'android') {
+      Purchases.configure({ apiKey: GOOGLE_API_KEY });
+    }
+    console.log('RevenueCat SDK configured.');
   }, []);
 
   // Complete onboarding

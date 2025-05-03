@@ -88,7 +88,7 @@ android {
 
     namespace "com.steppet"
     defaultConfig {
-        applicationId "com.steppet"
+        applicationId "app.steppet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
