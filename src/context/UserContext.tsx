@@ -53,54 +53,61 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
-                    .single();
+                    .maybeSingle();
                 
                 if (profileError) {
+                    // Log error but don't necessarily fail the whole load if profile just doesn't exist yet
                     console.error('[UserContext] Error fetching profile directly:', profileError);
-                    // Handle case where profile might not exist yet (e.g., right after sign up before profile insertion completes?)
-                    // Maybe clear state and return?
-                    setUserDataState(null);
-                    setRegistrationStatusState({ isRegistered: false, lastCheck: new Date().toISOString() });
-                    setIsLoading(false);
-                    return; 
-                } 
-                profileData = fetchedProfile;
-                console.log('[UserContext] Profile fetched successfully:', profileData);
+                    // Let profileData remain null
+                }
+                
+                // If profile was fetched successfully, assign it
+                if (fetchedProfile) {
+                    profileData = fetchedProfile;
+                    console.log('[UserContext] Profile fetched successfully:', profileData);
+                } else {
+                     console.log('[UserContext] Profile fetch returned null (may be temporary after signup).');
+                     // Profile doesn't exist yet, profileData remains null
+                }
             } catch (fetchError) {
                  console.error('[UserContext] Critical error fetching profile:', fetchError);
-                 setUserDataState(null);
-                 setRegistrationStatusState({ isRegistered: false, lastCheck: new Date().toISOString() });
-                 setIsLoading(false);
-                 return;
+                 // Let profileData remain null
             }
             // --- End Profile Fetch ---
 
-            // --- Load Registration Status from Storage --- (Keep previous logic for this)
+            // --- Load Registration Status from Storage --- 
             let finalRegistrationStatus = { isRegistered: false, lastCheck: new Date().toISOString() };
             const storedRegistrationStatus = await AsyncStorage.getItem('@registration_status');
             if (storedRegistrationStatus !== null) {
                  const parsedStatus: RegistrationStatus = JSON.parse(storedRegistrationStatus);
-                 // Prioritize a stored 'true' if profile exists
-                 if (parsedStatus.isRegistered && profileData) { 
+                 // If storage says true, trust it.
+                 if (parsedStatus.isRegistered) { 
                      finalRegistrationStatus = parsedStatus;
                      console.log('[UserContext] Using stored TRUE registration status.');
-                 } else if (profileData) {
-                     // If profile exists but stored status is false, assume registered
-                     finalRegistrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
-                     console.log('[UserContext] Setting registration status TRUE based on profile existence.');
                  } else {
-                      console.log('[UserContext] Using stored FALSE registration status (or no profile yet).');
-                      finalRegistrationStatus = parsedStatus; // Keep stored false if profile fetch failed
+                      // Storage says false.
+                      // If profile *was* fetched, override stored false status -> user is registered.
+                      if (profileData) {
+                          finalRegistrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
+                          console.log('[UserContext] Setting registration status TRUE based on profile existence (overriding stored false).');
+                      } else {
+                          // Storage is false, profile not found -> stick with stored false for now.
+                          finalRegistrationStatus = parsedStatus;
+                          console.log('[UserContext] Using stored FALSE registration status (profile not found).');
+                      }
                  }
             } else if (profileData) {
-                 // No stored status, but profile exists -> assume registered
+                 // No stored status, but profile exists -> user is registered
                  finalRegistrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
                  console.log('[UserContext] Setting registration status TRUE based on profile existence (no stored status found).');
+            } else {
+                 // No stored status and no profile found -> user is not registered
+                  console.log('[UserContext] No stored registration status and no profile found.');
+                  // finalRegistrationStatus remains default false
             }
             setRegistrationStatusState(finalRegistrationStatus);
-             // Save potentially updated status back
-             await AsyncStorage.setItem('@registration_status', JSON.stringify(finalRegistrationStatus));
-             console.log('[UserContext] Saved final registration status to storage.');
+            await AsyncStorage.setItem('@registration_status', JSON.stringify(finalRegistrationStatus));
+            console.log('[UserContext] Saved final registration status to storage.');
             // --- End Registration Status Logic ---
 
             // --- Construct and Set UserData State --- 
@@ -126,8 +133,33 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                  await AsyncStorage.setItem('@user_data', JSON.stringify(loadedUserData));
                  console.log('[UserContext] Saved fetched UserData to storage.');
             } else {
-                // If profile fetch failed earlier, ensure userData state is null
-                setUserDataState(null);
+                // Profile data is null (either fetch error or didn't exist yet)
+                // Ensure userData state reflects this. We might not have username yet.
+                // If registration status is true (likely set by Registration.tsx), 
+                // create a minimal UserData object.
+                 if (finalRegistrationStatus.isRegistered) {
+                     console.warn('[UserContext] Profile data missing, but registration status is true. Creating minimal UserData.');
+                     const minimalUserData: UserData = {
+                        id: userId,
+                        username: '...', // Placeholder
+                        createdAt: new Date().toISOString(), // Placeholder
+                        lastActive: new Date().toISOString(),
+                        subscription: { // Provide default subscription object
+                            tier: 'free',
+                            startDate: new Date().toISOString(),
+                            endDate: null,
+                            isActive: true,
+                            autoRenew: false
+                         },
+                        isRegistered: true
+                     };
+                     setUserDataState(minimalUserData);
+                     // Save this minimal data? Or wait for next load?
+                     // Let's avoid saving this minimal data for now.
+                     // await AsyncStorage.setItem('@user_data', JSON.stringify(minimalUserData));
+                 } else {
+                     setUserDataState(null);
+                 }
             }
 
         } else {
