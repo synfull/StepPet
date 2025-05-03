@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
-import { createNewPet, savePetData, getRandomPetType, PET_COLORS } from '../utils/petUtils';
+import { createNewPet, PET_COLORS } from '../utils/petUtils';
 import { PetCategory, GrowthStage } from '../types/petTypes';
 import Button from '../components/Button';
 import PetDisplay from '../components/PetDisplay';
@@ -30,10 +30,10 @@ const PetNaming: React.FC = () => {
   const route = useRoute<PetNamingRouteProp>();
   const navigation = useNavigation<PetNamingNavigationProp>();
   const { petType } = route.params;
+  const { petData, setPetData } = useData();
   const [petName, setPetName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const { setPetData, petData } = useData();
   const { totalSteps } = useContext(PedometerContext);
   
   // Pet category based on pet type
@@ -86,10 +86,7 @@ const PetNaming: React.FC = () => {
         }
       };
       
-      // Save pet data
-      await savePetData(updatedPet);
-      
-      // Update context
+      // Update context (which triggers save to Supabase)
       setPetData(updatedPet);
       
       // Set the hasNamedPet flag

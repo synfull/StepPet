@@ -23,7 +23,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useData } from '../context/DataContext';
 import Header from '../components/Header';
 import { RootStackParamList } from '../types/navigationTypes';
-import { savePetData, createNewPet } from '../utils/petUtils';
 import { PET_CATEGORIES, PET_TYPES } from '../utils/petUtils';
 import type { PetType, GrowthStage, PetData } from '../types/petTypes';
 import { supabase } from '../lib/supabase';
@@ -40,6 +39,7 @@ const Settings: React.FC = () => {
   const [hapticFeedback, setHapticFeedback] = useState(true);
   const [showPetSelector, setShowPetSelector] = useState(false);
   const [showGrowthStageSelector, setShowGrowthStageSelector] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Toggle handlers
   const toggleNotifications = () => {
@@ -68,74 +68,102 @@ const Settings: React.FC = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     
     Alert.alert(
-      'Reset All Data',
-      'Are you sure you want to reset all data? This will delete your pet and all progress. This action cannot be undone.',
+      'Reset Pet Data',
+      'Are you sure you want to reset your pet and related progress (mini-games, milestones)? This action cannot be undone.',
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Reset',
+          text: 'Reset Pet',
           style: 'destructive',
           onPress: async () => {
+            setIsLoading(true);
             try {
-              // Get the current session first
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.user?.id) {
-                throw new Error('No user found');
+                throw new Error('User session not found.');
+              }
+              const userId = session.user.id;
+
+              console.log(`[Settings] Starting pet data reset for user: ${userId}`);
+
+              // 1. Find the user's pet ID
+              const { data: pet, error: findPetError } = await supabase
+                  .from('pets')
+                  .select('id')
+                  .eq('user_id', userId)
+                  .maybeSingle();
+
+              if (findPetError) {
+                  console.error('[Settings] Error finding pet:', findPetError);
+                  throw new Error('Could not check for existing pet.');
               }
 
-              // Update the profile in Supabase to reset pet data
-              const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                  pet_name: 'Egg',
-                  pet_type: '',
-                  pet_level: 1,
-                  weekly_steps: 0,
-                  monthly_steps: 0,
-                  all_time_steps: 0,
-                  last_active: new Date().toISOString()
-                })
-                .eq('id', session.user.id);
+              if (pet) {
+                  const petId = pet.id;
+                  console.log(`[Settings] Found pet ${petId}. Deleting related data...`);
 
-              if (profileError) {
-                console.error('Error updating profile:', profileError);
-                throw profileError;
+                  // 2. Delete related data (milestones, mini_games)
+                  const { error: milestonesError } = await supabase
+                      .from('milestones')
+                      .delete()
+                      .eq('pet_id', petId);
+                  if (milestonesError) console.error('[Settings] Error deleting milestones:', milestonesError);
+                  else console.log('[Settings] Milestones deleted.');
+
+                  const { error: miniGamesError } = await supabase
+                      .from('mini_games')
+                      .delete()
+                      .eq('pet_id', petId);
+                  if (miniGamesError) console.error('[Settings] Error deleting mini-games:', miniGamesError);
+                  else console.log('[Settings] Mini-games deleted.');
+
+                  // 3. Delete the pet itself
+                  const { error: petDeleteError } = await supabase
+                      .from('pets')
+                      .delete()
+                      .eq('id', petId);
+                      
+                  if (petDeleteError) {
+                      console.error('[Settings] Error deleting pet:', petDeleteError);
+                      throw new Error('Failed to delete pet data.');
+                  } 
+                  console.log(`[Settings] Pet ${petId} deleted successfully.`);
+                  
+              } else {
+                  console.log(`[Settings] No pet found for user ${userId}, nothing to delete.`);
               }
 
-              // Sign out first
-              await supabase.auth.signOut();
+              // 4. Clear local state
+              console.log('[Settings] Clearing pet data from context.');
+              setPetData(null); 
+              
+              // 5. Clear relevant AsyncStorage (Optional - depends if DataContext handles null correctly)
+              // Example: await AsyncStorage.removeItem('@pet_data'); // Be specific, DO NOT clear all
 
-              // Clear all data
-              await AsyncStorage.clear();
-              
-              // Reset pet data in context
-              setPetData(null);
-              
-              // Show confirmation
+              // 6. Show confirmation
               Alert.alert(
-                'Data Reset',
-                'All data has been reset successfully. Please log in again to start fresh.',
+                'Pet Data Reset',
+                'Your pet data has been successfully reset.',
                 [{ 
                   text: 'OK',
                   onPress: () => {
-                    // Navigate to login screen
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'Login' as never }],
-                    });
+                    // Optional: Navigate back or refresh home screen
+                    // navigation.navigate('Home'); 
                   }
                 }]
               );
             } catch (error) {
-              console.error('Error resetting data:', error);
+              console.error('Error resetting pet data:', error);
               Alert.alert(
                 'Error',
-                'There was an error resetting your data. Please try again.',
+                'There was an error resetting your pet data. Please try again.',
                 [{ text: 'OK' }]
               );
+            } finally {
+              setIsLoading(false);
             }
           },
         },
@@ -175,7 +203,6 @@ const Settings: React.FC = () => {
       equippedItems: petData.equippedItems || {},
     };
     
-    await savePetData(updatedPet);
     setPetData(updatedPet);
     setShowPetSelector(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -190,7 +217,6 @@ const Settings: React.FC = () => {
       growthStage: selectedStage,
     };
     
-    await savePetData(updatedPet);
     setPetData(updatedPet);
     setShowGrowthStageSelector(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -153,47 +153,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(data.session));
         console.log('[AuthContext] Session saved after sign in');
         
-        // Fetch user profile from Supabase
+        // Fetch user profile from Supabase (Still useful for checking existence/data)
         console.log('[AuthContext] Fetching profile after sign in...');
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, username') // Only fetch what might be needed immediately, UserContext will fetch full profile
           .eq('id', data.session.user.id)
           .single();
           
         if (profileError) {
-          console.error('[AuthContext] Error fetching user profile:', profileError);
-          setLoading(false);
-          return { error: profileError };
+          console.error('[AuthContext] Error fetching user profile during sign in check:', profileError);
+          // Don't necessarily fail the whole login, UserContext can try again
+        } else {
+           console.log('[AuthContext] Profile fetched successfully during sign in check.');
+           // We fetched it, but we won't update UserContext from here anymore.
         }
-        console.log('[AuthContext] Profile fetched successfully');
-
-        // Create user data object
-        const userData: UserData = {
-          id: profileData.id,
-          username: profileData.username,
-          createdAt: profileData.created_at,
-          lastActive: profileData.last_active,
-          subscription: {
-            tier: 'free' as SubscriptionTier,
-            startDate: new Date().toISOString(),
-            endDate: null,
-            isActive: true,
-            autoRenew: false
-          },
-          isRegistered: true
-        };
         
-        // Save user data to AsyncStorage
-        console.log('[AuthContext] Saving user data to AsyncStorage...');
-        await AsyncStorage.setItem('@user_data', JSON.stringify(userData));
-        console.log('[AuthContext] User data saved to AsyncStorage');
-
-        // *** Also save registration status directly to AsyncStorage ***
+        // Still useful to ensure registration status is marked true in storage on login
         const registrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
-        console.log(`[AuthContext] Saving registrationStatus to AsyncStorage: ${JSON.stringify(registrationStatus)}`);
+        console.log(`[AuthContext] Saving registrationStatus to AsyncStorage after sign in: ${JSON.stringify(registrationStatus)}`);
         await AsyncStorage.setItem('@registration_status', JSON.stringify(registrationStatus));
-
+        
         // Log login event after successful sign in and data processing
         try {
           await analytics().logEvent('login');

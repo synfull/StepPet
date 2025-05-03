@@ -37,7 +37,7 @@ import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import MiniGameCard from '../components/MiniGameCard';
 import Button from '../components/Button';
-import { PetData, GrowthStage } from '../types/petTypes';
+import { PetData, GrowthStage, MiniGames } from '../types/petTypes';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sendEggHatchingNotification } from '../utils/notificationUtils';
 import { supabase } from '../lib/supabase';
@@ -47,6 +47,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GemBalance } from '../components/GemBalance';
 import analytics from '@react-native-firebase/analytics';
+import { useAuth } from '../context/AuthContext';
 
 // Define the background task
 const BACKGROUND_FETCH_TASK = 'background-fetch-task';
@@ -126,9 +127,25 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// Define keysToSnakeCase locally for now
+const keysToSnakeCase = (obj: any): any => {
+    if (typeof obj !== 'object' || obj === null) {
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(keysToSnakeCase);
+    }
+    return Object.keys(obj).reduce((acc, key) => {
+        const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+        acc[snakeCaseKey] = keysToSnakeCase(obj[key]);
+        return acc;
+    }, {} as any);
+};
+
 const Home: React.FC = () => {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { petData, setPetData } = useData();
+  const { petData, setPetData, isLoading, reloadData } = useData();
+  const { user } = useAuth();
   const { 
     isAvailable, 
     dailySteps, 
@@ -146,9 +163,8 @@ const Home: React.FC = () => {
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
   const eggShakeAnim = useRef(new Animated.Value(0)).current;
-  const buttonShakeAnim = useRef(new Animated.Value(0)).current;
+  const buttonPulseAnim = useRef(new Animated.Value(1)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
   
   const appState = useRef(AppState.currentState);
@@ -161,21 +177,38 @@ const Home: React.FC = () => {
   // Welcome screen animations
   useEffect(() => {
     if (!petData) {
-      // Fade in and slide up animation
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-          easing: Easing.out(Easing.quad),
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-          easing: Easing.out(Easing.quad),
-        }),
-      ]).start();
+      // Start fade-in
+      const fadeIn = Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.quad),
+      });
+
+      // Start button pulse loop (after a short delay? or parallel?)
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(buttonPulseAnim, {
+            toValue: 1.05, // Scale up slightly
+            duration: 700,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(buttonPulseAnim, {
+            toValue: 1, // Scale back down
+            duration: 700,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ])
+      );
+
+      // Run animations
+      Animated.parallel([fadeIn, pulse]).start();
+    } else {
+      // Optional: Reset animations if petData loads?
+      fadeAnim.setValue(0);
+      buttonPulseAnim.setValue(1);
     }
   }, [petData]);
   
@@ -252,7 +285,6 @@ const Home: React.FC = () => {
               totalStepsBeforeToday: petData.totalStepsBeforeToday 
             };
             setPetData(updatedPet);
-            await savePetData(updatedPet);
           } else {
             console.log('No step delta detected, petData not updated.');
           }
@@ -427,17 +459,17 @@ const Home: React.FC = () => {
 
     // Create button shake sequence
     const buttonShakeSequence = Animated.sequence([
-      Animated.timing(buttonShakeAnim, {
+      Animated.timing(buttonPulseAnim, {
         toValue: 2,
         duration: 100,
         useNativeDriver: true,
       }),
-      Animated.timing(buttonShakeAnim, {
+      Animated.timing(buttonPulseAnim, {
         toValue: -2,
         duration: 200,
         useNativeDriver: true,
       }),
-      Animated.timing(buttonShakeAnim, {
+      Animated.timing(buttonPulseAnim, {
         toValue: 0,
         duration: 100,
         useNativeDriver: true,
@@ -585,7 +617,15 @@ const Home: React.FC = () => {
           });
         }
       } else if (petData.growthStage === 'Egg' /* ... Egg logic ... */ ) {
-         // ... (Egg logic) ...
+         // Update Egg state (steps, xp) without calling savePetData here
+         const updatedEggPet = {
+           ...petData,
+           totalSteps: totalStepsToUpdate,
+           xp: (petData.xp || 0) + (totalStepsToUpdate - (petData.totalSteps || 0)), // Add delta XP
+         };
+         setPetData(updatedEggPet);
+         // The Pedometer listener already calls setPetData for eggs, so this might be redundant
+         // await savePetData(updatedEggPet); // Remove this
       }
       
     } catch (error) { 
@@ -612,7 +652,6 @@ const Home: React.FC = () => {
       
       // Create a new pet with 0 steps instead of current steps
       const newPet = await createNewPet(0);
-      await savePetData(newPet);
       setPetData(newPet);
       
       // Reset step counters to 0 since we're starting fresh
@@ -703,9 +742,8 @@ const Home: React.FC = () => {
           } catch (analyticsError) {
             console.error('[Analytics] Error logging egg_hatch event:', analyticsError);
           }
-
+          
           setPetData(updatedPet);
-          await savePetData(updatedPet); 
 
           navigation.navigate('PetHatching', { petType: updatedPet.type });
 
@@ -777,17 +815,11 @@ const Home: React.FC = () => {
     
     // Check if already fed today
     const now = new Date();
-    const lastFed = petData.miniGames.feed.lastClaimed 
-      ? new Date(petData.miniGames.feed.lastClaimed) 
-      : null;
-    
-    if (lastFed && isSameDay(lastFed, now) && petData.miniGames.feed.claimedToday) {
-      playSound('action-fail');
-      Alert.alert(
-        'Already Fed Today',
-        'You have already fed your pet today. Come back tomorrow!',
-        [{ text: 'OK' }]
-      );
+    // Use optional chaining here
+    const lastFed = petData?.miniGames?.feed?.lastClaimed ? new Date(petData.miniGames.feed.lastClaimed) : null;
+    // Use optional chaining here
+    if (lastFed && isSameDay(lastFed, now) && petData?.miniGames?.feed?.claimedToday) {
+      Alert.alert('Already Fed', 'You have already fed your pet today!');
       return;
     }
     
@@ -819,7 +851,7 @@ const Home: React.FC = () => {
       } catch (analyticsError) {
         console.error('[Analytics] Error logging activity_feed_complete event:', analyticsError);
       }
-
+      
       if (leveledUp) {
         Alert.alert(
           'Pet Fed',
@@ -846,8 +878,12 @@ const Home: React.FC = () => {
     if (!petData) return;
     
     // Check fetch claims today
-    const claims = petData.miniGames.fetch.claimsToday || 0;
-    if (claims >= 2) {
+    const MAX_FETCH_CLAIMS = 3;
+    // Use optional chaining and nullish coalescing
+    const fetchClaimsToday = petData?.miniGames?.fetch?.claimsToday ?? 0;
+    const canFetchToday = fetchClaimsToday < MAX_FETCH_CLAIMS;
+    
+    if (!canFetchToday) {
       playSound('action-fail');
       Alert.alert(
         'Fetch Limit Reached',
@@ -858,7 +894,7 @@ const Home: React.FC = () => {
     }
     
     // Check if enough steps
-    const stepsNeeded = (claims + 1) * 1000; // 1000 steps for first claim, 2000 for second
+    const stepsNeeded = (fetchClaimsToday + 1) * 1000; // 1000 steps for first claim, 2000 for second
     if (dailySteps < stepsNeeded) {
       playSound('action-fail');
       Alert.alert(
@@ -873,10 +909,12 @@ const Home: React.FC = () => {
     const updatedPet = { ...petData };
     const now = new Date();
     
-    // Update claims
-    updatedPet.miniGames.fetch.claimsToday = claims + 1;
-    updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
-    
+    // Safely update nested property
+    if (updatedPet.miniGames?.fetch) {
+      updatedPet.miniGames.fetch.claimsToday = fetchClaimsToday + 1;
+      updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
+    }
+
     // Save and update with XP reward
     updatePetWithSteps(updatedPet, 0, 50).then(async ({ updatedPet: newPet, leveledUp }) => {
       setPetData(newPet);
@@ -885,16 +923,16 @@ const Home: React.FC = () => {
       // Log activity_fetch_complete event
       try {
         await analytics().logEvent('activity_fetch_complete', { 
-          attempt_number: claims + 1 // Log which attempt (1st or 2nd)
+          attempt_number: fetchClaimsToday + 1 // Log which attempt (1st or 2nd)
         });
-        console.log(`[Analytics] Logged activity_fetch_complete event for attempt: ${claims + 1}`);
+        console.log(`[Analytics] Logged activity_fetch_complete event for attempt: ${fetchClaimsToday + 1}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging activity_fetch_complete event:', analyticsError);
       }
-
+      
       if (leveledUp) {
         Alert.alert(
-          'Fetch Complete',
+          'Good Fetch!',
           'Your pet had fun playing fetch! You earned 50 XP, which leveled up your pet!',
           [{ text: 'Great!' }]
         );
@@ -905,7 +943,7 @@ const Home: React.FC = () => {
         });
       } else {
         Alert.alert(
-          'Fetch Complete',
+          'Good Fetch!',
           'Your pet had fun playing fetch! You earned 50 XP.',
           [{ text: 'Great!' }]
         );
@@ -959,7 +997,7 @@ const Home: React.FC = () => {
           } catch (analyticsError) {
             console.error('[Analytics] Error logging activity_adventure_complete event:', analyticsError);
           }
-
+          
           if (leveledUp) {
             Alert.alert(
               'Adventure Complete',
@@ -1000,9 +1038,14 @@ const Home: React.FC = () => {
         [{ text: 'Let\'s Go!' }]
       );
       
+      if (updatedPet.miniGames?.adventure) {
+        updatedPet.miniGames.adventure.isActive = true;
+        updatedPet.miniGames.adventure.lastStarted = new Date().toISOString();
+        updatedPet.miniGames.adventure.lastCompleted = null;
+        updatedPet.miniGames.adventure.currentProgress = 0; // Reset progress
+      }
+      playSound('activity-claim');
       setPetData(updatedPet);
-      // Save the updated pet
-      updatePetWithSteps(updatedPet, 0);
     }
   };
   
@@ -1159,8 +1202,8 @@ const Home: React.FC = () => {
     };
   }, [lastKnownDate]);
   
-  // If no pet data, show pet selection screen
-  if (!petData) {
+  // If no pet data AND not loading, show pet selection screen
+  if (!isLoading && !petData) {
     return (
       <View style={styles.container}>
         <StatusBar style="dark" />
@@ -1170,56 +1213,185 @@ const Home: React.FC = () => {
               styles.welcomeContent,
               {
                 opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
               }
             ]}
           >
             <Text style={styles.emptyTitle}>Welcome to StepPet!</Text>
             <Text style={styles.emptyText}>
-              Looks like you don't have a pet yet. Let's get started by hatching an egg!
+              Hatch your egg to begin the adventure!
             </Text>
-            <Button
-              title="Get Your Egg"
-              onPress={async () => {
-                console.log('[Home.tsx] Get Your Egg pressed');
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                try {
-                  // Log get_first_egg event
-                  try {
-                    await analytics().logEvent('get_first_egg');
-                    console.log('[Analytics] Logged get_first_egg event');
-                  } catch (analyticsError) {
-                    console.error('[Analytics] Error logging get_first_egg event:', analyticsError);
+            <Animated.View 
+              style={{
+                 transform: [{ scale: buttonPulseAnim }], 
+                 alignSelf: 'stretch', // Ensure wrapper takes full width if needed
+                 alignItems: 'center' // Center the button within the wrapper
+               }}
+            >
+              <Button
+                title="Get Your Egg"
+                onPress={async () => {
+                  if (!user?.id) {
+                      console.error('[Home] Cannot get egg, user not logged in.');
+                      Alert.alert('Error', 'User not logged in.');
+                      return;
                   }
+                  const userId = user.id;
+                  console.log('[Home.tsx] Get Your Egg pressed for user:', userId);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  // TODO: Add a loading indicator state for the button
 
-                  console.log('[Home.tsx] Calling createNewPet...');
-                  const newPet = await createNewPet(0, '', 'mythic', 'Egg');
-                  console.log('[Home.tsx] createNewPet returned:', JSON.stringify(newPet));
-                  
-                  console.log('[Home.tsx] Calling savePetData...');
-                  await savePetData(newPet);
-                  console.log('[Home.tsx] savePetData completed.');
-                  
-                  console.log('[Home.tsx] Calling setPetData...');
-                  setPetData(newPet);
-                  console.log('[Home.tsx] Calling step setters...');
-                  setDailySteps(0);
-                  setWeeklySteps(0);
-                  setTotalSteps(0);
-                  console.log('[Home.tsx] State updates complete.');
-                } catch (error) {
-                  // Keep the catch block from previous attempt just in case
-                  console.error('[Home.tsx] Error getting first egg:', error);
-                  Alert.alert(
-                    'Error',
-                    'Could not get your first egg. Please ensure permissions are granted and try again.',
-                    [{ text: 'OK' }]
-                  );
-                }
-              }}
-              size="large"
-              style={styles.startButton}
-            />
+                  try {
+                      // 1. Check if a pet already exists for this user
+                      console.log(`[Home] Checking if pet exists for user ${userId}...`);
+                      const { data: existingPet, error: checkError } = await supabase
+                          .from('pets')
+                          .select('id') // Select only ID for efficiency
+                          .eq('user_id', userId)
+                          .maybeSingle(); // Returns one row or null
+
+                      if (checkError) {
+                          console.error('[Home] Error checking for existing pet:', checkError);
+                          throw new Error('Could not verify pet status. Please try again.');
+                      }
+
+                      if (existingPet) {
+                          // Pet already exists! Do not create another.
+                          console.warn(`[Home] Pet (${existingPet.id}) already exists for user ${userId}. Button press ignored, triggering context refresh.`);
+                          // Trigger a data reload from the context
+                          reloadData(); // <-- Call reloadData here
+                          return; // Stop execution here
+                      }
+
+                      // 2. Pet does NOT exist - Proceed with creation
+                      console.log(`[Home] No existing pet found for user ${userId}. Proceeding with creation.`);
+                      try {
+                        await analytics().logEvent('get_first_egg');
+                        console.log('[Analytics] Logged get_first_egg event');
+                      } catch (analyticsError) {
+                        console.error('[Analytics] Error logging get_first_egg event:', analyticsError);
+                      }
+
+                      // --- Pet Creation Logic --- (Keep existing logic)
+                      console.log('[Home.tsx] Calling createNewPet...');
+                      const newPetObject: PetData = await createNewPet(0, '', 'mythic', 'Egg');
+                      const petId = newPetObject.id;
+                      console.log('[Home.tsx] createNewPet returned:', JSON.stringify(newPetObject));
+
+                      const { miniGames: initialMiniGames, milestones: initialMilestones, ...petFieldsRaw } = newPetObject;
+                      const petFieldsForInsert = keysToSnakeCase(petFieldsRaw);
+                      petFieldsForInsert.user_id = userId;
+                      petFieldsForInsert.id = petId;
+
+                      console.log('[Home] Attempting direct Pet INSERT:', petFieldsForInsert);
+                      const { error: petInsertError } = await supabase
+                          .from('pets')
+                          .insert(petFieldsForInsert);
+
+                      if (petInsertError) {
+                           // This check might be less likely now, but keep for safety
+                           if (petInsertError.code === '23505' && petInsertError.message.includes('pets_user_id_key')) {
+                               console.warn('[Home] Constraint Violation during *creation* insert (unexpected).');
+                           } else {
+                               console.error('[Home] Direct Pet INSERT failed during creation:', petInsertError);
+                               throw new Error('Failed to create initial pet record.');
+                           }
+                      } else {
+                           console.log('[Home] Direct Pet INSERT successful during creation.');
+                           
+                           // Insert MiniGames only if Pet insert succeeded
+                           // (Use the original MiniGames insertion logic that iterates object keys)
+                           if (initialMiniGames) {
+                                console.log('[Home] Preparing initial MiniGames inserts...');
+                                const gameTypes = Object.keys(initialMiniGames) as Array<keyof MiniGames>;
+                                const insertPromises = [];
+                                for (const gameType of gameTypes) {
+                                    const gameData = initialMiniGames[gameType];
+                                    let rowToInsert: any = { pet_id: petId, game_type: gameType };
+                                    // Add specific fields...
+                                    if (gameType === 'feed') {
+                                        if ('lastClaimed' in gameData) rowToInsert.last_claimed = gameData.lastClaimed || null;
+                                        if ('claimedToday' in gameData) rowToInsert.claimed_today = gameData.claimedToday;
+                                    } else if (gameType === 'fetch') {
+                                        if ('lastClaimed' in gameData) rowToInsert.last_claimed = gameData.lastClaimed || null;
+                                        if ('claimsToday' in gameData) rowToInsert.claims_today = gameData.claimsToday;
+                                    } else if (gameType === 'adventure') {
+                                        if ('lastStarted' in gameData) rowToInsert.last_started = gameData.lastStarted || null;
+                                        if ('lastCompleted' in gameData) rowToInsert.last_completed = gameData.lastCompleted || null;
+                                        if ('currentProgress' in gameData) rowToInsert.current_progress = gameData.currentProgress;
+                                        if ('isActive' in gameData) rowToInsert.is_active = gameData.isActive;
+                                    }
+                                    // Clean undefined...
+                                    Object.keys(rowToInsert).forEach(key => { if (rowToInsert[key] === undefined) { rowToInsert[key] = null; } });
+                                    console.log(`[Home] Inserting MiniGame row:`, rowToInsert);
+                                    insertPromises.push(supabase.from('mini_games').insert(rowToInsert));
+                                }
+                               const results = await Promise.allSettled(insertPromises);
+                               results.forEach((result, index) => { 
+                                 if (result.status === 'rejected') {
+                                     const supabaseError = result.reason?.error || result.reason;
+                                     console.error(`[Home] Error inserting MiniGame (${gameTypes[index]}):`, supabaseError);
+                                 } else {
+                                     console.log(`[Home] MiniGame (${gameTypes[index]}) successfully inserted.`);
+                                 }
+                               });
+                           } // End of MiniGames logic
+
+                           // 5. Prepare and Insert Initial Milestones Data (Keep this new block)
+                           if (initialMilestones && initialMilestones.length > 0) {
+                             console.log('[Home] Preparing initial Milestones inserts...');
+                             // Use for...of loop for sequential awaiting
+                             for (const milestone of initialMilestones) {
+                                // Map the code's 'id' field to the database's 'milestone_id' column
+                                // Omit the 'id' field itself from the insert object (as it's auto-generated UUID)
+                                const { id: milestoneIdentifier, ...restOfMilestone } = milestone;
+                                const milestoneToInsert = {
+                                  ...keysToSnakeCase(restOfMilestone),
+                                  milestone_id: milestoneIdentifier, // Map to the correct DB column name
+                                  pet_id: petId, 
+                                };
+                                Object.keys(milestoneToInsert).forEach(key => { 
+                                  if (milestoneToInsert[key] === undefined) { 
+                                      milestoneToInsert[key] = null; 
+                                  } 
+                                });
+                                
+                                try {
+                                  console.log(`[Home] Attempting insert for Milestone ID: ${milestoneIdentifier}`, milestoneToInsert);
+                                  const { error: insertError } = await supabase
+                                    .from('milestones')
+                                    .insert(milestoneToInsert); // Insert object targeting milestone_id
+                                    
+                                  if (insertError) {
+                                    console.error(`[Home] FAILED to insert Milestone ID (${milestoneIdentifier}):`, JSON.stringify(insertError, null, 2));
+                                  } else {
+                                    console.log(`[Home] Successfully inserted Milestone ID (${milestoneIdentifier}).`);
+                                  }
+                                } catch (catchError) {
+                                  console.error(`[Home] CRITICAL error during insert for Milestone ID (${milestoneIdentifier}):`, catchError);
+                                }
+                             } // End for loop
+                             console.log('[Home] Finished attempting milestone inserts.');
+                             
+                           } else {
+                             console.log('[Home] No initial milestones defined or empty array.');
+                           }
+                      } // End of successful pet insert block
+
+                      // 6. Update DataContext state AFTER trying inserts
+                      console.log('[Home.tsx] Calling setPetData to update context state after creation.');
+                      setPetData(newPetObject); // Update context with the pet object we tried to insert
+
+                      console.log('[Home.tsx] State updates complete after creation.');
+
+                  } catch (error) {
+                      console.error('[Home.tsx] Error getting first egg:', error);
+                      Alert.alert('Error', 'Could not get your first egg. Please try again.');
+                  }
+                }}
+                size="large"
+                style={styles.startButton}
+              />
+            </Animated.View>
           </Animated.View>
         </View>
       </View>
@@ -1227,20 +1399,28 @@ const Home: React.FC = () => {
   }
   
   // Determine feed status
-  const canFeedToday = !petData.miniGames.feed.claimedToday || 
-    !isSameDay(new Date(petData.miniGames.feed.lastClaimed || ''), new Date());
-  
+  if (!petData) return null; // Added check for petData
+
+  // Use optional chaining for feed claimed status
+  const isFeedClaimedToday = petData?.miniGames?.feed?.claimedToday;
+  // Use optional chaining + date check for feed last claimed status
+  const wasFeedClaimedYesterdayOrEarlier = petData?.miniGames?.feed?.lastClaimed ? !isSameDay(new Date(petData.miniGames.feed.lastClaimed), new Date()) : true; // Treat no claim date as claimable
+
+  const canFeedToday = !isFeedClaimedToday || wasFeedClaimedYesterdayOrEarlier;
+
   // Determine fetch status
-  const fetchClaimsToday = petData.miniGames.fetch.claimsToday || 0;
-  const canFetchToday = fetchClaimsToday < 2;
+  const MAX_FETCH_CLAIMS = 3;
+  // Use optional chaining and nullish coalescing
+  const fetchClaimsToday = petData?.miniGames?.fetch?.claimsToday ?? 0;
+  const canFetchToday = fetchClaimsToday < MAX_FETCH_CLAIMS;
   
   // Determine adventure status
-  const adventureActive = petData.miniGames.adventure.isActive;
-  const adventureComplete = petData.miniGames.adventure.lastCompleted 
-    ? Math.floor((new Date().getTime() - new Date(petData.miniGames.adventure.lastCompleted).getTime()) 
-      / (1000 * 60 * 60 * 24)) < 7
-    : false;
-  
+  const adventureActive = petData?.miniGames?.adventure?.isActive;
+  let adventureProgress = 0;
+  if (adventureActive && petData?.miniGames?.adventure?.currentProgress) {
+    adventureProgress = petData.miniGames.adventure.currentProgress;
+  }
+
   return (
     <View style={[
       styles.container,
@@ -1375,7 +1555,7 @@ const Home: React.FC = () => {
                   {petData.totalSteps >= petData.stepsToHatch && (
                     <Animated.View style={{
                       transform: [{
-                        translateX: buttonShakeAnim
+                        translateX: buttonPulseAnim
                       }]
                     }}>
                       <TouchableOpacity 
@@ -1443,8 +1623,8 @@ const Home: React.FC = () => {
             icon="map-outline"
             stepsRequired={15000}
             stepsProgress={adventureActive ? weeklySteps : 0}
-            isActive={!adventureComplete && !adventureActive}
-            isComplete={adventureComplete}
+            isActive={!adventureActive}
+            isComplete={false}
             isLocked={petData.growthStage === 'Egg'}
             onPress={() => handleMiniGamePress('adventure')}
             color="#8C52FF"

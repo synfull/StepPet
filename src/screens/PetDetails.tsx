@@ -20,7 +20,7 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { useData } from '../context/DataContext';
 import { PedometerContext } from '../context/PedometerContext';
 import { formatSimpleDate } from '../utils/dateUtils';
-import { savePetData, LEVEL_REQUIREMENTS } from '../utils/petUtils';
+import { LEVEL_REQUIREMENTS } from '../utils/petUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
 import Header from '../components/Header';
@@ -102,7 +102,6 @@ const PetDetails: React.FC<PetDetailsProps> = ({ route }) => {
     
     try {
       const updatedPet = { ...petData, name: editedName.trim() };
-      await savePetData(updatedPet);
       setPetData(updatedPet);
       setIsEditing(false);
       

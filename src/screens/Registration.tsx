@@ -20,8 +20,10 @@ import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types/navigationTypes';
 import { UserData, SubscriptionStatus } from '../types/userTypes';
-import { createNewPet, savePetData } from '../utils/petUtils';
+import { createNewPet } from '../utils/petUtils';
+import { useData } from '../context/DataContext';
 import { supabase } from '../lib/supabase';
+import { PetData, MiniGames } from '../types/petTypes';
 
 // Custom ID generator for React Native
 const generateId = () => {
@@ -34,11 +36,28 @@ const generateId = () => {
 
 type RegistrationNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Registration'>;
 
+// Helper function to convert object keys from camelCase to snake_case (can be moved to a utils file)
+const keysToSnakeCase = (obj: any): any => {
+    if (typeof obj !== 'object' || obj === null) {
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(keysToSnakeCase);
+    }
+    return Object.keys(obj).reduce((acc, key) => {
+        // Basic conversion, might need refinement for nested objects if not already handled
+        const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+        acc[snakeCaseKey] = keysToSnakeCase(obj[key]);
+        return acc;
+    }, {} as any);
+};
+
 const Registration: React.FC = () => {
   const navigation = useNavigation<RegistrationNavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserData, setRegistrationStatus } = useUser();
   const { signUp } = useAuth();
+  const { setPetData } = useData();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -126,7 +145,7 @@ const Registration: React.FC = () => {
         return;
       }
 
-      // Sign up with Supabase using the provided email
+      // Sign up with Supabase
       const { error: authError } = await signUp(email, password);
       if (authError) {
         console.error('Auth error:', authError);
@@ -138,52 +157,163 @@ const Registration: React.FC = () => {
       if (!session?.user?.id) {
         throw new Error('Failed to get user session');
       }
+      const userId = session.user.id; // Store user ID
 
-      // --- Refined Error Handling ---
-      // 1. Attempt Profile Insertion
+      // Insert Profile (as before)
       const { data: insertedProfileData, error: profileInsertError } = await supabase
         .from('profiles')
         .insert({
-          id: session.user.id,
+          id: userId,
           username: username,
           email: email,
-          pet_name: 'My Pet',
-          pet_type: 'Egg',
-          pet_level: 1,
-          weekly_steps: 0,
-          monthly_steps: 0,
-          all_time_steps: 0,
           last_active: new Date().toISOString(),
           created_at: new Date().toISOString()
         })
-        .select() // Select after insert (optional, but can confirm insert)
-        .single(); // Use single if you expect one row back on success
+        .select()
+        .single();
 
-      // 2. Check specifically for profile insertion errors
       if (profileInsertError) {
-          console.error('Profile insertion failed:', JSON.stringify(profileInsertError));
+        console.error('Profile insertion failed:', JSON.stringify(profileInsertError));
 
-          // Determine specific error message
-          let specificErrorMessage: string;
-          if (profileInsertError.code === '23505') {
-             specificErrorMessage = 'Username is already taken. Please choose another.';
-          } else {
-             specificErrorMessage = 'Failed to save user profile. Please try again.';
+        // Determine specific error message
+        let specificErrorMessage: string;
+        if (profileInsertError.code === '23505') {
+          specificErrorMessage = 'Username is already taken. Please choose another.';
+        } else {
+          specificErrorMessage = 'Failed to save user profile. Please try again.';
+        }
+
+        throw new Error(specificErrorMessage);
+      }
+      console.log('Profile created successfully:', insertedProfileData);
+
+      // --- New Pet Creation ---
+      // 1. Create the initial pet object in memory
+      const newPetObject: PetData = await createNewPet(0, '', 'mythic', 'Egg');
+      const petId = newPetObject.id; // Get the generated pet ID
+
+      // 2. Prepare Pet Data for Supabase Insert (snake_case, add user_id)
+      const { miniGames: initialMiniGames, milestones: initialMilestones, ...petFieldsRaw } = newPetObject;
+      const petFieldsForInsert = keysToSnakeCase(petFieldsRaw);
+      petFieldsForInsert.user_id = userId; // Add user_id
+      // Ensure ID is included
+      petFieldsForInsert.id = petId;
+
+      console.log('[Registration] Attempting direct Pet INSERT:', petFieldsForInsert);
+      // 3. Direct INSERT into 'pets' table
+      const { error: petInsertError } = await supabase
+        .from('pets')
+        .insert(petFieldsForInsert);
+
+      if (petInsertError) {
+        console.error('[Registration] Direct Pet INSERT failed:', petInsertError);
+        // Handle potential errors, maybe try to clean up profile?
+        throw new Error('Failed to create initial pet record.');
+      }
+      console.log('[Registration] Direct Pet INSERT successful.');
+
+      // 4. Prepare and Insert Initial MiniGames Data
+      if (initialMiniGames) {
+        console.log('[Registration] Preparing initial MiniGames inserts...');
+        const gameTypes = Object.keys(initialMiniGames) as Array<keyof MiniGames>;
+        const insertPromises = [];
+
+        for (const gameType of gameTypes) {
+          const gameData = initialMiniGames[gameType];
+          let rowToInsert: any = {
+            pet_id: petId, // Use the pet's ID
+            game_type: gameType,
+          };
+
+          // Add fields specific to game type (similar to DataContext logic)
+          if (gameType === 'feed') {
+            if ('lastClaimed' in gameData) rowToInsert.last_claimed = gameData.lastClaimed || null;
+            if ('claimedToday' in gameData) rowToInsert.claimed_today = gameData.claimedToday;
+          } else if (gameType === 'fetch') {
+            if ('lastClaimed' in gameData) rowToInsert.last_claimed = gameData.lastClaimed || null;
+            if ('claimsToday' in gameData) rowToInsert.claims_today = gameData.claimsToday;
+          } else if (gameType === 'adventure') {
+            if ('lastStarted' in gameData) rowToInsert.last_started = gameData.lastStarted || null;
+            if ('lastCompleted' in gameData) rowToInsert.last_completed = gameData.lastCompleted || null;
+            if ('currentProgress' in gameData) rowToInsert.current_progress = gameData.currentProgress;
+            if ('isActive' in gameData) rowToInsert.is_active = gameData.isActive;
           }
 
-          // --- Modification Start --- 
-          // Throw error instead of setting state and returning here
-          throw new Error(specificErrorMessage);
-          // --- Modification End ---
+          // Clean up undefined values
+          Object.keys(rowToInsert).forEach(key => {
+            if (rowToInsert[key] === undefined) {
+              rowToInsert[key] = null;
+            }
+          });
+
+          console.log(`[Registration] Inserting MiniGame row:`, rowToInsert);
+          insertPromises.push(
+            supabase.from('mini_games').insert(rowToInsert)
+          );
+        }
+
+        // Execute all inserts
+        const results = await Promise.allSettled(insertPromises);
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const supabaseError = result.reason?.error || result.reason;
+            console.error(`[Registration] Error inserting MiniGame (${gameTypes[index]}):`, supabaseError);
+            // Decide if this is critical - maybe throw an error?
+          } else {
+            console.log(`[Registration] MiniGame (${gameTypes[index]}) successfully inserted.`);
+          }
+        });
       }
 
-      // 3. If no error, profile creation was successful
-       console.log('Profile created successfully:', insertedProfileData);
-      // --- End Refined Error Handling ---
+      // 5. Prepare and Insert Initial Milestones Data
+      if (initialMilestones && initialMilestones.length > 0) {
+        console.log('[Registration] Preparing initial Milestones inserts...');
+        // Use for...of loop for sequential awaiting and better error catching
+        for (const milestone of initialMilestones) {
+          // Map the code's 'id' field to the database's 'milestone_id' column
+          // Omit the 'id' field itself from the insert object (as it's auto-generated UUID)
+          const { id: milestoneIdentifier, ...restOfMilestone } = milestone;
+          const milestoneToInsert = {
+            ...keysToSnakeCase(restOfMilestone), // Convert other fields (steps, reward, claimed, etc.)
+            milestone_id: milestoneIdentifier, // Map to the correct DB column name
+            pet_id: petId, // Add the foreign key
+          };
+          // Clean up undefined values before insert
+          Object.keys(milestoneToInsert).forEach(key => { 
+            if (milestoneToInsert[key] === undefined) { 
+                milestoneToInsert[key] = null; 
+            } 
+          });
+          
+          try {
+            console.log(`[Registration] Attempting insert for Milestone ID: ${milestoneIdentifier}`, milestoneToInsert);
+            const { error: insertError } = await supabase
+              .from('milestones')
+              .insert(milestoneToInsert); // Insert object targeting milestone_id
+              
+            if (insertError) {
+                // Log the specific error from the await
+                console.error(`[Registration] FAILED to insert Milestone ID (${milestoneIdentifier}):`, JSON.stringify(insertError, null, 2)); 
+                // Optionally: throw insertError; 
+            } else {
+                console.log(`[Registration] Successfully inserted Milestone ID (${milestoneIdentifier}).`);
+            }
+          } catch (catchError) {
+              // Catch errors not caught by the supabase client itself
+              console.error(`[Registration] CRITICAL error during insert for Milestone ID (${milestoneIdentifier}):`, catchError);
+          }
+        } // End for loop
+         console.log('[Registration] Finished attempting milestone inserts.');
 
-      // Create new user data
+      } else {
+        console.log('[Registration] No initial milestones defined or empty array.');
+      }
+
+      // --- End New Pet Creation ---
+
+      // Create and save UserData (local context/AsyncStorage)
       const newUser: UserData = {
-        id: session.user.id,  // Use Supabase user ID instead of generating one
+        id: userId, // Use Supabase user ID
         username,
         createdAt: new Date().toISOString(),
         lastActive: new Date().toISOString(),
@@ -196,22 +326,17 @@ const Registration: React.FC = () => {
         },
         isRegistered: true
       };
-
-      // Save user data
       await AsyncStorage.setItem('@user_data', JSON.stringify(newUser));
       console.log('[Registration.tsx] Calling setUserData');
       setUserData(newUser);
       console.log('[Registration.tsx] Calling setRegistrationStatus');
       setRegistrationStatus({ isRegistered: true, lastCheck: new Date().toISOString() }, 'handleRegister');
 
+      // Update DataContext state AFTER successful direct DB inserts
+      console.log('[Registration.tsx] Calling setPetData to update context state.');
+      setPetData(newPetObject); // Update context state - the save triggered by this should now be an UPDATE
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      // Create a new pet with 0 steps
-      const newPet = await createNewPet(0, '', 'mythic', 'Egg');
-      await savePetData(newPet);
-      
-      // Navigate to Main screen after registration
-      navigation.navigate('Main');
 
     } catch (error) {
       console.error('Error during registration:', error);

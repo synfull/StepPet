@@ -25,13 +25,13 @@ const App = () => {
       <NavigationContainer>
         <UserProvider>
           <AuthProvider>
-            <DataProvider>
-              <NotificationProvider>
-                <GemProvider>
+        <DataProvider>
+            <NotificationProvider>
+              <GemProvider>
                   <AppNavigator />
-                </GemProvider>
-              </NotificationProvider>
-            </DataProvider>
+              </GemProvider>
+            </NotificationProvider>
+        </DataProvider>
           </AuthProvider>
         </UserProvider>
       </NavigationContainer>

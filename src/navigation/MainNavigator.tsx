@@ -50,7 +50,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const MainNavigator: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { registrationStatus, isLoading: userLoading } = useUser();
-  
+
   // Log state values on each render
   console.log(`[MainNavigator] Rendering. Auth Loading: ${authLoading}, User Loading: ${userLoading}, User: ${!!user}, Reg Status: ${registrationStatus?.isRegistered}`);
 

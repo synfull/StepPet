@@ -441,8 +441,8 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
       console.error('[petUtils.ts] Pedometer permission not granted.');
       throw new Error('Pedometer permission denied.');
     } else {
-        const todayMidnight = new Date();
-        todayMidnight.setHours(0, 0, 0, 0);
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
         console.log('[petUtils.ts] Getting pedometer steps...');
         const { steps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
         currentDaySteps = steps;
@@ -650,14 +650,6 @@ export const updatePetWithSteps = async (
       milestoneReached = milestone.id;
       break;
     }
-  }
-  
-  // Save the updated pet only if there was a change in steps
-  if (newStepsDelta > 0) {
-      console.log("[updatePetWithSteps REAPPLY] Saving updated pet data...");
-      await savePetData(updatedPet);
-  } else {
-      console.log("[updatePetWithSteps REAPPLY] No step delta, skipping save.");
   }
   
   return { updatedPet, leveledUp, milestoneReached };

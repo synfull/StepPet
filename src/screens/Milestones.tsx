@@ -321,7 +321,7 @@ const Milestones: React.FC = () => {
         console.error('[Analytics] Error logging milestone_claim (color/bg) event:', analyticsError);
       }
     }
-
+    
     // Navigate to milestone unlocked screen
     navigation.navigate('MilestoneUnlocked', { milestone: updatedMilestone });
   };

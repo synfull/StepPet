@@ -146,43 +146,67 @@ const Friends: React.FC = () => {
     
     setLoading(true);
     try {
-      // First get all accepted friendships
+      // 1. Get accepted friendship IDs
       const { data: friendships, error: friendshipsError } = await supabase
         .from('friendships')
-        .select('id, user_id, friend_id')
+        .select('user_id, friend_id') // Select only needed IDs
         .eq('status', 'accepted')
         .or(`user_id.eq.${userData.id},friend_id.eq.${userData.id}`);
 
       if (friendshipsError) throw friendshipsError;
 
-      // Get the IDs of all friends
-      const friendIds = friendships.map(friendship => 
-        friendship.user_id === userData.id ? friendship.friend_id : friendship.user_id
-      );
+      // 2. Extract unique friend IDs (excluding self)
+      const friendIds = [ 
+          ...new Set( // Use Set to get unique IDs
+              friendships
+                .map(f => (f.user_id === userData.id ? f.friend_id : f.user_id))
+                .filter(id => id !== userData.id) // Ensure self is not included
+          )
+      ];
 
-      // Then get the profiles for these friends
+      if (friendIds.length === 0) {
+        setFriends([]); // No friends, clear list
+        setLoading(false);
+        return;
+      }
+      
+      // 3. Fetch profiles for friend IDs
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, username, pet_name, pet_type, pet_level, weekly_steps, monthly_steps, all_time_steps, last_active')
+        .select('id, username, last_active') // Select ONLY columns in profiles table
         .in('id', friendIds);
 
       if (profilesError) throw profilesError;
 
-      // Transform the data to get friend profiles
-      let friendList = profiles.map(profile => ({
-        id: profile.id,
-        username: profile.username,
-        pet_name: profile.pet_name,
-        pet_type: profile.pet_type,
-        pet_level: profile.pet_level,
-        weekly_steps: profile.weekly_steps,
-        monthly_steps: profile.monthly_steps,
-        all_time_steps: profile.all_time_steps,
-        last_active: profile.last_active,
-        isCrowned: false,
-      }));
+      // 4. Fetch pets for friend IDs
+      const { data: pets, error: petsError } = await supabase
+        .from('pets') // Use actual pets table name
+        // Select necessary pet details + user_id for joining
+        .select('user_id, name, type, level, total_steps, weekly_steps, monthly_steps') 
+        .in('user_id', friendIds);
+        
+      if (petsError) throw petsError;
 
-      // Sort friends by step count based on current time period
+      // 5. Combine profile and pet data
+      const friendList: Friend[] = profiles.map(profile => {
+          // Find the corresponding pet for this profile
+          const pet = pets.find(p => p.user_id === profile.id);
+          return {
+              id: profile.id,
+              username: profile.username,
+              last_active: profile.last_active,
+              // Get pet details from the found pet object, provide defaults if no pet found
+              pet_name: pet?.name || 'N/A',
+              pet_type: pet?.type || '' as PetType, // Cast as PetType, default to empty string
+              pet_level: pet?.level || 0,
+              weekly_steps: pet?.weekly_steps || 0, // Assuming these columns exist in your pets table
+              monthly_steps: pet?.monthly_steps || 0, // Assuming these columns exist
+              all_time_steps: pet?.total_steps || 0, // Use total_steps for all time
+              isCrowned: false, // Will be set after sorting
+          };
+      });
+
+      // 6. Sort friends based on timePeriod (keep existing sort logic)
       friendList.sort((a, b) => {
         let aSteps, bSteps;
         switch (timePeriod) {
@@ -205,13 +229,13 @@ const Friends: React.FC = () => {
         return bSteps - aSteps;
       });
 
-      // Set crown for top 3 friends
-      friendList = friendList.map((friend, index) => ({
+      // 7. Set crown for top 3 friends (keep existing crown logic)
+      const crownedFriendList = friendList.map((friend, index) => ({
         ...friend,
         isCrowned: index < 3
       }));
 
-      setFriends(friendList);
+      setFriends(crownedFriendList);
     } catch (error) {
       console.error('Error loading friends:', error);
       Alert.alert('Error', 'Failed to load friends. Please try again.');
