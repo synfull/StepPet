@@ -520,115 +520,83 @@ const Home: React.FC = () => {
     try {
       if (!petData) return;
 
-      // console.warn('[Home.tsx - refreshStepData] --- SKIPPING PEDOMETER CALLS ---'); // Reverted
-
       const petCreationTime = new Date(petData.created);
-      
-      // --- TEMP: Comment out Pedometer calls --- // Reverted
-      // /*
-      // Get today's raw steps 
-      const todayMidnight = new Date();
+      const now = new Date(); // Get current time once
+
+      // 1. Get today's raw steps from Pedometer
+      const todayMidnight = new Date(now); // Use 'now' as base
       todayMidnight.setHours(0, 0, 0, 0);
-      const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
-      
-      // Get weekly steps 
-      const weeklyStepsCount = await fetchWeeklySteps(petCreationTime, petData.startingStepCount || 0);
-      
-      // Get total raw steps since creation timestamp
-      const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
-      // */
-      // --- END TEMP --- // Reverted
-      
-      // --- TEMP: Hardcode values for testing --- // Reverted
-      // const todayStepsRaw = 0;
-      // const weeklyStepsCount = 0;
-      // const totalStepsRaw = 0;
-      // console.warn('[Home.tsx - refreshStepData] Using hardcoded step values (0)');
-      // --- END TEMP --- // Reverted
-      
-      let dailyStepsToUpdate = 0;
-      let totalStepsToUpdate = 0;
-      let newStepsForUpdate = 0;
+      const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, now);
 
-      if (petData.growthStage === 'Egg') {
-        console.log('[Refresh - Egg]');
-        const currentTime = new Date();
-        console.log('Pet Creation Time:', petCreationTime.toISOString());
-        console.log('Starting Step Count:', petData.startingStepCount);
-        console.log('Current petData.totalSteps before calculation:', petData.totalSteps);
-        
-        // Calculate Today's Steps Correctly (for daily display)
-        if (isSameDay(petCreationTime, currentTime)) {
-          dailyStepsToUpdate = Math.max(0, todayStepsRaw - (petData.startingStepCount || 0));
-        } else {
-          dailyStepsToUpdate = todayStepsRaw;
-        }
-        console.log('Calculated dailyStepsToUpdate:', dailyStepsToUpdate);
-        
-        // Calculate TRUE Total Cumulative Steps
-        if (isSameDay(petCreationTime, currentTime)) {
-            // Egg created TODAY - Total is same as Today's calculated
-            totalStepsToUpdate = dailyStepsToUpdate;
-             console.log(`[Refresh Egg - TODAY] totalStepsToUpdate: ${totalStepsToUpdate}`);
-        } else {
-            // ** Log the value read from state **
-            console.log(`[Refresh Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
-            totalStepsToUpdate = (petData?.totalStepsBeforeToday || 0) + todayStepsRaw;
-            console.log(`[Refresh Egg - BEFORE] Calculated totalStepsToUpdate: ${totalStepsToUpdate} using totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0} and todayStepsRaw: ${todayStepsRaw}`);
-        }
-        
-        console.log('[Refresh - Egg End]');
-      } else {
-        // Logic for hatched pets
-        const startingStepCountForDaily = isSameDay(petCreationTime, new Date()) ? (petData.startingStepCount || 0) : 0;
-        dailyStepsToUpdate = Math.max(0, todayStepsRaw - startingStepCountForDaily);
+      // 2. Calculate Daily Steps for display
+      // Subtract starting steps ONLY if the pet was created today
+      const startingStepCountForDaily = isSameDay(petCreationTime, now) ? (petData.startingStepCount || 0) : 0;
+      const calculatedDailySteps = Math.max(0, todayStepsRaw - startingStepCountForDaily);
+      console.log(`[Refresh v5] Calculated Daily Steps: ${calculatedDailySteps} (Raw: ${todayStepsRaw}, StartToday: ${startingStepCountForDaily})`);
+      setDailySteps(calculatedDailySteps); // Update context for display
 
-        // Calculate total steps since creation (cumulative) CORRECTLY
-        let calculatedTotalSteps = 0;
-        if (isSameDay(petCreationTime, new Date())) {
-           // Created TODAY: Subtract starting count
-           calculatedTotalSteps = Math.max(0, totalStepsRaw - (petData.startingStepCount || 0));
-        } else {
-           // Created BEFORE today: Raw value is the total since creation
-           calculatedTotalSteps = totalStepsRaw;
-        }
-        totalStepsToUpdate = calculatedTotalSteps; // Assign to the variable used later
-        console.log(`[Refresh Hatched v4] Calculated totalStepsToUpdate (stepsSinceCreation): ${totalStepsToUpdate} (Raw: ${totalStepsRaw}, SameDay: ${isSameDay(petCreationTime, new Date())})`);
+      // 3. Calculate NEW steps since last update (for progress)
+      // Need the *absolute* total steps from pedometer *since creation* to compare against saved total
+      // This is still needed to know how many *new* steps occurred system-wide.
+      let absoluteTotalStepsSinceCreation = 0;
+      try {
+         const { steps: totalStepsRawPedometer } = await Pedometer.getStepCountAsync(petCreationTime, now);
+         if (isSameDay(petCreationTime, now)) {
+            // Created TODAY: Subtract starting count
+            absoluteTotalStepsSinceCreation = Math.max(0, totalStepsRawPedometer - (petData.startingStepCount || 0));
+         } else {
+            // Created BEFORE today: Raw value is the total since creation (assuming pedometer is reliable)
+            absoluteTotalStepsSinceCreation = totalStepsRawPedometer;
+         }
+         console.log(`[Refresh v5] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
+      } catch (pedometerError) {
+          console.error("[Refresh v5] Error fetching total steps from pedometer:", pedometerError);
+          // If pedometer fails, we can't reliably calculate delta. Maybe abort refresh?
+          // For now, let's assume 0 new steps if pedometer fails.
+          absoluteTotalStepsSinceCreation = petData.totalSteps || 0;
+          console.warn("[Refresh v5] Using saved totalSteps due to pedometer error.");
       }
 
-      // Update all step states with calculated values
-      setDailySteps(dailyStepsToUpdate);
-      setWeeklySteps(weeklyStepsCount);
-      setTotalSteps(totalStepsToUpdate); 
-      
-      // Update Pet Data 
-      if (petData.growthStage !== 'Egg') {
-        // Pass the CORRECT ABSOLUTE steps since CREATION
-        const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(
-            petData, 
-            totalStepsToUpdate // Pass correct absolute steps since creation
-        );
-        setPetData(refreshedPet); 
-        
-        if (leveledUp) {
-          navigation.navigate('PetLevelUp', {
-            level: refreshedPet.level,
-            petType: refreshedPet.type
-          });
-        }
-      } else if (petData.growthStage === 'Egg' /* ... Egg logic ... */ ) {
-         // Update Egg state (steps, xp) without calling savePetData here
-         const updatedEggPet = {
-           ...petData,
-           totalSteps: totalStepsToUpdate,
-           xp: (petData.xp || 0) + (totalStepsToUpdate - (petData.totalSteps || 0)), // Add delta XP
-         };
-         setPetData(updatedEggPet);
-         // The Pedometer listener already calls setPetData for eggs, so this might be redundant
-         // await savePetData(updatedEggPet); // Remove this
+
+      // Calculate the DELTA (new steps added since last save)
+      const savedTotalSteps = petData.totalSteps || 0;
+      const newStepsDelta = Math.max(0, absoluteTotalStepsSinceCreation - savedTotalSteps);
+      console.log(`[Refresh v5] Calculated New Steps Delta: ${newStepsDelta} (PedometerTotal: ${absoluteTotalStepsSinceCreation}, SavedTotal: ${savedTotalSteps})`);
+
+      // 4. Update Weekly Steps (Add delta to saved value)
+      // We need a way to reset weekly steps properly at the start of the week.
+      // For now, just add the delta. We'll address the weekly reset later if needed.
+      const savedWeeklySteps = petData.weeklySteps || 0; // Assuming weeklySteps is saved in petData
+      const updatedWeeklySteps = savedWeeklySteps + newStepsDelta;
+      setWeeklySteps(updatedWeeklySteps); // Update context
+      console.log(`[Refresh v5] Updated Weekly Steps: ${updatedWeeklySteps} (Saved: ${savedWeeklySteps}, Delta: ${newStepsDelta})`);
+
+
+      // 5. Update Total Steps Context (Add delta to saved value)
+      const updatedTotalSteps = savedTotalSteps + newStepsDelta;
+      setTotalSteps(updatedTotalSteps); // Update context
+      console.log(`[Refresh v5] Updated Total Steps Context: ${updatedTotalSteps}`);
+
+
+      // 6. Update Pet Data (using the DELTA)
+      // Pass the DELTA of new steps to updatePetWithSteps
+      const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(
+          { ...petData, weeklySteps: updatedWeeklySteps }, // Pass the updated petData with new weeklySteps
+          newStepsDelta // Pass only the *new* steps
+      );
+      console.log('[Refresh v5] Pet data after updatePetWithSteps:', refreshedPet);
+
+      // Update the main petData state AFTER calculations
+      setPetData(refreshedPet); // This triggers the debounced save
+
+      if (leveledUp) {
+        navigation.navigate('PetLevelUp', {
+          level: refreshedPet.level,
+          petType: refreshedPet.type
+        });
       }
-      
-    } catch (error) { 
+
+    } catch (error) {
       console.error('Error refreshing step data:', error);
     }
   };

@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-// Remove AsyncStorage import
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PetData, PetType, GrowthStage, MiniGames, Milestone, PetAppearance, MiniGameStatus, FetchGameStatus, AdventureStatus } from '../types/petTypes'; // Ensure all necessary subtypes are imported
 // Import Supabase client (adjust path if necessary)
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Session, User } from '@supabase/supabase-js';
+// Correct the import path for case conversion utils
+import { Alert } from 'react-native';
 
 // Helper function to convert object keys from snake_case to camelCase
 const keysToCamelCase = (obj: any): any => {
@@ -17,6 +18,7 @@ const keysToCamelCase = (obj: any): any => {
   }
   return Object.keys(obj).reduce((acc, key) => {
     const camelCaseKey = key.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+    // Recursively convert nested objects
     acc[camelCaseKey] = keysToCamelCase(obj[key]);
     return acc;
   }, {} as any);
@@ -31,18 +33,12 @@ const keysToSnakeCase = (obj: any): any => {
     return obj.map(keysToSnakeCase);
   }
   return Object.keys(obj).reduce((acc, key) => {
-    // Prevent converting keys within nested JSONB objects like appearance, miniGames, milestones, equippedItems
-     if (['appearance', 'miniGames', 'milestones', 'equippedItems'].includes(key) && typeof obj[key] === 'object') {
-       acc[key] = obj[key]; // Keep nested object keys as they are
-     } else {
-      const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-      // Recursively convert nested objects unless they are the specifically excluded ones
-      acc[snakeCaseKey] = keysToSnakeCase(obj[key]);
-     }
+    const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    // Recursively convert nested objects
+    acc[snakeCaseKey] = keysToSnakeCase(obj[key]);
     return acc;
   }, {} as any);
 };
-
 
 interface DataContextType {
   petData: PetData | null;
@@ -57,7 +53,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 // Remove AsyncStorage key generation
 // const getPetStorageKey = (userId: string) => `@pet_data_${userId}`;
 
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth(); // Assuming session is also available from useAuth
   const [petData, setPetDataState] = useState<PetData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -66,113 +62,126 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null); 
 
   // --- Load Data from Supabase ---
-  const loadDataFromSupabase = async () => {
-    console.log('[DataContext] loadDataFromSupabase called.');
+  const loadDataFromSupabase = useCallback(async (userId: string) => {
+    console.log('[DataContext] loadDataFromSupabase called for user:', userId);
     setIsLoading(true);
     try {
-      if (!session?.user?.id) {
-        console.log('[DataContext] No user/session found, clearing data.');
-        setPetDataState(null);
-        return;
-      }
-      const userId = session.user.id;
-      console.log(`[DataContext] Loading pet data for user: ${userId}`);
-
-      // 1. Fetch Pet Data
+      // 1. Fetch main pet data
       const { data: petResult, error: petError } = await supabase
         .from('pets')
         .select('*')
         .eq('user_id', userId)
-        .maybeSingle(); // Use maybeSingle to handle 0 or 1 result
+        .maybeSingle();
 
       if (petError) {
-        console.error('[DataContext] Error fetching pet:', petError);
-        setPetDataState(null); // Clear data on error
-        throw petError; // Re-throw to indicate failure
+        console.error('[DataContext] Error fetching pet data:', petError);
+        throw new Error(`Error fetching pet data: ${petError.message}`);
       }
 
       if (!petResult) {
-        console.log(`[DataContext] No pet found for user: ${userId}`);
+        console.log('[DataContext] No pet found for user:', userId);
         setPetDataState(null);
-        return; // No pet, nothing else to load
+        setIsLoading(false);
+        return; // Exit early if no pet found
       }
-       console.log('[DataContext] Raw Pet data fetched:', petResult);
+
+      console.log('[DataContext] Pet data fetched:', petResult);
       const petId = petResult.id;
 
-      // 2. Fetch MiniGames Data (associated with the found pet)
+      // 2. Fetch mini-games data associated with the pet
       const { data: miniGamesResult, error: miniGamesError } = await supabase
         .from('mini_games')
         .select('*')
         .eq('pet_id', petId);
-        
-      if (miniGamesError) {
-        console.error('[DataContext] Error fetching mini games:', miniGamesError);
-        // Decide how to handle: clear all data? Or proceed with just pet data?
-        // For now, let's log and continue, but the pet object will lack minigame data.
-      }
-      console.log('[DataContext] Raw MiniGames data fetched:', miniGamesResult);
 
-      // 3. Fetch Milestones Data (associated with the found pet)
-      // Assuming milestones are linked by pet_id. Adjust if needed.
+      if (miniGamesError) {
+        console.error('[DataContext] Error fetching mini-games data:', miniGamesError);
+        // Decide if you want to throw or continue with partial data
+        // For now, let's log and continue
+      }
+
+      // 3. Fetch milestones data associated with the pet
       const { data: milestonesResult, error: milestonesError } = await supabase
         .from('milestones')
         .select('*')
         .eq('pet_id', petId);
 
       if (milestonesError) {
-        console.error('[DataContext] Error fetching milestones:', milestonesError);
-        // Similar handling as miniGamesError
+        console.error('[DataContext] Error fetching milestones data:', milestonesError);
+        // Decide if you want to throw or continue with partial data
+        // For now, let's log and continue
       }
-       console.log('[DataContext] Raw Milestones data fetched:', milestonesResult);
 
-      // 4. Combine and Format Data
-      const formattedPetData = {
-        ...keysToCamelCase(petResult),
-        // Ensure nested structures match PetData type exactly
-         miniGames: (
-          (miniGamesResult || []).reduce((acc, game) => {
-            const gameType = game.game_type as keyof MiniGames;
-            if (gameType) {
-              acc[gameType] = keysToCamelCase(game) as any; // Convert keys for each game object
-            }
-            return acc;
-          }, {} as MiniGames)
-         ) || { // Provide default structure if fetch failed or returned empty
-            feed: { lastClaimed: null, claimedToday: false },
-            fetch: { lastClaimed: null, claimsToday: 0 },
-            adventure: { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false }
-          },
-        milestones: keysToCamelCase(milestonesResult || []) as Milestone[],
-        // Ensure appearance and equippedItems are correctly assigned (may not need conversion if fetched as jsonb)
-        appearance: petResult.appearance as PetAppearance, // Assuming direct assignment works
-        equippedItems: petResult.equippedItems as PetData['equippedItems'], // Assuming direct assignment
-      };
-       console.log('[DataContext] Combined and processed PetData:', formattedPetData);
-      setPetDataState(formattedPetData);
+      // 4. Combine data into the PetData structure
+      let combinedPetData = keysToCamelCase(petResult) as PetData;
+      
+      // !!! Remove equippedItems loaded from Supabase !!!
+      delete combinedPetData.equippedItems;
+      console.log('[DataContext] Removed equippedItems potentially loaded from DB');
+
+      combinedPetData.miniGames = {} as MiniGames;
+      combinedPetData.milestones = [] as Milestone[];
+
+      // Process mini-games
+      if (miniGamesResult) {
+        miniGamesResult.forEach((game: any) => {
+          const gameType = game.game_type as keyof MiniGames;
+          if (gameType) {
+             // Convert keys for each game type
+            combinedPetData.miniGames[gameType] = keysToCamelCase(game) as any;
+            // Remove redundant fields if necessary (e.g., pet_id, game_type)
+            delete (combinedPetData.miniGames[gameType] as any).petId;
+            delete (combinedPetData.miniGames[gameType] as any).gameType;
+          }
+        });
+      }
+
+      // Process milestones
+      if (milestonesResult) {
+        combinedPetData.milestones = milestonesResult.map((milestone: any) => {
+          // Map milestone_id from DB to id in the object
+          const camelCaseMilestone = keysToCamelCase(milestone);
+          return {
+              ...camelCaseMilestone,
+              id: milestone.milestone_id // Map explicitly
+          } as Milestone;
+        });
+      }
+
+      console.log('[DataContext] Combined PetData prepared (without equippedItems from DB):', combinedPetData);
+      setPetDataState(combinedPetData);
 
     } catch (error) {
-      console.error('[DataContext] General error loading data:', error);
-      setPetDataState(null); // Clear data on any loading error
+      console.error('[DataContext] General error in loadDataFromSupabase:', error);
+      // Optionally set an error state here
+      Alert.alert("Error Loading Data", "Could not load your pet's information. Please try again later.");
     } finally {
-      console.log('[DataContext] Loading finished.');
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // --- Define the reloadData function --- 
-  const reloadData = async () => {
-      console.log('[DataContext] reloadData triggered.');
-      await loadDataFromSupabase();
-  };
+  const reloadData = useCallback(async () => {
+    if (user) {
+      await loadDataFromSupabase(user.id);
+    }
+  }, [user, loadDataFromSupabase]);
 
   // --- useEffect to load data on session change --- 
   useEffect(() => {
-    loadDataFromSupabase();
-  }, [session]);
+    if (user) {
+      console.log('[DataContext] User detected, loading data...');
+      loadDataFromSupabase(user.id);
+    } else {
+      console.log('[DataContext] No user, clearing data...');
+      setPetDataState(null); // Clear data if user logs out
+      setIsLoading(false);
+    }
+  }, [user, loadDataFromSupabase]);
 
   // --- Define Save Logic --- 
   // Modify implementation to take only one argument and get user ID from session
-  const saveDataToSupabase = async (dataToSave: PetData) => {
+  const saveDataToSupabase = useCallback(async (dataToSave: PetData) => {
     if (!session?.user?.id) {
       console.warn('[DataContext] saveDataToSupabase called, but no user ID available.');
       return; // Cannot save without user ID
@@ -182,16 +191,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
         // 1. Prepare Pet fields for Upsert
-        const { miniGames, milestones, ...petFieldsRaw } = dataToSave;
-        // Ensure user_id is included for the upsert
+        // !!! Exclude equippedItems from the data being saved to the 'pets' table !!!
+        const { miniGames, milestones, equippedItems, ...petFieldsRaw } = dataToSave;
+        
         const petFieldsForUpsert = { 
             ...keysToSnakeCase(petFieldsRaw), 
             user_id: userId 
         };
-        console.log('[DataContext] Upserting Pet fields:', petFieldsForUpsert);
+        console.log('[DataContext] Upserting Pet fields (excluding equippedItems):', petFieldsForUpsert);
         const { error: petUpsertError } = await supabase
             .from('pets')
-            .upsert(petFieldsForUpsert, { onConflict: 'user_id' }); // Upsert based on user_id constraint
+            .upsert(petFieldsForUpsert, { onConflict: 'user_id' });
 
         if (petUpsertError) {
             console.error('[DataContext] Error upserting pet data:', petUpsertError);
@@ -294,7 +304,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[DataContext] Error saving data to Supabase:', error);
       // Potentially handle the error (e.g., show a message to the user)
     }
-  };
+  }, [session]);
   
   // Debounced setPetData that triggers save
   // Modify this to call the new saveDataToSupabase signature

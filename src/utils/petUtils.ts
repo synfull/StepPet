@@ -467,6 +467,7 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     stepsToHatch: 5000, // Updated to match first level requirement
     stepsSinceHatched: 0,
     totalSteps: 0,
+    weeklySteps: 0, // Initialize weekly steps
     totalStepsBeforeToday: 0, // Initialize new field
     startingStepCount: currentDaySteps, // Set the starting point to current day's steps
     appearance: {
@@ -542,96 +543,67 @@ const didGrowthStageChange = (oldStage: GrowthStage, newStage: GrowthStage): boo
 
 // Update pet with new steps and/or XP
 export const updatePetWithSteps = async (
-  pet: PetData,
-  // Change parameter: represents the *absolute* total steps since CREATION
-  currentTotalStepsSinceCreation: number, 
-  xpReward: number = 0 
-): Promise<{ updatedPet: PetData; leveledUp: boolean; milestoneReached: string | null }> => {
+  currentPet: PetData,
+  newStepsDelta: number, // Changed parameter name to reflect it's a delta
+  xpBoost: number = 0 // Optional XP boost
+): Promise<{ updatedPet: PetData; leveledUp: boolean }> => {
+  console.log(`[petUtils] updatePetWithSteps called with delta: ${newStepsDelta}, current totalSteps: ${currentPet.totalSteps}, xpBoost: ${xpBoost}`);
+
+  // Create a mutable copy
+  let updatedPet = { ...currentPet };
   let leveledUp = false;
-  let milestoneReached: string | null = null;
-  
-  console.log(`[updatePetWithSteps REAPPLY] Received pet ID: ${pet.id}, growthStage: ${pet.growthStage}, currentTotalStepsSinceCreation (arg): ${currentTotalStepsSinceCreation}, current XP: ${pet.xp}, current stepsSinceHatched: ${pet.stepsSinceHatched}, current totalSteps: ${pet.totalSteps}`);
 
-  // Deep clone the pet to avoid mutation
-  const updatedPet: PetData = JSON.parse(JSON.stringify(pet));
-  const originalLevel = updatedPet.level; // Store original level
-  const originalGrowthStage = updatedPet.growthStage; // Store original stage
-  
-  let newStepsDelta = 0;
-
+  // Don't update steps or XP for eggs unless hatching
   if (updatedPet.growthStage === 'Egg') {
-    // Logic for eggs remains compatible (XP = total steps)
-    console.warn("[updatePetWithSteps REAPPLY] Called for an Egg!");
-    newStepsDelta = Math.max(0, currentTotalStepsSinceCreation - (updatedPet.totalSteps || 0));
-    if (newStepsDelta > 0) {
-        updatedPet.totalSteps = currentTotalStepsSinceCreation;
-        updatedPet.xp = currentTotalStepsSinceCreation; // Egg XP = total steps
+    // Update totalSteps for the egg (used for hatching check)
+    updatedPet.totalSteps = (updatedPet.totalSteps || 0) + newStepsDelta;
+    console.log(`[petUtils] Egg totalSteps updated to: ${updatedPet.totalSteps}`);
+    // XP is not tracked for eggs in the same way, but let's add the boost if provided
+    // updatedPet.xp = (updatedPet.xp || 0) + xpBoost;
+    // Check for hatching based on the *updated* totalSteps
+    if (updatedPet.totalSteps >= updatedPet.stepsToHatch) {
+      console.log(`[petUtils] Egg ready to hatch! Total steps (${updatedPet.totalSteps}) >= stepsToHatch (${updatedPet.stepsToHatch})`);
+      // Hatching logic will be handled elsewhere (e.g., PetDisplay tap)
+      // We just return the updated egg state here.
     }
+    return { updatedPet, leveledUp };
+  }
 
-  } else {
-    // ---- Hatched Pet Logic ----
-    // 1. Calculate current steps since hatching based on ARGUMENT and HATCH threshold
-    const stepsToHatchThreshold = updatedPet.stepsToHatch || 5000; 
-    const currentTotalStepsSinceHatched = Math.max(0, currentTotalStepsSinceCreation - stepsToHatchThreshold); 
-    console.log(`[updatePetWithSteps REAPPLY] Calculated currentTotalStepsSinceHatched: ${currentTotalStepsSinceHatched} (using threshold: ${stepsToHatchThreshold} and arg: ${currentTotalStepsSinceCreation})`);
+  // --- Logic for Hatched Pets --- 
 
-    // 2. Calculate the actual new steps delta based on pet's previous state
-    const previousStepsSinceHatched = (updatedPet.level === 1 && updatedPet.xp === 0) ? 0 : (updatedPet.stepsSinceHatched || 0);
-    newStepsDelta = Math.max(0, currentTotalStepsSinceHatched - previousStepsSinceHatched);
-    console.log(`[updatePetWithSteps REAPPLY] Calculated newStepsDelta: ${newStepsDelta} (using previousStepsSinceHatched: ${previousStepsSinceHatched})`);
+  // 1. Update Total Steps and Steps Since Hatched
+  updatedPet.totalSteps = (updatedPet.totalSteps || 0) + newStepsDelta;
+  updatedPet.stepsSinceHatched = (updatedPet.stepsSinceHatched || 0) + newStepsDelta;
+  // Note: weeklySteps is now handled in refreshStepData and passed in currentPet
 
-    // 3. Update totalSteps ONLY if there's a delta, setting it to the absolute value from argument
-    if (newStepsDelta > 0) {
-        const previousTotalSteps = updatedPet.totalSteps;
-        updatedPet.totalSteps = currentTotalStepsSinceCreation; // Set to absolute value
-        console.log(`[updatePetWithSteps REAPPLY] Updated totalSteps from ${previousTotalSteps} to: ${updatedPet.totalSteps}`);
-    }
+  console.log(`[petUtils] Updated totalSteps: ${updatedPet.totalSteps}, stepsSinceHatched: ${updatedPet.stepsSinceHatched}`);
 
-    // 4. Add XP based on the step delta
-    const initialXP = updatedPet.xp;
-    if (updatedPet.level === 1 && initialXP === 0 && newStepsDelta > 0) {
-        updatedPet.xp = newStepsDelta;
-        console.log(`[updatePetWithSteps REAPPLY] Initial XP set for Level 1: ${updatedPet.xp}`);
-    } else {
-        if (newStepsDelta > 0 || xpReward > 0) { 
-           updatedPet.xp += newStepsDelta + xpReward;
-           console.log(`[updatePetWithSteps REAPPLY] Updated XP: ${initialXP} + ${newStepsDelta} + ${xpReward} = ${updatedPet.xp}`);
-        }
-    }
+  // 2. Calculate XP earned (1 step = 1 XP) + optional boost
+  const xpEarned = newStepsDelta + xpBoost;
+  updatedPet.xp = (updatedPet.xp || 0) + xpEarned;
+  console.log(`[petUtils] XP updated to: ${updatedPet.xp} (Earned: ${xpEarned})`);
 
-    // 5. Update stepsSinceHatched state if delta > 0
-    if (newStepsDelta > 0) {
-      updatedPet.stepsSinceHatched = currentTotalStepsSinceHatched;
-      console.log(`[updatePetWithSteps REAPPLY] Updated stepsSinceHatched to: ${updatedPet.stepsSinceHatched}`);
-    }
-    
-    // Check for level up
-    if (updatedPet.xp >= updatedPet.xpToNextLevel) {
-      updatedPet.level += 1;
-      updatedPet.xp = updatedPet.xp - updatedPet.xpToNextLevel;
-      
-      // Update XP to next level
-      const nextLevelIndex = Math.min(updatedPet.level - 1, LEVEL_REQUIREMENTS.length - 1);
-      updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[nextLevelIndex];
-      
-      leveledUp = true;
+  // 3. Handle Leveling Up
+  let currentLevelIndex = updatedPet.level - 1;
+  while (
+    currentLevelIndex < LEVEL_REQUIREMENTS.length &&
+    updatedPet.xp >= updatedPet.xpToNextLevel
+  ) {
+    leveledUp = true;
+    updatedPet.xp -= updatedPet.xpToNextLevel;
+    updatedPet.level += 1;
+    currentLevelIndex += 1;
+    updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[currentLevelIndex] || Infinity; // Set next requirement or Infinity if max level
+    console.log(`[petUtils] Leveled up to ${updatedPet.level}! XP remaining: ${updatedPet.xp}, Next level XP: ${updatedPet.xpToNextLevel}`);
 
-      // Log level_up event
-      try {
-        await analytics().logEvent('level_up', { 
-          pet_level: updatedPet.level // Use the new level
-        });
-        console.log(`[Analytics] Logged level_up event to level: ${updatedPet.level}`);
-      } catch (analyticsError) {
-        console.error('[Analytics] Error logging level_up event:', analyticsError);
-      }
-    }
-    
+    // --- Growth Stage Check --- (Keep existing logic)
+    // ... (rest of growth stage logic remains unchanged) ...
+
     // Update growth stage
     updatedPet.growthStage = updateGrowthStage(updatedPet);
 
     // Log pet_evolve event if stage changed (and not from Egg)
-    if (didGrowthStageChange(originalGrowthStage, updatedPet.growthStage)) {
+    if (didGrowthStageChange(currentPet.growthStage, updatedPet.growthStage)) {
       try {
         await analytics().logEvent('pet_evolve', { 
           new_stage: updatedPet.growthStage,
@@ -644,15 +616,7 @@ export const updatePetWithSteps = async (
     }
   }
   
-  // Check for milestones 
-  for (const milestone of updatedPet.milestones) {
-    if (!milestone.claimed && updatedPet.totalSteps >= milestone.steps) {
-      milestoneReached = milestone.id;
-      break;
-    }
-  }
-  
-  return { updatedPet, leveledUp, milestoneReached };
+  return { updatedPet, leveledUp };
 };
 
 const getPetCategory = (type: PetType): string => {
