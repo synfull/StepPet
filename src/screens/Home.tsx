@@ -299,7 +299,7 @@ const Home: React.FC = () => {
            const todayStepsCalculated = Math.max(0, todayStepsRaw - startingStepCountForDaily);
            setDailySteps(todayStepsCalculated);
            
-           // Calculate total steps since creation CORRECTLY
+           // Calculate total steps since creation CORRECTLY (absolute)
            const { steps: totalStepsRaw } = await Pedometer.getStepCountAsync(petCreationTime, new Date());
            let stepsSinceCreationCalculated = 0;
            if (isSameDay(petCreationTime, new Date())) {
@@ -309,19 +309,24 @@ const Home: React.FC = () => {
               // Created BEFORE today: Raw value is the total since creation
               stepsSinceCreationCalculated = totalStepsRaw;
            }
-           console.log(`[Pedometer Hatched v4] Calculated stepsSinceCreationCalculated: ${stepsSinceCreationCalculated} (Raw: ${totalStepsRaw}, SameDay: ${isSameDay(petCreationTime, new Date())})`);
+           console.log(`[Pedometer Hatched v5] Calculated absolute stepsSinceCreation: ${stepsSinceCreationCalculated}`);
            
            // Update totalSteps context if needed 
            if (stepsSinceCreationCalculated !== totalSteps) {
-                setTotalSteps(stepsSinceCreationCalculated);
+                setTotalSteps(stepsSinceCreationCalculated); // Update total steps context
            }
+
+           // *** FIX: Calculate the DELTA to pass to updatePetWithSteps ***
+           const savedTotalSteps = petData.totalSteps || 0;
+           const newStepsDelta = Math.max(0, stepsSinceCreationCalculated - savedTotalSteps);
+           console.log(`[Pedometer Hatched v5] Calculated newStepsDelta: ${newStepsDelta} (Absolute: ${stepsSinceCreationCalculated}, Saved: ${savedTotalSteps})`);
              
-           // Call updatePetWithSteps with petData from closure and CORRECT absolute steps since CREATION
+           // Call updatePetWithSteps with petData from closure and the calculated DELTA
            const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(
                petData, 
-               stepsSinceCreationCalculated // Pass CORRECT absolute steps since creation
+               newStepsDelta // Pass the DELTA, not the absolute total
            ); 
-           setPetData(newPet); 
+           setPetData(newPet); // Update main state, triggering debounced save
              
            if (leveledUp) {
              navigation.navigate('PetLevelUp', {
