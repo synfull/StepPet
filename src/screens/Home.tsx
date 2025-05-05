@@ -31,7 +31,7 @@ import {
   PET_TYPES 
 } from '../utils/petUtils';
 import { fetchDailySteps, fetchWeeklySteps, subscribeToPedometer } from '../utils/pedometerUtils';
-import { isSameDay, getTodayDateString } from '../utils/dateUtils';
+import { isSameDay, getTodayDateString, getStartOfWeekUTC } from '../utils/dateUtils';
 import { playSound } from '../utils/soundUtils';
 import PetDisplay from '../components/PetDisplay';
 import ProgressBar from '../components/ProgressBar';
@@ -166,6 +166,7 @@ const Home: React.FC = () => {
   const eggShakeAnim = useRef(new Animated.Value(0)).current;
   const buttonPulseAnim = useRef(new Animated.Value(1)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+  const breathingAnim = useRef(new Animated.Value(1)).current; // Add breathing animation value
   
   const appState = useRef(AppState.currentState);
   
@@ -498,27 +499,61 @@ const Home: React.FC = () => {
     }
   }, [petData?.growthStage, petData?.totalSteps, petData?.stepsToHatch]);
   
-  // Start floating animation when egg is present
+  // Start floating animation when petData exists
   useEffect(() => {
-    if (petData?.growthStage === 'Egg') {
-      Animated.loop(
+    // *** FIX: Start animation if petData exists (Egg or Hatched) ***
+    if (petData) { 
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(floatAnim, {
             toValue: 1,
-            duration: 2000,
+            duration: 1900, // Slightly adjusted duration
             useNativeDriver: true,
             easing: Easing.inOut(Easing.ease),
           }),
           Animated.timing(floatAnim, {
             toValue: 0,
-            duration: 2000,
+            duration: 1900, // Slightly adjusted duration
             useNativeDriver: true,
             easing: Easing.inOut(Easing.ease),
           }),
         ])
-      ).start();
+      );
+      loop.start();
+      // Return a cleanup function to stop the loop when the component unmounts or petData changes
+      return () => loop.stop(); 
+    } else {
+      // Ensure animation value is reset if petData becomes null
+      floatAnim.setValue(0); 
     }
-  }, [petData?.growthStage]);
+  // *** FIX: Depend on petData existence, not just growthStage ***
+  }, [petData]); 
+  
+  // Start subtle breathing animation loop when petData exists
+  useEffect(() => {
+    if (petData) {
+      const breathLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(breathingAnim, {
+            toValue: 1.03, // Scale up slightly
+            duration: 1800, // Slow inhale
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(breathingAnim, {
+            toValue: 1, // Scale back down
+            duration: 1800, // Slow exhale
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ])
+      );
+      breathLoop.start();
+      return () => breathLoop.stop(); // Cleanup on unmount/data change
+    } else {
+      breathingAnim.setValue(1); // Reset if no petData
+    }
+  }, [petData]);
   
   // Refresh step data
   const refreshStepData = async () => {
@@ -529,7 +564,7 @@ const Home: React.FC = () => {
       const now = new Date(); // Get current time once
 
       // 1. Get today's raw steps from Pedometer
-      const todayMidnight = new Date(now); // Use 'now' as base
+      const todayMidnight = new Date(now);
       todayMidnight.setHours(0, 0, 0, 0);
       const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, now);
 
@@ -537,67 +572,96 @@ const Home: React.FC = () => {
       // Subtract starting steps ONLY if the pet was created today
       const startingStepCountForDaily = isSameDay(petCreationTime, now) ? (petData.startingStepCount || 0) : 0;
       const calculatedDailySteps = Math.max(0, todayStepsRaw - startingStepCountForDaily);
-      console.log(`[Refresh v5] Calculated Daily Steps: ${calculatedDailySteps} (Raw: ${todayStepsRaw}, StartToday: ${startingStepCountForDaily})`);
-      setDailySteps(calculatedDailySteps); // Update context for display
+      console.log(`[Refresh v6] Calculated Daily Steps: ${calculatedDailySteps}`);
+      setDailySteps(calculatedDailySteps);
 
-      // 3. Calculate NEW steps since last update (for progress)
-      // Need the *absolute* total steps from pedometer *since creation* to compare against saved total
-      // This is still needed to know how many *new* steps occurred system-wide.
+      // 3. Calculate Absolute Total Steps Since Creation (unchanged, for delta calc)
       let absoluteTotalStepsSinceCreation = 0;
       try {
          const { steps: totalStepsRawPedometer } = await Pedometer.getStepCountAsync(petCreationTime, now);
          if (isSameDay(petCreationTime, now)) {
-            // Created TODAY: Subtract starting count
             absoluteTotalStepsSinceCreation = Math.max(0, totalStepsRawPedometer - (petData.startingStepCount || 0));
          } else {
-            // Created BEFORE today: Raw value is the total since creation (assuming pedometer is reliable)
             absoluteTotalStepsSinceCreation = totalStepsRawPedometer;
          }
-         console.log(`[Refresh v5] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
+         console.log(`[Refresh v6] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
       } catch (pedometerError) {
-          console.error("[Refresh v5] Error fetching total steps from pedometer:", pedometerError);
-          // If pedometer fails, we can't reliably calculate delta. Maybe abort refresh?
-          // For now, let's assume 0 new steps if pedometer fails.
+          console.error("[Refresh v6] Error fetching total steps from pedometer:", pedometerError);
           absoluteTotalStepsSinceCreation = petData.totalSteps || 0;
-          console.warn("[Refresh v5] Using saved totalSteps due to pedometer error.");
+          console.warn("[Refresh v6] Using saved totalSteps due to pedometer error.");
       }
 
-
-      // Calculate the DELTA (new steps added since last save)
+      // Calculate the DELTA (new steps added since last save) (unchanged)
       const savedTotalSteps = petData.totalSteps || 0;
       const newStepsDelta = Math.max(0, absoluteTotalStepsSinceCreation - savedTotalSteps);
-      console.log(`[Refresh v5] Calculated New Steps Delta: ${newStepsDelta} (PedometerTotal: ${absoluteTotalStepsSinceCreation}, SavedTotal: ${savedTotalSteps})`);
+      console.log(`[Refresh v6] Calculated New Steps Delta: ${newStepsDelta}`);
 
-      // 4. Update Weekly Steps (Add delta to saved value)
-      // We need a way to reset weekly steps properly at the start of the week.
-      // For now, just add the delta. We'll address the weekly reset later if needed.
-      const savedWeeklySteps = petData.weeklySteps || 0; // Assuming weeklySteps is saved in petData
-      const updatedWeeklySteps = savedWeeklySteps + newStepsDelta;
+      // *** NEW: Weekly Steps Logic ***
+      const currentWeekStart = getStartOfWeekUTC(now);
+      const lastSavedWeekStartStr = petData.currentWeekStartDate;
+      let lastSavedWeekStart = new Date(0); // Initialize to epoch
+      if (lastSavedWeekStartStr) {
+          try {
+              lastSavedWeekStart = new Date(lastSavedWeekStartStr);
+          } catch (e) { console.error("Error parsing lastSavedWeekStartStr", e); }
+      }
+      
+      console.log(`[Refresh v6] Current Week Start: ${currentWeekStart.toISOString()}, Last Saved Week Start: ${lastSavedWeekStart.toISOString()}`);
+      
+      let updatedWeeklySteps = 0;
+      let isNewWeek = false;
+      // Check if the current week start is later than the last saved week start
+      if (currentWeekStart.getTime() > lastSavedWeekStart.getTime()) {
+          console.log('[Refresh v6] New week detected! Resetting weekly steps.');
+          isNewWeek = true;
+          updatedWeeklySteps = newStepsDelta; // Start new week count with current delta
+      } else {
+          console.log('[Refresh v6] Same week. Adding delta to weekly steps.');
+          const savedWeeklySteps = petData.weeklySteps || 0;
+          updatedWeeklySteps = savedWeeklySteps + newStepsDelta;
+      }
       setWeeklySteps(updatedWeeklySteps); // Update context
-      console.log(`[Refresh v5] Updated Weekly Steps: ${updatedWeeklySteps} (Saved: ${savedWeeklySteps}, Delta: ${newStepsDelta})`);
+      console.log(`[Refresh v6] Updated Weekly Steps: ${updatedWeeklySteps}`);
 
-
-      // 5. Update Total Steps Context (Add delta to saved value)
+      // 5. Update Total Steps Context (unchanged)
       const updatedTotalSteps = savedTotalSteps + newStepsDelta;
-      setTotalSteps(updatedTotalSteps); // Update context
-      console.log(`[Refresh v5] Updated Total Steps Context: ${updatedTotalSteps}`);
+      setTotalSteps(updatedTotalSteps);
+      console.log(`[Refresh v6] Updated Total Steps Context: ${updatedTotalSteps}`);
 
+      // 6. Prepare updated PetData for saving
+      // Make a copy to avoid direct mutation if needed, especially for the date
+      let petDataForUpdate = { ...petData }; 
+      petDataForUpdate.weeklySteps = updatedWeeklySteps;
+      if (isNewWeek) {
+          petDataForUpdate.currentWeekStartDate = currentWeekStart.toISOString();
+      }
+      // Ensure totalSteps is also updated in the object being passed
+      petDataForUpdate.totalSteps = updatedTotalSteps; 
 
-      // 6. Update Pet Data (using the DELTA)
-      // Pass the DELTA of new steps to updatePetWithSteps
-      const { updatedPet: refreshedPet, leveledUp } = await updatePetWithSteps(
-          { ...petData, weeklySteps: updatedWeeklySteps }, // Pass the updated petData with new weeklySteps
-          newStepsDelta // Pass only the *new* steps
+      // Call updatePetWithSteps with the correct data and delta
+      const { updatedPet: refreshedPetFromUtil, leveledUp } = await updatePetWithSteps(
+          petDataForUpdate, // Pass the potentially modified petData (with new week start date)
+          newStepsDelta 
       );
-      console.log('[Refresh v5] Pet data after updatePetWithSteps:', refreshedPet);
+      console.log('[Refresh v7] Pet data after updatePetWithSteps:', refreshedPetFromUtil);
 
-      // Update the main petData state AFTER calculations
-      setPetData(refreshedPet); // This triggers the debounced save
+      // *** FIX: Merge results before setting state ***
+      // Start with the object returned from the utility (has correct totalSteps, xp, level etc.)
+      const finalPetDataUpdate = { 
+          ...refreshedPetFromUtil, 
+          weeklySteps: updatedWeeklySteps, // Ensure our calculated weeklySteps is included
+          currentWeekStartDate: isNewWeek ? currentWeekStart.toISOString() : petData.currentWeekStartDate // Ensure correct week start date is included
+      };
+
+      console.log('[Refresh v7] Final merged PetData for setPetData:', finalPetDataUpdate);
+
+      // Update the main petData state AFTER calculations using the merged object
+      setPetData(finalPetDataUpdate); // This triggers the debounced save with all correct fields
 
       if (leveledUp) {
         navigation.navigate('PetLevelUp', {
-          level: refreshedPet.level,
-          petType: refreshedPet.type
+          level: finalPetDataUpdate.level, // Use level from the final object
+          petType: finalPetDataUpdate.type
         });
       }
 
@@ -783,7 +847,7 @@ const Home: React.FC = () => {
   };
   
   // Handle feed pet
-  const handleFeedPet = () => {
+  const handleFeedPet = async () => {
     if (!petData) return;
     
     // Check if already fed today
@@ -794,182 +858,195 @@ const Home: React.FC = () => {
       return;
     }
 
-    // *** FIX: Calculate steps relevant for today's activity ***
-    let activityStepsToday = dailySteps; // Start with the total daily steps
+    // Calculate steps relevant for today's activity
+    let activityStepsToday = dailySteps;
     if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), now)) {
-      // If hatched today, subtract steps recorded at hatch
       activityStepsToday = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
       console.log(`[handleFeedPet] Hatched today. Using activityStepsToday: ${activityStepsToday} (daily: ${dailySteps}, atHatch: ${petData.dailyStepsAtHatch})`);
+    } else {
+       console.log(`[handleFeedPet] Not hatched today or no hatch date. Using dailySteps: ${activityStepsToday}`);
     }
-    
-    // Check if enough steps using the adjusted count
-    if (activityStepsToday < 2500) {
-      playSound('action-fail');
-      Alert.alert(
-        'More Steps Needed',
-        // Use activityStepsToday in the alert message
-        `You need 2,500 steps today (since hatching) to feed your pet. You currently have ${activityStepsToday} steps towards this activity.`,
-        [{ text: 'OK' }]
-      );
+
+
+    // Check if steps requirement met
+    const FEED_STEPS_REQUIRED = 500; // Define requirement
+    if (activityStepsToday < FEED_STEPS_REQUIRED) {
+      Alert.alert('Not Enough Steps', `You need ${FEED_STEPS_REQUIRED - activityStepsToday} more steps today to feed your pet.`);
       return;
     }
-    
-    // Update pet data
-    const updatedPet = { ...petData };
-    updatedPet.miniGames.feed.lastClaimed = now.toISOString();
-    updatedPet.miniGames.feed.claimedToday = true;
-    
-    // Save and update with XP reward
-    updatePetWithSteps(updatedPet, 0, 100).then(async ({ updatedPet: newPet, leveledUp }) => {
-      setPetData(newPet);
-      playSound('activity-claim');
-      
-      // Log activity_feed_complete event
-      try {
-        await analytics().logEvent('activity_feed_complete');
-        console.log('[Analytics] Logged activity_feed_complete event');
-      } catch (analyticsError) {
-        console.error('[Analytics] Error logging activity_feed_complete event:', analyticsError);
-      }
-      
-      if (leveledUp) {
-        Alert.alert(
-          'Pet Fed',
-          'Your pet is happy and well-fed! You earned 100 XP, which leveled up your pet!',
-          [{ text: 'Great!' }]
-        );
-        
-        navigation.navigate('PetLevelUp', { 
-          level: newPet.level,
-          petType: newPet.type 
-        });
-      } else {
-        Alert.alert(
-          'Pet Fed',
-          'Your pet is happy and well-fed! You earned 100 XP.',
-          [{ text: 'Great!' }]
-        );
-      }
-    });
+
+    // Claim reward
+    playSound('activity-claim');
+    const xpBoost = 50; // Define XP reward
+
+    // *** FIX: Defensively update miniGames state ***
+    const updatedMiniGames = {
+      ...petData.miniGames, // Spread existing games
+      feed: {               // Ensure 'feed' object exists
+        ...(petData.miniGames?.feed ?? {}), // Spread existing feed data or an empty object if feed is null/undefined
+        lastClaimed: now.toISOString(),
+        claimedToday: true,
+      },
+    };
+
+    // Create the base for the update object
+    const updatedPetDataBase = {
+      ...petData,
+      miniGames: updatedMiniGames,
+    };
+
+    // Apply XP boost using updatePetWithSteps for consistency
+     const { updatedPet: updatedPetAfterFeed, leveledUp } = await updatePetWithSteps(
+       updatedPetDataBase, // Pass the object with the updated miniGames.feed structure
+       0,                  // No *new* steps delta from this action
+       xpBoost             // Add the XP boost
+     );
+
+    // Set the final state incorporating changes from updatePetWithSteps
+    setPetData(updatedPetAfterFeed);
+
+
+    // Log analytics event (optional)
+    try {
+        await analytics().logEvent('feed_pet', { pet_level: petData.level });
+        console.log('[Analytics] Logged feed_pet event');
+    } catch (error) {
+        console.error('[Analytics] Error logging feed_pet event:', error);
+    }
+
+    Alert.alert('Yum!', `You fed your pet and earned ${xpBoost} XP!`);
   };
   
   // Handle fetch game
-  const handleFetchGame = () => {
+  const handleFetchGame = async () => {
     if (!petData) return;
-    
-    // Check fetch claims today
-    const MAX_FETCH_CLAIMS = 3;
-    const fetchClaimsToday = petData?.miniGames?.fetch?.claimsToday ?? 0;
-    const canFetchToday = fetchClaimsToday < MAX_FETCH_CLAIMS;
-    
-    if (!canFetchToday) {
-      playSound('action-fail');
-      Alert.alert(
-        'Fetch Limit Reached',
-        'Your pet has already played fetch ${MAX_FETCH_CLAIMS} times today. Come back tomorrow!',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
 
-    // *** FIX: Calculate steps relevant for today's activity ***
-    let activityStepsToday = dailySteps; // Start with the total daily steps
-    const now = new Date(); // Define now here as well
-    if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), now)) {
-      // If hatched today, subtract steps recorded at hatch
+    const now = new Date();
+    const FETCH_STEPS_REQUIRED = 1000;
+    const MAX_FETCH_CLAIMS = 2;
+    const xpBoost = 100; // Define XP reward
+
+    // Calculate steps relevant for today's activity
+    let activityStepsToday = dailySteps;
+     if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), now)) {
       activityStepsToday = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
       console.log(`[handleFetchGame] Hatched today. Using activityStepsToday: ${activityStepsToday} (daily: ${dailySteps}, atHatch: ${petData.dailyStepsAtHatch})`);
-    }
-    
-    // Check if enough steps using the adjusted count
-    const stepsNeeded = (fetchClaimsToday + 1) * 1000; // 1000 steps for first claim, 2000 for second, etc.
-    if (activityStepsToday < stepsNeeded) {
-      playSound('action-fail');
-      Alert.alert(
-        'More Steps Needed',
-         // Use activityStepsToday in the alert message
-        `You need ${stepsNeeded} steps today (since hatching) to play fetch. You currently have ${activityStepsToday} steps towards this activity.`,
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-    
-    // Update pet data
-    const updatedPet = { ...petData };
-    
-    // Safely update nested property
-    if (updatedPet.miniGames?.fetch) {
-      updatedPet.miniGames.fetch.claimsToday = fetchClaimsToday + 1;
-      updatedPet.miniGames.fetch.lastClaimed = now.toISOString();
+    } else {
+       console.log(`[handleFetchGame] Not hatched today or no hatch date. Using dailySteps: ${activityStepsToday}`);
     }
 
-    // Save and update with XP reward
-    updatePetWithSteps(updatedPet, 0, 50).then(async ({ updatedPet: newPet, leveledUp }) => {
-      setPetData(newPet);
-      playSound('activity-claim');
-      
-      // Log activity_fetch_complete event
-      try {
-        await analytics().logEvent('activity_fetch_complete', { 
-          attempt_number: fetchClaimsToday + 1 // Log which attempt (1st or 2nd)
-        });
-        console.log(`[Analytics] Logged activity_fetch_complete event for attempt: ${fetchClaimsToday + 1}`);
-      } catch (analyticsError) {
-        console.error('[Analytics] Error logging activity_fetch_complete event:', analyticsError);
-      }
-      
-      if (leveledUp) {
-        Alert.alert(
-          'Good Fetch!',
-          'Your pet had fun playing fetch! You earned 50 XP, which leveled up your pet!',
-          [{ text: 'Great!' }]
-        );
-        
-        navigation.navigate('PetLevelUp', { 
-          level: newPet.level,
-          petType: newPet.type 
-        });
-      } else {
-        Alert.alert(
-          'Good Fetch!',
-          'Your pet had fun playing fetch! You earned 50 XP.',
-          [{ text: 'Great!' }]
-        );
-      }
-    });
+
+    // Check step requirement
+     if (activityStepsToday < FETCH_STEPS_REQUIRED) {
+        Alert.alert('Not Enough Steps', `You need ${FETCH_STEPS_REQUIRED - activityStepsToday} more steps today to play fetch.`);
+        return;
+     }
+
+    // Check claim limit
+    const claimsToday = petData.miniGames?.fetch?.claimsToday ?? 0;
+    const lastClaimed = petData?.miniGames?.fetch?.lastClaimed ? new Date(petData.miniGames.fetch.lastClaimed) : null;
+
+    // Reset claims if it's a new day since the last claim
+    const resetClaims = lastClaimed && !isSameDay(lastClaimed, now);
+    const currentClaims = resetClaims ? 0 : claimsToday;
+
+    if (currentClaims >= MAX_FETCH_CLAIMS) {
+        Alert.alert('Already Played Fetch', `You have already played fetch ${MAX_FETCH_CLAIMS} times today!`);
+        return;
+    }
+
+
+    // Claim reward
+    playSound('activity-claim');
+
+    // *** FIX: Defensively update miniGames state ***
+    const updatedMiniGames = {
+        ...petData.miniGames,
+        fetch: {
+            ...(petData.miniGames?.fetch ?? {}), // Use nullish coalescing
+            lastClaimed: now.toISOString(),
+            claimsToday: currentClaims + 1, // Increment claims
+            // Ensure claimedToday property exists for consistency if needed elsewhere, though logic uses claimsToday
+            claimedToday: true, 
+        },
+    };
+
+    // Create the base for the update object
+    const updatedPetDataBase = {
+        ...petData,
+        miniGames: updatedMiniGames,
+    };
+
+    // Apply XP boost using updatePetWithSteps
+    const { updatedPet: updatedPetAfterFetch, leveledUp } = await updatePetWithSteps(
+        updatedPetDataBase,
+        0,
+        xpBoost
+    );
+
+    // Set the final state
+    setPetData(updatedPetAfterFetch);
+
+
+    // Log analytics event (optional)
+    try {
+        await analytics().logEvent('play_fetch', { pet_level: petData.level, claims_today: currentClaims + 1 });
+        console.log('[Analytics] Logged play_fetch event');
+    } catch (error) {
+        console.error('[Analytics] Error logging play_fetch event:', error);
+    }
+
+
+    Alert.alert('Good Fetch!', `You played fetch with your pet and earned ${xpBoost} XP! (${currentClaims + 1}/${MAX_FETCH_CLAIMS} today)`);
   };
   
   // Handle adventure walk
   const handleAdventureWalk = () => {
-    if (!petData) return;
+    if (!petData || !petData.miniGames?.adventure) return; // Add check for adventure object
     
-    // Check if adventure is active
     const { adventure } = petData.miniGames;
     const now = new Date();
-    const lastComplete = adventure.lastCompleted 
+    
+    // *** FIX: Use weekly reset logic ***
+    const startOfCurrentWeek = getStartOfWeekUTC(); 
+    const lastCompleteDate = adventure.lastCompleted 
       ? new Date(adventure.lastCompleted) 
       : null;
-    
-    // Check if completed this week already
-    if (lastComplete) {
-      const daysSinceComplete = Math.floor((now.getTime() - lastComplete.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSinceComplete < 7) {
-        Alert.alert(
-          'Adventure Already Completed',
-          'You\'ve already completed an adventure walk this week. A new adventure will be available in ' + 
-            (7 - daysSinceComplete) + ' days.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-    }
-    
-    // Check if adventure is in progress
+      
+    // Check if adventure was completed *this week*
+    const completedThisWeek = lastCompleteDate && lastCompleteDate.getTime() >= startOfCurrentWeek.getTime();
+    console.log(`[AdventureWalk] Start of Current Week: ${startOfCurrentWeek.toISOString()}, Last Complete: ${lastCompleteDate?.toISOString()}, Completed This Week: ${completedThisWeek}`);
+
     if (adventure.isActive) {
-      // Check progress
+      // Adventure is currently in progress
+      console.log('[AdventureWalk] Adventure is active. Checking progress...');
       if (weeklySteps >= 15000) {
-        // Adventure complete
+        // Adventure complete - Check if it was *already* completed this week before allowing completion again (edge case)
+        if (completedThisWeek) {
+            console.warn('[AdventureWalk] Trying to complete an adventure already completed this week. Showing in-progress alert instead.');
+             Alert.alert(
+                'Adventure In Progress',
+                `Keep up the great work! You've completed the adventure goal for this week. Current progress: ${weeklySteps.toLocaleString()}/15,000 steps.`,
+                [{ text: 'Awesome!' }]
+            );
+            return; // Don't allow re-completion within the same week
+        }
+        
+        // Mark as complete
+        console.log('[AdventureWalk] Adventure goal met! Completing adventure.');
         const updatedPet = { ...petData };
+        // Ensure adventure object exists before modification
+        // *** FIX: Initialize with all required properties ***
+        if (!updatedPet.miniGames) {
+            updatedPet.miniGames = {
+                feed: { lastClaimed: null, claimedToday: false },
+                fetch: { lastClaimed: null, claimsToday: 0 },
+                adventure: { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false },
+            };
+        } else if (!updatedPet.miniGames.adventure) {
+            updatedPet.miniGames.adventure = { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false };
+        }
+        
         updatedPet.miniGames.adventure.isActive = false;
         updatedPet.miniGames.adventure.lastCompleted = now.toISOString();
         updatedPet.miniGames.adventure.currentProgress = 15000;
@@ -977,63 +1054,80 @@ const Home: React.FC = () => {
         // Save and update with XP reward
         updatePetWithSteps(updatedPet, 0, 300).then(async ({ updatedPet: newPet, leveledUp }) => {
           setPetData(newPet);
-          
-          // Log activity_adventure_complete event
-          try {
-            await analytics().logEvent('activity_adventure_complete');
-            console.log('[Analytics] Logged activity_adventure_complete event');
-          } catch (analyticsError) {
-            console.error('[Analytics] Error logging activity_adventure_complete event:', analyticsError);
-          }
-          
-          if (leveledUp) {
-            Alert.alert(
-              'Adventure Complete',
-              'Congratulations! You completed the adventure walk with your pet! You earned 300 XP, which leveled up your pet!',
-              [{ text: 'Great!' }]
-            );
-            
-            navigation.navigate('PetLevelUp', { 
-              level: newPet.level,
-              petType: newPet.type 
-            });
-          } else {
-            Alert.alert(
-              'Adventure Complete',
-              'Congratulations! You completed the adventure walk with your pet! You earned 300 XP.',
-              [{ text: 'Great!' }]
-            );
-          }
+          // ... (Analytics and Alert logic for completion remains the same) ...
+             try {
+                await analytics().logEvent('activity_adventure_complete');
+                console.log('[Analytics] Logged activity_adventure_complete event');
+              } catch (analyticsError) {
+                console.error('[Analytics] Error logging activity_adventure_complete event:', analyticsError);
+              }
+              
+              if (leveledUp) {
+                Alert.alert(
+                  'Adventure Complete',
+                  'Congratulations! You completed the adventure walk with your pet! You earned 300 XP, which leveled up your pet!',
+                  [{ text: 'Great!' }]
+                );
+                // Optional: Navigate to level up screen
+                // navigation.navigate('PetLevelUp', { level: newPet.level, petType: newPet.type });
+              } else {
+                Alert.alert(
+                  'Adventure Complete',
+                  'Congratulations! You completed the adventure walk with your pet! You earned 300 XP.',
+                  [{ text: 'Great!' }]
+                );
+              }
         });
       } else {
-        // Adventure in progress
+        // Adventure in progress, goal not met
+        console.log('[AdventureWalk] Adventure in progress, goal not met.');
         Alert.alert(
           'Adventure In Progress',
-          `You're on an adventure with your pet! Keep walking to reach 15,000 steps this week. Current progress: ${weeklySteps}/15,000 steps.`,
+          `Keep walking to reach 15,000 steps this week! Current progress: ${weeklySteps.toLocaleString()}/15,000 steps.`,
           [{ text: 'Keep Walking!' }]
         );
       }
     } else {
-      // Start new adventure
-      const updatedPet = { ...petData };
-      updatedPet.miniGames.adventure.isActive = true;
-      updatedPet.miniGames.adventure.lastStarted = now.toISOString();
-      updatedPet.miniGames.adventure.currentProgress = weeklySteps;
-      
-      Alert.alert(
-        'Adventure Started',
-        'You\'ve started a new adventure with your pet! Walk 15,000 steps this week to complete it and earn 300 XP.',
-        [{ text: 'Let\'s Go!' }]
-      );
-      
-      if (updatedPet.miniGames?.adventure) {
+      // Adventure is NOT currently active - User wants to start or check status
+      console.log('[AdventureWalk] Adventure is not active. Checking if completed this week...');
+      if (completedThisWeek) {
+        // Already completed this week, cannot start a new one yet
+        console.log('[AdventureWalk] Already completed this week. Cannot start new.');
+        Alert.alert(
+          'Adventure Already Completed',
+          'You\'ve already completed an adventure walk this week. A new adventure will be available next Monday!',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Can start a new adventure
+        console.log('[AdventureWalk] Starting new adventure.');
+        const updatedPet = { ...petData };
+        // Ensure adventure object exists before modification
+        // *** FIX: Initialize with all required properties ***
+        if (!updatedPet.miniGames) {
+             updatedPet.miniGames = {
+                feed: { lastClaimed: null, claimedToday: false },
+                fetch: { lastClaimed: null, claimsToday: 0 },
+                adventure: { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false },
+            };
+        } else if (!updatedPet.miniGames.adventure) {
+             updatedPet.miniGames.adventure = { lastStarted: null, lastCompleted: null, currentProgress: 0, isActive: false };
+        }
+
         updatedPet.miniGames.adventure.isActive = true;
-        updatedPet.miniGames.adventure.lastStarted = new Date().toISOString();
-        updatedPet.miniGames.adventure.lastCompleted = null;
-        updatedPet.miniGames.adventure.currentProgress = 0; // Reset progress
+        updatedPet.miniGames.adventure.lastStarted = now.toISOString();
+        updatedPet.miniGames.adventure.lastCompleted = null; // Ensure lastCompleted is null
+        updatedPet.miniGames.adventure.currentProgress = weeklySteps; // Start progress from current weekly steps
+        
+        playSound('activity-claim'); // Or another suitable sound
+        setPetData(updatedPet);
+        
+        Alert.alert(
+          'Adventure Started!',
+          'You\'ve started a new adventure walk. Walk 15,000 steps by the end of the week (Sunday night UTC) to complete it and earn 300 XP!',
+          [{ text: 'Let\'s Go!' }]
+        );
       }
-      playSound('activity-claim');
-      setPetData(updatedPet);
     }
   };
   
@@ -1397,7 +1491,7 @@ const Home: React.FC = () => {
   const canFeedToday = !isFeedClaimedToday || wasFeedClaimedYesterdayOrEarlier;
 
   // Determine fetch status
-  const MAX_FETCH_CLAIMS = 3;
+  const MAX_FETCH_CLAIMS = 2;
   // Use optional chaining and nullish coalescing
   const fetchClaimsToday = petData?.miniGames?.fetch?.claimsToday ?? 0;
   const canFetchToday = fetchClaimsToday < MAX_FETCH_CLAIMS;
@@ -1462,23 +1556,32 @@ const Home: React.FC = () => {
           <Animated.View 
             style={[
               styles.petContainer,
+              // Apply pulse animation if hinting
               isPetAnimating ? { transform: [{ scale: pulseAnim }] } : null,
-              petData?.growthStage === 'Egg' ? {
+              // Apply floating/shaking/breathing based on petData existence and stage
+              petData ? { 
                 transform: [
-                  {
-                    rotate: eggShakeAnim.interpolate({
-                      inputRange: [-1, 1],
-                      outputRange: ['-3deg', '3deg']
-                    })
-                  },
+                  // Apply shaking ONLY if it's an egg ready to hatch
+                  ...(petData.growthStage === 'Egg' && petData.totalSteps >= petData.stepsToHatch ? 
+                    [{ 
+                      rotate: eggShakeAnim.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ['-3deg', '3deg']
+                      })
+                    }] : []),
+                  // Apply floating transform regardless of stage (if petData exists)
                   {
                     translateY: floatAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0, -10]
+                      outputRange: [0, -15] // *** FIX: Increased float distance ***
                     })
+                  },
+                  // *** FIX: Apply breathing scale transform ***
+                  {
+                    scale: breathingAnim 
                   }
                 ]
-              } : null
+              } : null // No transform if no petData
             ]}
           >
             <TouchableOpacity onPress={handlePetTap} activeOpacity={0.8}>

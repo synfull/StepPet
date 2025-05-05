@@ -69,29 +69,6 @@ const MiniGameCard: React.FC<MiniGameCardProps> = ({
         
         <View style={styles.textContainer}>
           <Text style={styles.titleText}>{title}</Text>
-          <Text style={styles.descriptionText}>{description}</Text>
-          
-          {!isLocked && !isComplete && (
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBarBackground}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: `${progressWidth}%`, backgroundColor: color }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.progressText}>
-                {stepsProgress} / {stepsRequired} steps
-              </Text>
-            </View>
-          )}
-          
-          {isComplete && (
-            <Text style={[styles.statusText, { color }]}>
-              Complete!
-            </Text>
-          )}
           
           {isLocked && (
             <View style={styles.lockedTextContainer}>
@@ -100,6 +77,31 @@ const MiniGameCard: React.FC<MiniGameCardProps> = ({
                 Locked
               </Text>
             </View>
+          )}
+          
+          {!isLocked && isComplete && (
+            <Text style={[styles.statusText, { color }]}>
+              Complete!
+            </Text>
+          )}
+          
+          {!isLocked && !isComplete && (
+            <>
+              <Text style={styles.descriptionText}>{description}</Text>
+              <View style={styles.progressBarContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View 
+                    style={[
+                      styles.progressBarFill, 
+                      { width: `${progressWidth}%`, backgroundColor: color }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {stepsProgress.toLocaleString()} / {stepsRequired.toLocaleString()} steps
+                </Text>
+              </View>
+            </>
           )}
         </View>
         

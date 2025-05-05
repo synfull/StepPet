@@ -115,7 +115,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // 4. Combine data into the PetData structure
       let combinedPetData = keysToCamelCase(petResult) as PetData;
       
-      // !!! Remove equippedItems loaded from Supabase !!!
+      // currentWeekStartDate is automatically included by keysToCamelCase
+      // Ensure it's handled correctly if it's null from DB
+      if (!combinedPetData.currentWeekStartDate) {
+          console.warn("[DataContext] currentWeekStartDate is null/undefined from DB. This might happen for older pets.");
+          // Optionally, set a default based on 'created' date here if needed for robustness
+          // combinedPetData.currentWeekStartDate = getStartOfWeekUTC(new Date(combinedPetData.created)).toISOString();
+      }
+
       delete combinedPetData.equippedItems;
       console.log('[DataContext] Removed equippedItems potentially loaded from DB');
 
@@ -180,7 +187,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user, loadDataFromSupabase]);
 
   // --- Define Save Logic --- 
-  // Modify implementation to take only one argument and get user ID from session
   const saveDataToSupabase = useCallback(async (dataToSave: PetData) => {
     if (!session?.user?.id) {
       console.warn('[DataContext] saveDataToSupabase called, but no user ID available.');
@@ -188,17 +194,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     const userId = session.user.id;
     console.log(`[DataContext] Attempting to save pet data for user: ${userId}, Pet ID: ${dataToSave.id}`);
-
+    setIsSaving(true); // Indicate saving started
     try {
         // 1. Prepare Pet fields for Upsert
-        // !!! Exclude equippedItems from the data being saved to the 'pets' table !!!
+        // equippedItems is already excluded here
         const { miniGames, milestones, equippedItems, ...petFieldsRaw } = dataToSave;
         
+        // currentWeekStartDate will be in petFieldsRaw
         const petFieldsForUpsert = { 
-            ...keysToSnakeCase(petFieldsRaw), 
+            ...keysToSnakeCase(petFieldsRaw), // keysToSnakeCase will convert currentWeekStartDate -> current_week_start_date
             user_id: userId 
         };
-        console.log('[DataContext] Upserting Pet fields (excluding equippedItems):', petFieldsForUpsert);
+        console.log('[DataContext] Upserting Pet fields:', petFieldsForUpsert);
         const { error: petUpsertError } = await supabase
             .from('pets')
             .upsert(petFieldsForUpsert, { onConflict: 'user_id' });
@@ -211,35 +218,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // 2. Prepare and Upsert MiniGames data
         if (miniGames) {
-            console.log('[DataContext] Preparing MiniGames upserts...');
+            console.log('[DataContext] Preparing MiniGames upserts (Simplified)...');
             const gameTypes = Object.keys(miniGames) as Array<keyof MiniGames>;
             const upsertPromises = [];
 
             for (const gameType of gameTypes) {
                 const gameData = miniGames[gameType];
-                let rowToUpsert: any = {
-                    pet_id: dataToSave.id, // Use the main pet ID
-                    game_type: gameType,
+                if (!gameData) {
+                    console.warn(`[DataContext] Skipping upsert for null/undefined gameData for type: ${gameType}`);
+                    continue; // Skip if gameData is null/undefined for some reason
+                }
+                
+                // *** FIX: Use keysToSnakeCase for the entire game data object ***
+                const gameDataSnake = keysToSnakeCase(gameData);
+                
+                let rowToUpsert = {
+                    pet_id: dataToSave.id, // Add foreign key
+                    game_type: gameType,    // Add game type identifier
+                    ...gameDataSnake       // Spread the snake_case fields
                 };
-                
-                // Add specific fields based on game type (ensure keys are snake_case)
-                 if (gameType === 'feed') {
-                    if ('lastClaimed' in gameData) rowToUpsert.last_claimed = gameData.lastClaimed || null;
-                    if ('claimedToday' in gameData) rowToUpsert.claimed_today = gameData.claimedToday;
-                 } else if (gameType === 'fetch') {
-                     if ('lastClaimed' in gameData) rowToUpsert.last_claimed = gameData.lastClaimed || null;
-                     if ('claimsToday' in gameData) rowToUpsert.claims_today = gameData.claimsToday;
-                 } else if (gameType === 'adventure') {
-                     if ('lastStarted' in gameData) rowToUpsert.last_started = gameData.lastStarted || null;
-                     if ('lastCompleted' in gameData) rowToUpsert.last_completed = gameData.lastCompleted || null;
-                     if ('currentProgress' in gameData) rowToUpsert.current_progress = gameData.currentProgress;
-                     if ('isActive' in gameData) rowToUpsert.is_active = gameData.isActive;
-                 }
 
-                // Clean up undefined before upsert
-                Object.keys(rowToUpsert).forEach(key => { if (rowToUpsert[key] === undefined) { rowToUpsert[key] = null; } });
+                // Optional: Clean up undefined/null JUST IN CASE keysToSnakeCase missed something 
+                // or if the source object had explicit undefined values.
+                // Object.keys(rowToUpsert).forEach(key => { 
+                //     if (rowToUpsert[key] === undefined) { 
+                //         rowToUpsert[key] = null; 
+                //     } 
+                // });
                 
-                console.log(`[DataContext] Upserting MiniGame row:`, rowToUpsert);
+                console.log(`[DataContext] Upserting MiniGame row (Simplified):`, rowToUpsert);
                 upsertPromises.push(
                     supabase
                         .from('mini_games')
@@ -250,12 +257,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Execute all upserts
             const results = await Promise.allSettled(upsertPromises);
             results.forEach((result, index) => {
+                // *** FIX: Log the full result object for diagnostics ***
+                console.log(`[DataContext] Result for MiniGame upsert (${gameTypes[index]}):`, JSON.stringify(result, null, 2)); 
+                
                 if (result.status === 'rejected') {
+                    // Still log the specific error if rejected, for clarity
                     const supabaseError = result.reason?.error || result.reason;
-                    console.error(`[DataContext] Error upserting MiniGame (${gameTypes[index]}):`, supabaseError);
-                    // Decide if this is critical - maybe throw an error?
-                } else {
-                    console.log(`[DataContext] MiniGame (${gameTypes[index]}) successfully upserted.`);
+                    console.error(`[DataContext] Explicit Error upserting MiniGame (${gameTypes[index]}):`, supabaseError);
+                } else if (result.status === 'fulfilled' && result.value?.error) {
+                    // Also explicitly log if the promise fulfilled but Supabase returned an error object
+                    console.error(`[DataContext] Supabase Error in fulfilled upsert (${gameTypes[index]}):`, result.value.error);
                 }
             });
         }
@@ -301,49 +312,61 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         console.log('[DataContext] Save completed successfully.');
     } catch (error) {
-      console.error('[DataContext] Error saving data to Supabase:', error);
-      // Potentially handle the error (e.g., show a message to the user)
+      console.error('[DataContext] Error during save operation:', error);
+      // Optionally show user alert or handle error
+      // Alert.alert("Save Error", "Could not save pet progress."); 
+    } finally {
+      setIsSaving(false); // Indicate saving finished
     }
-  }, [session]);
-  
-  // Debounced setPetData that triggers save
-  // Modify this to call the new saveDataToSupabase signature
-  const setPetDataAndSave = (data: PetData | null) => {
-    setPetDataState(data);
+  }, [session]); // Dependency: session
 
+  // --- Define the function that updates state and triggers debounced save ---
+  const setPetDataAndSave = useCallback((newData: PetData | null) => {
+    // Always update the local state immediately for UI responsiveness
+    setPetDataState(newData);
+
+    // If data is null (e.g., logout), clear any pending save and don't save
+    if (newData === null) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      return; 
+    }
+
+    // Clear any existing timeout to reset the debounce timer
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    if (data) { // Only save if data is not null
-      saveTimeoutRef.current = setTimeout(() => {
-        saveDataToSupabase(data); // Call with the single data argument
-      }, 1500); // Debounce time
-    } else {
-        console.log('[DataContext] setPetDataAndSave called with null, skipping save.');
-        // Optionally handle clearing data in DB if needed on logout/deletion
-    }
+    // Set a new timeout
+    saveTimeoutRef.current = setTimeout(() => {
+      console.log('[DataContext] Debounce timer expired, calling saveDataToSupabase.');
+      // *** FIX: Pass the newData directly to the save function ***
+      // This ensures we save the state intended when the debounce was triggered,
+      // rather than relying on a potentially stale closure over `petData`.
+      saveDataToSupabase(newData); 
+      saveTimeoutRef.current = null; // Clear ref after execution
+    }, 500); // 500ms debounce period
+
+  }, [saveDataToSupabase]); // Dependency: saveDataToSupabase
+
+  // --- Provide the context value --- 
+  const contextValue: DataContextType = {
+    petData,
+    setPetData: setPetDataAndSave, // Expose the combined function
+    saveDataToSupabase, // Keep original save accessible if needed directly?
+    reloadData,
+    isLoading,
   };
 
-  // --- Provide Context Value --- 
-  return (
-    <DataContext.Provider 
-      value={{ 
-        petData, 
-        setPetData: setPetDataAndSave, // Use the debounced setter
-        saveDataToSupabase, // Provide the corrected save function
-        reloadData,
-        isLoading 
-      }}
-    >
-      {children}
-    </DataContext.Provider>
-  );
+  return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
 };
 
+// Custom hook to use the DataContext
 export const useData = () => {
   const context = useContext(DataContext);
-  if (context === undefined) { // Fix: Check for undefined
+  if (context === undefined) {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;

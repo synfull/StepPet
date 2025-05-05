@@ -85,6 +85,17 @@ export const getStartOfWeek = (date: Date = new Date()): Date => {
   return startOfWeek;
 };
 
+// Get start of week (Monday 00:00:00 UTC)
+export const getStartOfWeekUTC = (date: Date = new Date()): Date => {
+  const d = new Date(date); // Clone the date
+  const dayOfWeekUTC = d.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const diff = d.getUTCDate() - dayOfWeekUTC + (dayOfWeekUTC === 0 ? -6 : 1); // Adjust to Monday
+  
+  const startOfWeek = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
+  startOfWeek.setUTCHours(0, 0, 0, 0); // Ensure time is midnight UTC
+  return startOfWeek;
+};
+
 // Format duration in minutes to readable format
 export const formatDuration = (minutes: number): string => {
   if (minutes < 60) {

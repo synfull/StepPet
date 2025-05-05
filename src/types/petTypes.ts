@@ -62,6 +62,7 @@ export interface PetData {
   stepsSinceHatched: number;
   totalSteps: number;
   weeklySteps: number;
+  currentWeekStartDate?: string | null;
   totalStepsBeforeToday?: number;
   startingStepCount?: number;
   hatchDate?: string | null;

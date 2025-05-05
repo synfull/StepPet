@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Pedometer } from 'expo-sensors';
 import analytics from '@react-native-firebase/analytics';
+import { getStartOfWeekUTC } from './dateUtils';
 
 // Pet Categories
 export const PET_CATEGORIES: Record<PetCategory, {
@@ -421,7 +422,8 @@ export const getRandomPetType = (): { type: PetType; category: PetCategory } => 
 
 // Create a new pet
 export const createNewPet = async (currentSteps: number, type?: PetType, category?: PetCategory, name?: string): Promise<PetData> => {
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowISO = now.toISOString();
   
   // Get the current session
   const { data: { session } } = await supabase.auth.getSession();
@@ -455,6 +457,11 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
   }
   // --- END Restore --- 
   
+  // Calculate the start of the current week in UTC
+  const startOfWeek = getStartOfWeekUTC(now);
+  const startOfWeekISO = startOfWeek.toISOString();
+  console.log(`[createNewPet] Calculated start of week (UTC): ${startOfWeekISO}`);
+
   return {
     id: generateUUID(),
     name: name || 'Egg',
@@ -464,12 +471,13 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     xp: 0,
     xpToNextLevel: LEVEL_REQUIREMENTS[0],
     growthStage: 'Egg' as GrowthStage,
-    stepsToHatch: 5000, // Updated to match first level requirement
+    stepsToHatch: 5000,
     stepsSinceHatched: 0,
     totalSteps: 0,
-    weeklySteps: 0, // Initialize weekly steps
-    totalStepsBeforeToday: 0, // Initialize new field
-    startingStepCount: currentDaySteps, // Set the starting point to current day's steps
+    weeklySteps: 0,
+    currentWeekStartDate: startOfWeekISO,
+    totalStepsBeforeToday: 0,
+    startingStepCount: currentDaySteps,
     appearance: {
       mainColor: '#FFFFFF',
       accentColor: '#FFFFFF',
@@ -483,14 +491,14 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
       feed: { lastClaimed: null, claimedToday: false },
       fetch: { lastClaimed: null, claimsToday: 0 },
       adventure: { 
-        lastStarted: now, 
+        lastStarted: nowISO, 
         lastCompleted: null, 
         currentProgress: 0, 
         isActive: true 
       }
     },
     milestones: [...DEFAULT_MILESTONES],
-    created: now
+    created: nowISO
   };
 };
 
@@ -596,14 +604,12 @@ export const updatePetWithSteps = async (
     updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[currentLevelIndex] || Infinity; // Set next requirement or Infinity if max level
     console.log(`[petUtils] Leveled up to ${updatedPet.level}! XP remaining: ${updatedPet.xp}, Next level XP: ${updatedPet.xpToNextLevel}`);
 
-    // --- Growth Stage Check --- (Keep existing logic)
-    // ... (rest of growth stage logic remains unchanged) ...
-
-    // Update growth stage
+    // --- Growth Stage Check --- 
+    const oldGrowthStage = updatedPet.growthStage;
     updatedPet.growthStage = updateGrowthStage(updatedPet);
 
     // Log pet_evolve event if stage changed (and not from Egg)
-    if (didGrowthStageChange(currentPet.growthStage, updatedPet.growthStage)) {
+    if (didGrowthStageChange(oldGrowthStage, updatedPet.growthStage)) {
       try {
         await analytics().logEvent('pet_evolve', { 
           new_stage: updatedPet.growthStage,
@@ -619,11 +625,11 @@ export const updatePetWithSteps = async (
   return { updatedPet, leveledUp };
 };
 
-const getPetCategory = (type: PetType): string => {
-  for (const [category, types] of Object.entries(PET_CATEGORIES)) {
-    if (types.pets.includes(type)) {
-      return category;
+const getPetCategory = (type: PetType): PetCategory | '' => {
+  for (const category in PET_CATEGORIES) {
+    if (PET_CATEGORIES[category as PetCategory].pets.includes(type)) {
+      return category as PetCategory;
     }
   }
-  return '';
-}; 
+  return ''; // Return empty string if not found (shouldn't happen with current data)
+};
