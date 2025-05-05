@@ -1,12 +1,13 @@
-// Check if two dates are the same day
+// Check if two dates are the same day, comparing in UTC
 export const isSameDay = (date1: Date | string, date2: Date | string): boolean => {
   const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
   const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
   
+  // Use UTC methods for comparison
   return (
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
+    d1.getUTCFullYear() === d2.getUTCFullYear() &&
+    d1.getUTCMonth() === d2.getUTCMonth() && // Returns 0-11
+    d1.getUTCDate() === d2.getUTCDate()     // Returns 1-31
   );
 };
 

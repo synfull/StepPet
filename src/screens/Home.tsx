@@ -788,20 +788,27 @@ const Home: React.FC = () => {
     
     // Check if already fed today
     const now = new Date();
-    // Use optional chaining here
     const lastFed = petData?.miniGames?.feed?.lastClaimed ? new Date(petData.miniGames.feed.lastClaimed) : null;
-    // Use optional chaining here
     if (lastFed && isSameDay(lastFed, now) && petData?.miniGames?.feed?.claimedToday) {
       Alert.alert('Already Fed', 'You have already fed your pet today!');
       return;
     }
+
+    // *** FIX: Calculate steps relevant for today's activity ***
+    let activityStepsToday = dailySteps; // Start with the total daily steps
+    if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), now)) {
+      // If hatched today, subtract steps recorded at hatch
+      activityStepsToday = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
+      console.log(`[handleFeedPet] Hatched today. Using activityStepsToday: ${activityStepsToday} (daily: ${dailySteps}, atHatch: ${petData.dailyStepsAtHatch})`);
+    }
     
-    // Check if enough steps
-    if (dailySteps < 2500) {
+    // Check if enough steps using the adjusted count
+    if (activityStepsToday < 2500) {
       playSound('action-fail');
       Alert.alert(
         'More Steps Needed',
-        `You need 2,500 steps to feed your pet. You currently have ${dailySteps} steps.`,
+        // Use activityStepsToday in the alert message
+        `You need 2,500 steps today (since hatching) to feed your pet. You currently have ${activityStepsToday} steps towards this activity.`,
         [{ text: 'OK' }]
       );
       return;
@@ -852,7 +859,6 @@ const Home: React.FC = () => {
     
     // Check fetch claims today
     const MAX_FETCH_CLAIMS = 3;
-    // Use optional chaining and nullish coalescing
     const fetchClaimsToday = petData?.miniGames?.fetch?.claimsToday ?? 0;
     const canFetchToday = fetchClaimsToday < MAX_FETCH_CLAIMS;
     
@@ -860,19 +866,29 @@ const Home: React.FC = () => {
       playSound('action-fail');
       Alert.alert(
         'Fetch Limit Reached',
-        'Your pet has already played fetch twice today. Come back tomorrow!',
+        'Your pet has already played fetch ${MAX_FETCH_CLAIMS} times today. Come back tomorrow!',
         [{ text: 'OK' }]
       );
       return;
     }
+
+    // *** FIX: Calculate steps relevant for today's activity ***
+    let activityStepsToday = dailySteps; // Start with the total daily steps
+    const now = new Date(); // Define now here as well
+    if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), now)) {
+      // If hatched today, subtract steps recorded at hatch
+      activityStepsToday = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
+      console.log(`[handleFetchGame] Hatched today. Using activityStepsToday: ${activityStepsToday} (daily: ${dailySteps}, atHatch: ${petData.dailyStepsAtHatch})`);
+    }
     
-    // Check if enough steps
-    const stepsNeeded = (fetchClaimsToday + 1) * 1000; // 1000 steps for first claim, 2000 for second
-    if (dailySteps < stepsNeeded) {
+    // Check if enough steps using the adjusted count
+    const stepsNeeded = (fetchClaimsToday + 1) * 1000; // 1000 steps for first claim, 2000 for second, etc.
+    if (activityStepsToday < stepsNeeded) {
       playSound('action-fail');
       Alert.alert(
         'More Steps Needed',
-        `You need ${stepsNeeded} steps to play fetch. You currently have ${dailySteps} steps.`,
+         // Use activityStepsToday in the alert message
+        `You need ${stepsNeeded} steps today (since hatching) to play fetch. You currently have ${activityStepsToday} steps towards this activity.`,
         [{ text: 'OK' }]
       );
       return;
@@ -880,7 +896,6 @@ const Home: React.FC = () => {
     
     // Update pet data
     const updatedPet = { ...petData };
-    const now = new Date();
     
     // Safely update nested property
     if (updatedPet.miniGames?.fetch) {
@@ -1551,34 +1566,45 @@ const Home: React.FC = () => {
           
           {(() => {
             // Determine steps progress for feed/fetch based on hatch date
-            let activityStepsProgress = dailySteps;
-            if (petData?.hatchDate && isSameDay(new Date(petData.hatchDate), new Date())) {
+            let activityStepsProgress = dailySteps; // Default to total daily steps
+
+            // *** Add Logging Here ***
+            console.log(`[UI Render Activity Calc] Checking hatch date. hatchDate: ${petData?.hatchDate}, dailyStepsAtHatch: ${petData?.dailyStepsAtHatch}`);
+            const now = new Date(); // Define now for logging consistency
+            const hatchDateObj = petData?.hatchDate ? new Date(petData.hatchDate) : null;
+            const isHatchToday = hatchDateObj && isSameDay(hatchDateObj, now);
+            console.log(`[UI Render Activity Calc] Current Date: ${now.toISOString()}, Parsed Hatch Date: ${hatchDateObj?.toISOString()}, Is Hatch Today?: ${isHatchToday}`);
+
+            // *** FIX: Adjust progress calculation if hatched today ***
+            if (isHatchToday) { // Use the calculated boolean
+              // Use steps since hatching for display on hatch day
               activityStepsProgress = Math.max(0, dailySteps - (petData.dailyStepsAtHatch || 0));
+              console.log(`[MiniGameCard Display] Hatched today. Using activityStepsProgress: ${activityStepsProgress} (daily: ${dailySteps}, atHatch: ${petData.dailyStepsAtHatch})`);
             }
 
             return (
               <>
-                {/* Fetch Mini Game */}
+                {/* Fetch Mini Game - Use adjusted activityStepsProgress */}
                 <MiniGameCard
                   title="Play Fetch"
-                  description={`Walk ${(fetchClaimsToday + 1) * 1000} steps to play fetch ${fetchClaimsToday === 0 ? '(first time)' : '(second time)'}.`}
+                  description={`Walk ${(fetchClaimsToday + 1) * 1000} steps to play fetch ${fetchClaimsToday === 0 ? '(first time)' : fetchClaimsToday === 1 ? '(second time)' : '(limit reached)'}.`}
                   icon="tennisball-outline"
                   stepsRequired={(fetchClaimsToday + 1) * 1000}
-                  stepsProgress={activityStepsProgress}
+                  stepsProgress={activityStepsProgress} // Use the calculated value
                   isActive={canFetchToday}
-                  isComplete={fetchClaimsToday >= 2}
+                  isComplete={fetchClaimsToday >= MAX_FETCH_CLAIMS}
                   isLocked={petData.growthStage === 'Egg'}
                   onPress={() => handleMiniGamePress('fetch')}
                   color="#8C52FF"
                 />
 
-                {/* Feed Mini Game */}
+                {/* Feed Mini Game - Use adjusted activityStepsProgress */}
                 <MiniGameCard
                   title="Feed Your Pet"
-                  description="Walk 2,500 steps to feed your pet."
+                  description="Walk 2,500 steps today to feed your pet."
                   icon="nutrition-outline"
                   stepsRequired={2500}
-                  stepsProgress={activityStepsProgress}
+                  stepsProgress={activityStepsProgress} // Use the calculated value
                   isActive={canFeedToday}
                   isComplete={!canFeedToday}
                   isLocked={petData.growthStage === 'Egg'}
