@@ -527,7 +527,8 @@ const Home: React.FC = () => {
       floatAnim.setValue(0); 
     }
   // *** FIX: Depend on petData existence, not just growthStage ***
-  }, [petData]); 
+  // *** Use petData.id which is stable during updates ***
+  }, [petData?.id]); 
   
   // Start subtle breathing animation loop when petData exists
   useEffect(() => {
@@ -553,7 +554,8 @@ const Home: React.FC = () => {
     } else {
       breathingAnim.setValue(1); // Reset if no petData
     }
-  }, [petData]);
+    // *** FIX: Use petData.id which is stable during updates ***
+  }, [petData?.id]);
   
   // Refresh step data
   const refreshStepData = async () => {
