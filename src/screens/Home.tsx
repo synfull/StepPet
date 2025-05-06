@@ -572,10 +572,10 @@ const Home: React.FC = () => {
       // Subtract starting steps ONLY if the pet was created today
       const startingStepCountForDaily = isSameDay(petCreationTime, now) ? (petData.startingStepCount || 0) : 0;
       const calculatedDailySteps = Math.max(0, todayStepsRaw - startingStepCountForDaily);
-      console.log(`[Refresh v6] Calculated Daily Steps: ${calculatedDailySteps}`);
+      console.log(`[Refresh v9] Calculated Daily Steps: ${calculatedDailySteps}`);
       setDailySteps(calculatedDailySteps);
 
-      // 3. Calculate Absolute Total Steps Since Creation (unchanged, for delta calc)
+      // Get Absolute Total Steps from Pedometer
       let absoluteTotalStepsSinceCreation = 0;
       try {
          const { steps: totalStepsRawPedometer } = await Pedometer.getStepCountAsync(petCreationTime, now);
@@ -584,79 +584,83 @@ const Home: React.FC = () => {
          } else {
             absoluteTotalStepsSinceCreation = totalStepsRawPedometer;
          }
-         console.log(`[Refresh v6] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
+         console.log(`[Refresh v9] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
       } catch (pedometerError) {
-          console.error("[Refresh v6] Error fetching total steps from pedometer:", pedometerError);
+          console.error("[Refresh v9] Error fetching total steps from pedometer:", pedometerError);
           absoluteTotalStepsSinceCreation = petData.totalSteps || 0;
-          console.warn("[Refresh v6] Using saved totalSteps due to pedometer error.");
+          console.warn("[Refresh v9] Using saved totalSteps due to pedometer error.");
       }
 
-      // Calculate the DELTA (new steps added since last save) (unchanged)
+      // Calculate the delta for XP/Leveling (relative to current saved totalSteps)
       const savedTotalSteps = petData.totalSteps || 0;
-      const newStepsDelta = Math.max(0, absoluteTotalStepsSinceCreation - savedTotalSteps);
-      console.log(`[Refresh v6] Calculated New Steps Delta: ${newStepsDelta}`);
+      const newStepsDeltaForXP = Math.max(0, absoluteTotalStepsSinceCreation - savedTotalSteps);
+      console.log(`[Refresh v9] Calculated New Steps Delta (for XP): ${newStepsDeltaForXP}`);
 
-      // *** NEW: Weekly Steps Logic ***
+      // *** Weekly Steps Logic using totalStepsAtLastWeeklyCalc ***
       const currentWeekStart = getStartOfWeekUTC(now);
       const lastSavedWeekStartStr = petData.currentWeekStartDate;
-      let lastSavedWeekStart = new Date(0); // Initialize to epoch
-      if (lastSavedWeekStartStr) {
-          try {
-              lastSavedWeekStart = new Date(lastSavedWeekStartStr);
-          } catch (e) { console.error("Error parsing lastSavedWeekStartStr", e); }
-      }
-      
-      console.log(`[Refresh v6] Current Week Start: ${currentWeekStart.toISOString()}, Last Saved Week Start: ${lastSavedWeekStart.toISOString()}`);
-      
+      let lastSavedWeekStart = new Date(0);
+      if (lastSavedWeekStartStr) { try { lastSavedWeekStart = new Date(lastSavedWeekStartStr); } catch (e) { console.error("Error parsing lastSavedWeekStartStr", e); } }
+      console.log(`[Refresh v9] Current Week Start: ${currentWeekStart.toISOString()}, Last Saved Week Start: ${lastSavedWeekStart.toISOString()}`);
+
       let updatedWeeklySteps = 0;
       let isNewWeek = false;
-      // Check if the current week start is later than the last saved week start
+      const savedWeeklySteps = petData.weeklySteps || 0;
+      // *** Calculate delta for weekly steps based on last calculation point ***
+      const lastWeeklyCalcPoint = petData.totalStepsAtLastWeeklyCalc ?? savedTotalSteps ?? 0; // Fallback logic
+      const refreshDeltaForWeekly = Math.max(0, absoluteTotalStepsSinceCreation - lastWeeklyCalcPoint);
+      console.log(`[Refresh v9 - Weekly] Saved Weekly: ${savedWeeklySteps}, LastCalcPoint: ${lastWeeklyCalcPoint}, AbsoluteTotal: ${absoluteTotalStepsSinceCreation}, RefreshDeltaForWeekly: ${refreshDeltaForWeekly}`);
+
+      // Check if a new week has started
       if (currentWeekStart.getTime() > lastSavedWeekStart.getTime()) {
-          console.log('[Refresh v6] New week detected! Resetting weekly steps.');
+          console.log('[Refresh v9 - Weekly] New week detected! Resetting weekly steps.');
           isNewWeek = true;
-          updatedWeeklySteps = newStepsDelta; // Start new week count with current delta
+          updatedWeeklySteps = refreshDeltaForWeekly; // Reset to the delta from this cycle
       } else {
-          console.log('[Refresh v6] Same week. Adding delta to weekly steps.');
-          const savedWeeklySteps = petData.weeklySteps || 0;
-          updatedWeeklySteps = savedWeeklySteps + newStepsDelta;
+          console.log('[Refresh v9 - Weekly] Same week. Adding refresh delta to weekly steps.');
+          updatedWeeklySteps = savedWeeklySteps + refreshDeltaForWeekly;
       }
-      setWeeklySteps(updatedWeeklySteps); // Update context
-      console.log(`[Refresh v6] Updated Weekly Steps: ${updatedWeeklySteps}`);
+      console.log(`[Refresh v9 - Weekly] Calculated Updated Weekly Steps: ${updatedWeeklySteps}`);
 
-      // 5. Update Total Steps Context (unchanged)
-      const updatedTotalSteps = savedTotalSteps + newStepsDelta;
-      setTotalSteps(updatedTotalSteps);
-      console.log(`[Refresh v6] Updated Total Steps Context: ${updatedTotalSteps}`);
+      setWeeklySteps(updatedWeeklySteps); // Update context for immediate display
+      console.log(`[Refresh v9] Updated Weekly Steps Context: ${updatedWeeklySteps}`);
 
-      // 6. Prepare updated PetData for saving
-      // Make a copy to avoid direct mutation if needed, especially for the date
-      let petDataForUpdate = { ...petData }; 
-      petDataForUpdate.weeklySteps = updatedWeeklySteps;
-      if (isNewWeek) {
-          petDataForUpdate.currentWeekStartDate = currentWeekStart.toISOString();
-      }
-      // Ensure totalSteps is also updated in the object being passed
-      petDataForUpdate.totalSteps = updatedTotalSteps; 
+      // Update Total Steps Context (using the same absolute value)
+      setTotalSteps(absoluteTotalStepsSinceCreation);
+      console.log(`[Refresh v9] Updated Total Steps Context: ${absoluteTotalStepsSinceCreation}`);
 
-      // Call updatePetWithSteps with the correct data and delta
-      const { updatedPet: refreshedPetFromUtil, leveledUp } = await updatePetWithSteps(
-          petDataForUpdate, // Pass the potentially modified petData (with new week start date)
-          newStepsDelta 
-      );
-      console.log('[Refresh v7] Pet data after updatePetWithSteps:', refreshedPetFromUtil);
-
-      // *** FIX: Merge results before setting state ***
-      // Start with the object returned from the utility (has correct totalSteps, xp, level etc.)
-      const finalPetDataUpdate = { 
-          ...refreshedPetFromUtil, 
-          weeklySteps: updatedWeeklySteps, // Ensure our calculated weeklySteps is included
-          currentWeekStartDate: isNewWeek ? currentWeekStart.toISOString() : petData.currentWeekStartDate // Ensure correct week start date is included
+      // Prepare updated PetData for saving
+      let petDataForUpdate = { 
+          ...petData, // Start with current state
+          totalSteps: absoluteTotalStepsSinceCreation, // Set totalSteps to the absolute current value
+          weeklySteps: updatedWeeklySteps,             // Set weeklySteps to our new calculation
+          // *** Set the tracker field to the current absolute total ***
+          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation, 
+          // Update week start date only if it's a new week
+          currentWeekStartDate: isNewWeek ? currentWeekStart.toISOString() : petData.currentWeekStartDate 
       };
+      console.log(`[Refresh v9] petDataForUpdate prepared:`, petDataForUpdate);
 
-      console.log('[Refresh v7] Final merged PetData for setPetData:', finalPetDataUpdate);
+      // Call updatePetWithSteps using the delta calculated for XP/leveling
+      // Pass the petDataForUpdate object which contains the correct totalSteps
+      const { updatedPet: refreshedPetFromUtil, leveledUp } = await updatePetWithSteps(
+          petDataForUpdate,      // Pass object with updated totalSteps, weeklySteps, lastWeeklyCalc point, etc.
+          newStepsDeltaForXP     // Pass the delta calculated against the *previous* totalSteps for accurate XP
+      );
+      console.log('[Refresh v9] Pet data after updatePetWithSteps:', refreshedPetFromUtil);
 
-      // Update the main petData state AFTER calculations using the merged object
-      setPetData(finalPetDataUpdate); // This triggers the debounced save with all correct fields
+      // Merge results - Ensure our calculated weekly fields persist
+      // refreshedPetFromUtil already contains the correct totalSteps, xp, level etc. from updatePetWithSteps
+      const finalPetDataUpdate = {
+          ...refreshedPetFromUtil, 
+          weeklySteps: updatedWeeklySteps, // Ensure our weekly calc is used
+          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation, // Ensure our tracker value is used
+          currentWeekStartDate: petDataForUpdate.currentWeekStartDate // Ensure correct week start is used
+      };
+      console.log(`[Refresh v9] Final merged PetData (WeeklySteps: ${finalPetDataUpdate.weeklySteps}, LastWeeklyCalc: ${finalPetDataUpdate.totalStepsAtLastWeeklyCalc}):`, finalPetDataUpdate);
+
+      // Update the main petData state 
+      setPetData(finalPetDataUpdate);
 
       if (leveledUp) {
         navigation.navigate('PetLevelUp', {

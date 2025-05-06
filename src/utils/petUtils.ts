@@ -476,6 +476,7 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     totalSteps: 0,
     weeklySteps: 0,
     currentWeekStartDate: startOfWeekISO,
+    totalStepsAtLastWeeklyCalc: 0,
     totalStepsBeforeToday: 0,
     startingStepCount: currentDaySteps,
     appearance: {
