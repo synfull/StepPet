@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { Session, User } from '@supabase/supabase-js';
 // Correct the import path for case conversion utils
-import { Alert } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 
 // Helper function to convert object keys from snake_case to camelCase
 const keysToCamelCase = (obj: any): any => {
@@ -56,6 +56,12 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, session } = useAuth(); // Assuming session is also available from useAuth
   const [petData, setPetDataState] = useState<PetData | null>(null);
+  const petDataRef = useRef(petData); // Ref to hold current petData for AppState listener
+
+  useEffect(() => { // Keep petDataRef in sync with petData state
+    petDataRef.current = petData;
+  }, [petData]);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false); // To prevent concurrent saves
   // Ref for debounce timer
@@ -192,6 +198,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.warn('[DataContext] saveDataToSupabase called, but no user ID available.');
       return; // Cannot save without user ID
     }
+    // Check if a save is already in progress from any source (debounced or direct)
+    if (isSaving) {
+      console.log('[DataContext] Save already in progress, skipping new save request.');
+      return;
+    }
     const userId = session.user.id;
     console.log(`[DataContext] Attempting to save pet data for user: ${userId}, Pet ID: ${dataToSave.id}`);
     setIsSaving(true); // Indicate saving started
@@ -229,7 +240,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     continue; // Skip if gameData is null/undefined for some reason
                 }
                 
-                // *** FIX: Use keysToSnakeCase for the entire game data object ***
                 const gameDataSnake = keysToSnakeCase(gameData);
                 
                 let rowToUpsert = {
@@ -237,14 +247,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     game_type: gameType,    // Add game type identifier
                     ...gameDataSnake       // Spread the snake_case fields
                 };
-
-                // Optional: Clean up undefined/null JUST IN CASE keysToSnakeCase missed something 
-                // or if the source object had explicit undefined values.
-                // Object.keys(rowToUpsert).forEach(key => { 
-                //     if (rowToUpsert[key] === undefined) { 
-                //         rowToUpsert[key] = null; 
-                //     } 
-                // });
                 
                 console.log(`[DataContext] Upserting MiniGame row (Simplified):`, rowToUpsert);
                 upsertPromises.push(
@@ -254,18 +256,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 );
             }
             
-            // Execute all upserts
             const results = await Promise.allSettled(upsertPromises);
             results.forEach((result, index) => {
-                // *** FIX: Log the full result object for diagnostics ***
                 console.log(`[DataContext] Result for MiniGame upsert (${gameTypes[index]}):`, JSON.stringify(result, null, 2)); 
                 
                 if (result.status === 'rejected') {
-                    // Still log the specific error if rejected, for clarity
                     const supabaseError = result.reason?.error || result.reason;
                     console.error(`[DataContext] Explicit Error upserting MiniGame (${gameTypes[index]}):`, supabaseError);
                 } else if (result.status === 'fulfilled' && result.value?.error) {
-                    // Also explicitly log if the promise fulfilled but Supabase returned an error object
                     console.error(`[DataContext] Supabase Error in fulfilled upsert (${gameTypes[index]}):`, result.value.error);
                 }
             });
@@ -275,15 +273,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (milestones && milestones.length > 0) {
           console.log('[DataContext] Preparing Milestones upserts...');
           const milestoneUpsertPromises = milestones.map(milestone => {
-              // Map the code's 'id' field to the database's 'milestone_id' column
-              // Omit the auto-generated 'id' field if present from fetch
               const { id: milestoneIdentifier, ...restOfMilestone } = milestone;
               const milestoneToUpsert = {
                 ...keysToSnakeCase(restOfMilestone),
-                milestone_id: milestoneIdentifier, // Ensure the text identifier is present
-                pet_id: dataToSave.id, // Add the foreign key
+                milestone_id: milestoneIdentifier, 
+                pet_id: dataToSave.id, 
               };
-              // Clean up undefined values
               Object.keys(milestoneToUpsert).forEach(key => { 
                   if (milestoneToUpsert[key] === undefined) { 
                       milestoneToUpsert[key] = null; 
@@ -292,18 +287,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               console.log(`[DataContext] Upserting Milestone row:`, milestoneToUpsert);
               return supabase
                 .from('milestones')
-                .upsert(milestoneToUpsert, { onConflict: 'pet_id, milestone_id' }); // Upsert based on pet and milestone identifier
+                .upsert(milestoneToUpsert, { onConflict: 'pet_id, milestone_id' }); 
           });
 
-          // Execute all milestone upserts
           const milestoneResults = await Promise.allSettled(milestoneUpsertPromises);
           milestoneResults.forEach((result, index) => {
               if (result.status === 'rejected') {
                   const supabaseError = result.reason?.error || result.reason;
                   console.error(`[DataContext] Error upserting Milestone (${milestones[index].id}):`, supabaseError);
-              } else {
-                  // console.log(`[DataContext] Milestone (${milestones[index].id}) successfully upserted.`); // Optional success log
-              }
+              } 
           });
            console.log('[DataContext] Finished milestone upserts.');
         } else {
@@ -313,12 +305,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('[DataContext] Save completed successfully.');
     } catch (error) {
       console.error('[DataContext] Error during save operation:', error);
-      // Optionally show user alert or handle error
-      // Alert.alert("Save Error", "Could not save pet progress."); 
     } finally {
       setIsSaving(false); // Indicate saving finished
     }
-  }, [session]); // Dependency: session
+  }, [session, isSaving]); // Dependency: session and isSaving
+
+  // --- useEffect for AppState changes --- 
+  // Moved AFTER saveDataToSupabase definition
+  useEffect(() => {
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      console.log('[DataContext] AppState changed to:', nextAppState);
+      // For iOS, 'inactive' can also precede termination. 'background' is common for both.
+      if (nextAppState.match(/inactive|background/)) {
+        if (petDataRef.current) { // Check if there's data to save using the ref
+          console.log('[DataContext] App moving to background/inactive, attempting immediate save.');
+          // Directly call saveDataToSupabase, bypassing debounce for this critical event.
+          // The isSaving flag within saveDataToSupabase should prevent re-entrancy if already saving.
+          saveDataToSupabase(petDataRef.current).catch(error => {
+            console.error('[DataContext] Error saving data on app background:', error);
+          });
+        } else {
+          console.log('[DataContext] App moving to background/inactive, but no petData to save.');
+        }
+      }
+    });
+
+    return () => {
+      appStateSubscription.remove();
+    };
+  }, [saveDataToSupabase]); // Add saveDataToSupabase to dependency array
 
   // --- Define the function that updates state and triggers debounced save ---
   const setPetDataAndSave = useCallback((newData: PetData | null) => {

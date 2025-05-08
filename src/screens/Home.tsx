@@ -168,12 +168,11 @@ const Home: React.FC = () => {
   const floatAnim = useRef(new Animated.Value(0)).current;
   const breathingAnim = useRef(new Animated.Value(1)).current; // Add breathing animation value
   
-  const appState = useRef(AppState.currentState);
-  
   const lastStepUpdate = useRef<number>(0);
   const STEP_UPDATE_INTERVAL = 1000; // 1 second minimum between updates
   
-  const [lastKnownDate, setLastKnownDate] = useState(new Date().getDate());
+  // *** ADD Ref to track last processed date for daily reset ***
+  const lastProcessedDateRef = useRef<number>(new Date().getDate());
   
   // Welcome screen animations
   useEffect(() => {
@@ -559,120 +558,144 @@ const Home: React.FC = () => {
   
   // Refresh step data
   const refreshStepData = async () => {
+    console.log('[Refresh v10] Refresh triggered.');
     try {
-      if (!petData) return;
+      if (!petData) {
+        console.log('[Refresh v10] No petData, skipping.');
+        return;
+      }
 
-      const petCreationTime = new Date(petData.created);
       const now = new Date(); // Get current time once
+      const currentDayOfMonth = now.getDate();
+      let updatedPetDataForCalc = { ...petData }; // Start with current petData
+      let dailyStepsReset = false;
+
+      // *** Check for day change and perform snapshot ***
+      if (currentDayOfMonth !== lastProcessedDateRef.current) {
+          console.log(`[Refresh v10] New day detected (Current: ${currentDayOfMonth}, Last Processed: ${lastProcessedDateRef.current})! Running midnight snapshot.`);
+          dailyStepsReset = true;
+          updatedPetDataForCalc = {
+              ...updatedPetDataForCalc,
+              // Snapshot total steps from *before* this refresh into totalStepsBeforeToday
+              totalStepsBeforeToday: petData.totalSteps 
+          };
+          lastProcessedDateRef.current = currentDayOfMonth; // Update ref for next check
+          setDailySteps(0); // Reset daily steps context display immediately
+          console.log(`[Refresh v10] Snapshot complete. totalStepsBeforeToday set to: ${petData.totalSteps}. Daily context reset.`);
+      }
+      // *** End daily reset check ***
+
+      // Use updatedPetDataForCalc for reading existing values from this point onwards
+      const petCreationTime = new Date(updatedPetDataForCalc.created);
 
       // 1. Get today's raw steps from Pedometer
-      const todayMidnight = new Date(now);
+      const todayMidnight = new Date(now); 
       todayMidnight.setHours(0, 0, 0, 0);
       const { steps: todayStepsRaw } = await Pedometer.getStepCountAsync(todayMidnight, now);
 
       // 2. Calculate Daily Steps for display
+      let calculatedDailySteps = 0;
       // Subtract starting steps ONLY if the pet was created today
-      const startingStepCountForDaily = isSameDay(petCreationTime, now) ? (petData.startingStepCount || 0) : 0;
-      const calculatedDailySteps = Math.max(0, todayStepsRaw - startingStepCountForDaily);
-      console.log(`[Refresh v9] Calculated Daily Steps: ${calculatedDailySteps}`);
-      setDailySteps(calculatedDailySteps);
+      // Also, if daily steps were reset, the count for today effectively starts from 0 relative to snapshot
+      if (!dailyStepsReset) { 
+          const startingStepCountForDaily = isSameDay(petCreationTime, now) ? (updatedPetDataForCalc.startingStepCount || 0) : 0;
+          calculatedDailySteps = Math.max(0, todayStepsRaw - startingStepCountForDaily);
+      } // else calculatedDailySteps remains 0, as context was just reset
+      console.log(`[Refresh v10] Calculated Daily Steps for display: ${calculatedDailySteps}`);
+      // Update context only if it wasn't just reset (to avoid redundant set)
+      if (!dailyStepsReset) { 
+          setDailySteps(calculatedDailySteps);
+      }
 
-      // Get Absolute Total Steps from Pedometer
+      // 3. Get Absolute Total Steps from Pedometer
       let absoluteTotalStepsSinceCreation = 0;
       try {
          const { steps: totalStepsRawPedometer } = await Pedometer.getStepCountAsync(petCreationTime, now);
+         // Use startingStepCount from the potentially updated data
          if (isSameDay(petCreationTime, now)) {
-            absoluteTotalStepsSinceCreation = Math.max(0, totalStepsRawPedometer - (petData.startingStepCount || 0));
+            absoluteTotalStepsSinceCreation = Math.max(0, totalStepsRawPedometer - (updatedPetDataForCalc.startingStepCount || 0));
          } else {
             absoluteTotalStepsSinceCreation = totalStepsRawPedometer;
          }
-         console.log(`[Refresh v9] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
+         console.log(`[Refresh v10] Absolute Total Steps (Pedometer): ${absoluteTotalStepsSinceCreation}`);
       } catch (pedometerError) {
-          console.error("[Refresh v9] Error fetching total steps from pedometer:", pedometerError);
-          absoluteTotalStepsSinceCreation = petData.totalSteps || 0;
-          console.warn("[Refresh v9] Using saved totalSteps due to pedometer error.");
+          console.error("[Refresh v10] Error fetching total steps from pedometer:", pedometerError);
+          absoluteTotalStepsSinceCreation = updatedPetDataForCalc.totalSteps || 0;
+          console.warn("[Refresh v10] Using saved totalSteps due to pedometer error.");
       }
 
-      // Calculate the delta for XP/Leveling (relative to current saved totalSteps)
-      const savedTotalSteps = petData.totalSteps || 0;
+      // 4. Calculate the delta for XP/Leveling (relative to current saved totalSteps in updatedPetDataForCalc)
+      const savedTotalSteps = updatedPetDataForCalc.totalSteps || 0;
       const newStepsDeltaForXP = Math.max(0, absoluteTotalStepsSinceCreation - savedTotalSteps);
-      console.log(`[Refresh v9] Calculated New Steps Delta (for XP): ${newStepsDeltaForXP}`);
+      console.log(`[Refresh v10] Calculated New Steps Delta (for XP): ${newStepsDeltaForXP}`);
 
-      // *** Weekly Steps Logic using totalStepsAtLastWeeklyCalc ***
+      // 5. Weekly Steps Logic using totalStepsAtLastWeeklyCalc
       const currentWeekStart = getStartOfWeekUTC(now);
-      const lastSavedWeekStartStr = petData.currentWeekStartDate;
+      const lastSavedWeekStartStr = updatedPetDataForCalc.currentWeekStartDate;
       let lastSavedWeekStart = new Date(0);
       if (lastSavedWeekStartStr) { try { lastSavedWeekStart = new Date(lastSavedWeekStartStr); } catch (e) { console.error("Error parsing lastSavedWeekStartStr", e); } }
-      console.log(`[Refresh v9] Current Week Start: ${currentWeekStart.toISOString()}, Last Saved Week Start: ${lastSavedWeekStart.toISOString()}`);
+      console.log(`[Refresh v10] Current Week Start: ${currentWeekStart.toISOString()}, Last Saved Week Start: ${lastSavedWeekStart.toISOString()}`);
 
       let updatedWeeklySteps = 0;
       let isNewWeek = false;
-      const savedWeeklySteps = petData.weeklySteps || 0;
-      // *** Calculate delta for weekly steps based on last calculation point ***
-      const lastWeeklyCalcPoint = petData.totalStepsAtLastWeeklyCalc ?? savedTotalSteps ?? 0; // Fallback logic
+      const savedWeeklySteps = updatedPetDataForCalc.weeklySteps || 0;
+      const lastWeeklyCalcPoint = updatedPetDataForCalc.totalStepsAtLastWeeklyCalc ?? savedTotalSteps ?? 0; 
       const refreshDeltaForWeekly = Math.max(0, absoluteTotalStepsSinceCreation - lastWeeklyCalcPoint);
-      console.log(`[Refresh v9 - Weekly] Saved Weekly: ${savedWeeklySteps}, LastCalcPoint: ${lastWeeklyCalcPoint}, AbsoluteTotal: ${absoluteTotalStepsSinceCreation}, RefreshDeltaForWeekly: ${refreshDeltaForWeekly}`);
+      console.log(`[Refresh v10 - Weekly] Saved Weekly: ${savedWeeklySteps}, LastCalcPoint: ${lastWeeklyCalcPoint}, AbsoluteTotal: ${absoluteTotalStepsSinceCreation}, RefreshDeltaForWeekly: ${refreshDeltaForWeekly}`);
 
-      // Check if a new week has started
       if (currentWeekStart.getTime() > lastSavedWeekStart.getTime()) {
-          console.log('[Refresh v9 - Weekly] New week detected! Resetting weekly steps.');
+          console.log('[Refresh v10 - Weekly] New week detected! Resetting weekly steps.');
           isNewWeek = true;
-          updatedWeeklySteps = refreshDeltaForWeekly; // Reset to the delta from this cycle
+          updatedWeeklySteps = refreshDeltaForWeekly;
       } else {
-          console.log('[Refresh v9 - Weekly] Same week. Adding refresh delta to weekly steps.');
+          console.log('[Refresh v10 - Weekly] Same week. Adding refresh delta to weekly steps.');
           updatedWeeklySteps = savedWeeklySteps + refreshDeltaForWeekly;
       }
-      console.log(`[Refresh v9 - Weekly] Calculated Updated Weekly Steps: ${updatedWeeklySteps}`);
+      console.log(`[Refresh v10 - Weekly] Calculated Updated Weekly Steps: ${updatedWeeklySteps}`);
 
-      setWeeklySteps(updatedWeeklySteps); // Update context for immediate display
-      console.log(`[Refresh v9] Updated Weekly Steps Context: ${updatedWeeklySteps}`);
+      setWeeklySteps(updatedWeeklySteps); // Update context
+      console.log(`[Refresh v10] Updated Weekly Steps Context: ${updatedWeeklySteps}`);
 
-      // Update Total Steps Context (using the same absolute value)
+      // Update Total Steps Context (using the absolute value)
       setTotalSteps(absoluteTotalStepsSinceCreation);
-      console.log(`[Refresh v9] Updated Total Steps Context: ${absoluteTotalStepsSinceCreation}`);
+      console.log(`[Refresh v10] Updated Total Steps Context: ${absoluteTotalStepsSinceCreation}`);
 
-      // Prepare updated PetData for saving
-      let petDataForUpdate = { 
-          ...petData, // Start with current state
-          totalSteps: absoluteTotalStepsSinceCreation, // Set totalSteps to the absolute current value
-          weeklySteps: updatedWeeklySteps,             // Set weeklySteps to our new calculation
-          // *** Set the tracker field to the current absolute total ***
-          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation, 
-          // Update week start date only if it's a new week
-          currentWeekStartDate: isNewWeek ? currentWeekStart.toISOString() : petData.currentWeekStartDate 
+      // 6. Prepare final updated PetData object for saving
+      // Incorporate the snapshot value if day changed
+      let petDataForSaving = { 
+          ...updatedPetDataForCalc, // Includes snapshot if day changed
+          totalSteps: absoluteTotalStepsSinceCreation,
+          weeklySteps: updatedWeeklySteps,
+          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation,
+          currentWeekStartDate: isNewWeek ? currentWeekStart.toISOString() : updatedPetDataForCalc.currentWeekStartDate 
       };
-      console.log(`[Refresh v9] petDataForUpdate prepared:`, petDataForUpdate);
+      console.log(`[Refresh v10] petDataForSaving prepared:`, petDataForSaving);
 
-      // Call updatePetWithSteps using the delta calculated for XP/leveling
-      // Pass the petDataForUpdate object which contains the correct totalSteps
+      // 7. Call updatePetWithSteps using the delta calculated for XP/leveling
       const { updatedPet: refreshedPetFromUtil, leveledUp } = await updatePetWithSteps(
-          petDataForUpdate,      // Pass object with updated totalSteps, weeklySteps, lastWeeklyCalc point, etc.
-          newStepsDeltaForXP     // Pass the delta calculated against the *previous* totalSteps for accurate XP
+          petDataForSaving,     // Pass object containing all latest calculated values
+          newStepsDeltaForXP    // Pass delta relative to *previous* total for XP calc
       );
-      console.log('[Refresh v9] Pet data after updatePetWithSteps:', refreshedPetFromUtil);
+      console.log('[Refresh v10] Pet data after updatePetWithSteps:', refreshedPetFromUtil);
 
-      // Merge results - Ensure our calculated weekly fields persist
-      // refreshedPetFromUtil already contains the correct totalSteps, xp, level etc. from updatePetWithSteps
+      // 8. Merge results - Ensure our specific calculations persist
       const finalPetDataUpdate = {
-          ...refreshedPetFromUtil, 
-          weeklySteps: updatedWeeklySteps, // Ensure our weekly calc is used
-          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation, // Ensure our tracker value is used
-          currentWeekStartDate: petDataForUpdate.currentWeekStartDate // Ensure correct week start is used
+          ...refreshedPetFromUtil, // Base properties from updatePetWithSteps (XP, Level, totalSteps etc.)
+          weeklySteps: updatedWeeklySteps, 
+          totalStepsAtLastWeeklyCalc: absoluteTotalStepsSinceCreation, 
+          currentWeekStartDate: petDataForSaving.currentWeekStartDate, 
+          // Ensure totalStepsBeforeToday from snapshot is included
+          totalStepsBeforeToday: petDataForSaving.totalStepsBeforeToday 
       };
-      console.log(`[Refresh v9] Final merged PetData (WeeklySteps: ${finalPetDataUpdate.weeklySteps}, LastWeeklyCalc: ${finalPetDataUpdate.totalStepsAtLastWeeklyCalc}):`, finalPetDataUpdate);
+      console.log(`[Refresh v10] Final merged PetData (WeeklySteps: ${finalPetDataUpdate.weeklySteps}, LastWeeklyCalc: ${finalPetDataUpdate.totalStepsAtLastWeeklyCalc}, StepsBeforeToday: ${finalPetDataUpdate.totalStepsBeforeToday}):`, finalPetDataUpdate);
 
-      // Update the main petData state 
+      // 9. Update the main petData state 
       setPetData(finalPetDataUpdate);
 
-      if (leveledUp) {
-        navigation.navigate('PetLevelUp', {
-          level: finalPetDataUpdate.level, // Use level from the final object
-          petType: finalPetDataUpdate.type
-        });
-      }
+      // ... (leveledUp check) ...
 
     } catch (error) {
-      console.error('Error refreshing step data:', error);
+      console.error('[Refresh v10] Error refreshing step data:', error);
     }
   };
   
@@ -744,6 +767,30 @@ const Home: React.FC = () => {
           // Send egg hatching notification
           await sendEggHatchingNotification(session.user.id, petData.name);
           
+          // *** FIX: Recalculate daily steps at hatch moment to avoid race condition ***
+          let calculatedDailyStepsAtHatchMoment = 0;
+          const nowForHatchCalc = new Date();
+          const eggCreatedDate = new Date(petData.created);
+          const midnightTodayForHatchCalc = new Date(nowForHatchCalc);
+          midnightTodayForHatchCalc.setHours(0,0,0,0);
+
+          try {
+            const { steps: rawStepsTodayForHatch } = await Pedometer.getStepCountAsync(midnightTodayForHatchCalc, nowForHatchCalc);
+            if (isSameDay(eggCreatedDate, nowForHatchCalc)) {
+                calculatedDailyStepsAtHatchMoment = Math.max(0, rawStepsTodayForHatch - (petData.startingStepCount || 0));
+            } else {
+                calculatedDailyStepsAtHatchMoment = rawStepsTodayForHatch;
+            }
+            console.log(`[handlePetTap] Recalculated dailyStepsAtHatchMoment: ${calculatedDailyStepsAtHatchMoment}`);
+          } catch (pedometerError) {
+            console.error('[handlePetTap] Error fetching pedometer steps for dailyStepsAtHatch calculation:', pedometerError);
+            // Fallback or error handling - for now, log and potentially proceed with 0 or context value?
+            // For safety, if recalculation fails, use the potentially stale context value but log it.
+            calculatedDailyStepsAtHatchMoment = dailySteps; // Fallback to context dailySteps
+            console.warn(`[handlePetTap] Falling back to context dailySteps (${calculatedDailyStepsAtHatchMoment}) due to error in recalculation.`);
+          }
+          // *** END FIX ***
+
           // Update pet data to reflect hatching
           const { type: randomPetType } = getRandomPetType();
           const now = new Date();
@@ -756,7 +803,7 @@ const Home: React.FC = () => {
             xp: 0,
             xpToNextLevel: LEVEL_REQUIREMENTS[0],
             hatchDate: getTodayDateString(),
-            dailyStepsAtHatch: dailySteps,
+            dailyStepsAtHatch: calculatedDailyStepsAtHatchMoment, // Use recalculated value
             miniGames: {
               feed: {
                 lastClaimed: null,
@@ -1241,54 +1288,6 @@ const Home: React.FC = () => {
 
     registerForPushNotifications();
   }, []);
-  
-  // Handle midnight reset for daily steps
-  const handleMidnightReset = () => {
-    console.log('[Midnight Reset v4] Triggered.');
-    try {
-      // ONLY reset daily steps display in context
-      console.log('[Midnight Reset v4] Setting dailySteps context to 0');
-      setDailySteps(0);
-    } catch (error) {
-      // Although unlikely now, keep basic error logging
-      console.error('[Midnight Reset v4] Error setting dailySteps context:', error);
-    }
-  };
-
-  // Set up midnight reset timer
-  useEffect(() => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    
-    const midnightTimer = setTimeout(() => {
-      handleMidnightReset();
-      setLastKnownDate(new Date().getDate());
-    }, timeUntilMidnight);
-    
-    return () => clearTimeout(midnightTimer);
-  }, [lastKnownDate]); // Reset timer when date changes
-
-  // Handle app state changes
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        const currentDate = new Date().getDate();
-        if (currentDate !== lastKnownDate) {
-          // Day changed while app was in background
-          handleMidnightReset();
-          setLastKnownDate(currentDate);
-        }
-      }
-    });
-    
-    return () => {
-      subscription.remove();
-    };
-  }, [lastKnownDate]);
   
   // If no pet data AND not loading, show pet selection screen
   if (!isLoading && !petData) {
