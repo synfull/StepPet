@@ -26,6 +26,8 @@ import { RootStackParamList } from '../types/navigationTypes';
 import { PET_CATEGORIES, PET_TYPES } from '../utils/petUtils';
 import type { PetType, GrowthStage, PetData } from '../types/petTypes';
 import { supabase } from '../lib/supabase';
+import Button from '../components/Button';
+import Purchases from 'react-native-purchases';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -40,6 +42,7 @@ const Settings: React.FC = () => {
   const [showPetSelector, setShowPetSelector] = useState(false);
   const [showGrowthStageSelector, setShowGrowthStageSelector] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   
   // Toggle handlers
   const toggleNotifications = () => {
@@ -60,6 +63,36 @@ const Settings: React.FC = () => {
       // If turning on, provide haptic feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setHapticFeedback(true);
+    }
+  };
+  
+  const handleRestorePurchases = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsRestoring(true);
+    try {
+      console.log('[Settings] Attempting to restore purchases...');
+      const customerInfo = await Purchases.restorePurchases();
+      console.log('[Settings] Restore purchases finished. CustomerInfo:', customerInfo);
+      
+      if (customerInfo.entitlements.active['StepPet Premium']) {
+        Alert.alert(
+          'Purchases Restored',
+          'Your active subscriptions have been restored successfully.'
+        );
+      } else {
+        Alert.alert(
+          'No Active Subscriptions',
+          'We couldn\'t find any active subscriptions to restore for your account.'
+        );
+      }
+    } catch (e: any) {
+      console.error('[Settings] Restore purchases error:', e);
+      Alert.alert(
+        'Restore Failed',
+        'An error occurred while trying to restore your purchases. Please check your connection and try again.'
+      );
+    } finally {
+      setIsRestoring(false);
     }
   };
   
@@ -301,10 +334,15 @@ const Settings: React.FC = () => {
     description: string,
     onPress: () => void,
     icon: string,
-    color: string = '#8C52FF'
+    color: string = '#8C52FF',
+    disabled: boolean = false
   ) => (
-    <TouchableOpacity style={styles.settingItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.settingIconContainer, { backgroundColor: color + '20' }]}>
+    <TouchableOpacity 
+      style={[styles.actionItem, disabled && styles.disabledItem]}
+      onPress={onPress} 
+      disabled={disabled}
+    >
+      <View style={styles.actionIconContainer}>
         <Ionicons name={icon as any} size={22} color={color} />
       </View>
       <View style={styles.settingContent}>
@@ -353,6 +391,37 @@ const Settings: React.FC = () => {
           )}
         </View>
         
+        {/* --- DEBUG SECTION START --- */}
+        {__DEV__ && ( // Only show debug section in development mode
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Debug Tools</Text>
+            {renderActionItem(
+              'Change Pet Type',
+              'Select a different pet type (debug)',
+              () => setShowPetSelector(true),
+              'paw-outline',
+              '#FF9800' // Orange color for debug
+            )}
+            {renderActionItem(
+              'Change Growth Stage',
+              'Set current growth stage (debug)',
+              () => setShowGrowthStageSelector(true),
+              'leaf-outline',
+              '#FF9800' // Orange color for debug
+            )}
+            {/* Add the Paywall Test Button here */}
+            <View style={{ paddingHorizontal: 0, paddingTop: 8 }}> 
+              {/* Adjusted padding: No horizontal padding needed inside the item, Add top padding */}
+              <Button
+                title="DEBUG: Show Paywall"
+                onPress={() => navigation.navigate('Paywall')} // Corrected screen name
+                style={{ backgroundColor: '#FFA726' }} // Orange color for debug
+              />
+            </View>
+          </View>
+        )}
+        {/* --- DEBUG SECTION END --- */}
+        
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -383,6 +452,15 @@ const Settings: React.FC = () => {
             'Learn more about the app and developers',
             () => navigation.navigate('AboutApp' as never),
             'information-circle-outline'
+          )}
+
+          {renderActionItem(
+            isRestoring ? 'Restoring...' : 'Restore Purchases',
+            'Restore active subscriptions linked to your store account.',
+            handleRestorePurchases,
+            'refresh-circle-outline',
+            '#1E90FF',
+            isRestoring
           )}
 
           {renderActionItem(
@@ -576,11 +654,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '80%',
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -648,6 +725,26 @@ const styles = StyleSheet.create({
   },
   selectedGrowthStageOptionText: {
     color: '#8C52FF',
+  },
+  disabledItem: {
+    opacity: 0.5,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  actionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3EDFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
 });
 

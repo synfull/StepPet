@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserData, SubscriptionTier } from '../types/userTypes';
 import analytics from '@react-native-firebase/analytics';
+import Purchases from 'react-native-purchases';
 
 // Export the type
 export interface AuthContextType {
@@ -174,6 +175,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`[AuthContext] Saving registrationStatus to AsyncStorage after sign in: ${JSON.stringify(registrationStatus)}`);
         await AsyncStorage.setItem('@registration_status', JSON.stringify(registrationStatus));
         
+        // *** Identify user with RevenueCat ***
+        const userId = data.session.user.id;
+        console.log(`[AuthContext] Calling Purchases.logIn with user ID: ${userId}`);
+        try {
+          await Purchases.logIn(userId);
+          console.log('[AuthContext] Purchases.logIn successful.');
+        } catch (rcError) {
+          console.error('[AuthContext] RevenueCat Purchases.logIn error:', rcError);
+          // Decide if this should be a critical error or just logged
+        }
+        // *** End RevenueCat Identification ***
+
         // Log login event after successful sign in and data processing
         try {
           await analytics().logEvent('login');
@@ -203,6 +216,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (analyticsError) {
         console.error('[Analytics] Error logging sign_out event:', analyticsError);
       }
+
+      // *** Log out of RevenueCat ***
+      console.log('[AuthContext] Calling Purchases.logOut');
+      try {
+        await Purchases.logOut();
+        console.log('[AuthContext] Purchases.logOut successful.');
+      } catch (rcError) {
+        console.error('[AuthContext] RevenueCat Purchases.logOut error:', rcError);
+        // Decide if this should be a critical error or just logged
+      }
+      // *** End RevenueCat Logout ***
 
       // Clear all user-related data
       const keysToRemove = [

@@ -13,6 +13,7 @@ import { useInventory } from '../context/InventoryContext';
 import { playSound } from '../utils/soundUtils';
 import HeaderWithGems from '../components/HeaderWithGems';
 import analytics from '@react-native-firebase/analytics';
+import Purchases, { PurchasesPackage } from 'react-native-purchases';
 
 type StoreNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Store'>;
 type StoreRouteProp = RouteProp<RootStackParamList, 'Store'>;
@@ -39,44 +40,6 @@ type CategorizedItem = StoreItem & {
 
 // Mock purchase states
 type PurchaseState = 'idle' | 'confirming' | 'processing' | 'success' | 'failed';
-
-const gemPackages: GemPackage[] = [
-  {
-    id: 'starter',
-    price: 1.99,
-    gems: 100,
-    bonus: 0,
-    image: require('../../assets/images/store/gems/gems_100.png'),
-  },
-  {
-    id: 'basic',
-    price: 4.99,
-    gems: 300,
-    bonus: 50,
-    image: require('../../assets/images/store/gems/gems_350.png'),
-  },
-  {
-    id: 'popular',
-    price: 9.99,
-    gems: 650,
-    bonus: 150,
-    image: require('../../assets/images/store/gems/gems_800.png'),
-  },
-  {
-    id: 'value',
-    price: 19.99,
-    gems: 1300,
-    bonus: 400,
-    image: require('../../assets/images/store/gems/gems_1700.png'),
-  },
-  {
-    id: 'premium',
-    price: 49.99,
-    gems: 3300,
-    bonus: 1200,
-    image: require('../../assets/images/store/gems/gems_4500.png'),
-  },
-];
 
 const GemPackageCard: React.FC<{ pack: GemPackage }> = ({ pack }) => (
   <TouchableOpacity style={styles.gemPackage}>
@@ -226,132 +189,224 @@ const ItemsTab = () => {
 const GemsTab = () => {
   const { addGems } = useGems();
   const [purchaseState, setPurchaseState] = useState<PurchaseState>('idle');
-  const [selectedPackage, setSelectedPackage] = useState<GemPackage | null>(null);
+  const [selectedRcPackage, setSelectedRcPackage] = useState<PurchasesPackage | null>(null);
 
-  const handlePurchaseAttempt = (pack: GemPackage) => {
-    setSelectedPackage(pack);
+  const [rcGemPackages, setRcGemPackages] = useState<PurchasesPackage[]>([]);
+  const [isFetchingPackages, setIsFetchingPackages] = useState<boolean>(false);
+
+  const expectedGemPackageIdentifiers: string[] = [
+    'custom', 
+    'custom_app.steppet.gems.350', 
+    'custom_app.steppet.gems.800',
+    'custom_app.steppet.gems.1700',
+    'custom_app.steppet.gems.4500'
+  ];
+
+  // Gem product details mapping
+  interface GemProductDetails {
+    gems: number;
+    bonus: number;
+    // image?: any; // Optional: if you want to centralize image mapping too
+  }
+
+  const GEM_PRODUCT_MAP: Record<string, GemProductDetails> = {
+    'app.steppet.gems.100': { gems: 100, bonus: 0 },
+    'app.steppet.gems.350': { gems: 300, bonus: 50 }, 
+    'app.steppet.gems.800': { gems: 650, bonus: 150 },
+    'app.steppet.gems.1700': { gems: 1300, bonus: 400 },
+    'app.steppet.gems.4500': { gems: 3300, bonus: 1200 },
+  };
+
+  useEffect(() => {
+    const fetchOfferings = async () => {
+      setIsFetchingPackages(true);
+      try {
+        const offerings = await Purchases.getOfferings();
+        if (offerings.current && offerings.current.availablePackages.length > 0) {
+          console.log('[Store.tsx] RevenueCat Offerings.current:', JSON.stringify(offerings.current, null, 2));
+          const filteredGemPackages = offerings.current.availablePackages.filter(pkg => 
+            expectedGemPackageIdentifiers.includes(pkg.identifier)
+          );
+          
+          // Sort the filtered packages by price in ascending order
+          filteredGemPackages.sort((a, b) => a.product.price - b.product.price);
+
+          setRcGemPackages(filteredGemPackages);
+          console.log('[Store.tsx] Filtered AND SORTED RC Gem Packages:', JSON.stringify(filteredGemPackages, null, 2));
+        } else {
+          console.log('[Store.tsx] No current offerings or packages found from RevenueCat.');
+          setRcGemPackages([]);
+        }
+      } catch (e) {
+        console.error('[Store.tsx] Error fetching RevenueCat offerings:', e);
+        Alert.alert('Error', 'Could not load purchase options. Please try again later.');
+        setRcGemPackages([]);
+      }
+      setIsFetchingPackages(false);
+    };
+
+    fetchOfferings();
+  }, []);
+
+  const handleRcPurchasAttempt = (rcPack: PurchasesPackage) => {
+    setSelectedRcPackage(rcPack);
     Alert.alert(
       'Confirm Purchase',
-      `Would you like to purchase ${pack.gems + pack.bonus} gems for $${pack.price.toFixed(2)}?`,
+      `Purchase ${rcPack.product.title} for ${rcPack.product.priceString}?`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            setSelectedPackage(null);
-            setPurchaseState('idle');
-          },
-        },
-        {
-          text: 'Purchase',
-          onPress: () => processPurchase(pack),
-        },
+        { text: 'Cancel', style: 'cancel', onPress: () => setSelectedRcPackage(null) },
+        { text: 'Purchase', onPress: () => processRcPurchase(rcPack) },
       ]
     );
   };
 
-  const processPurchase = async (pack: GemPackage) => {
-    // Log purchase_gems_start event
+  const processRcPurchase = async (rcPack: PurchasesPackage) => {
+    console.log("[Store.tsx] Initiating purchase for RC Package:", rcPack.identifier, "Product ID:", rcPack.product.identifier);
+    setPurchaseState('processing');
+    setSelectedRcPackage(rcPack); // Keep selected while processing
+
     try {
       await analytics().logEvent('purchase_gems_start', { 
-        package_id: pack.id, 
-        package_gems: pack.gems,
-        package_bonus: pack.bonus,
-        package_price: pack.price
+        package_id: rcPack.identifier, 
+        product_id: rcPack.product.identifier,
+        product_title: rcPack.product.title,
+        package_price: rcPack.product.price
       });
-      console.log(`[Analytics] Logged purchase_gems_start event: ${pack.id}`);
-    } catch (analyticsError) {
-      console.error('[Analytics] Error logging purchase_gems_start event:', analyticsError);
-    }
-    
-    setPurchaseState('processing');
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock purchase success (this will be replaced with real StoreKit logic)
-      await addGems(pack.gems + pack.bonus);
-      playSound('activity-claim');
-      setPurchaseState('success');
-      
-      // Log purchase_gems_complete event
-      try {
-        await analytics().logEvent('purchase_gems_complete', { 
-          package_id: pack.id, 
-          package_gems: pack.gems,
-          package_bonus: pack.bonus,
-          package_price: pack.price
-        });
-        console.log(`[Analytics] Logged purchase_gems_complete event: ${pack.id}`);
-      } catch (analyticsError) {
-        console.error('[Analytics] Error logging purchase_gems_complete event:', analyticsError);
+      console.log(`[Analytics] Logged purchase_gems_start event: ${rcPack.identifier}`);
+
+      const { customerInfo, productIdentifier: purchasedProductId } = await Purchases.purchasePackage(rcPack);
+      console.log("[Store.tsx] Purchase successful! CustomerInfo:", customerInfo, "Purchased Product ID:", purchasedProductId);
+
+      const productDetails = GEM_PRODUCT_MAP[purchasedProductId];
+      let gemsToAward = 0;
+
+      if (productDetails) {
+        gemsToAward = productDetails.gems + productDetails.bonus;
+        await addGems(gemsToAward);
+        playSound('activity-claim');
+        setPurchaseState('success');
+
+        try {
+          await analytics().logEvent('purchase_gems_complete', { 
+            package_id: rcPack.identifier,
+            product_id: purchasedProductId,
+            product_title: rcPack.product.title,
+            package_price: rcPack.product.price,
+            gems_awarded: gemsToAward
+          });
+          console.log(`[Analytics] Logged purchase_gems_complete event: ${rcPack.identifier}`);
+        } catch (analyticsError) {
+          console.error('[Analytics] Error logging purchase_gems_complete event:', analyticsError);
+        }
+
+        Alert.alert(
+          'Purchase Successful!',
+          `${gemsToAward} gems have been added to your account.`,
+          [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
+        );
+      } else {
+        console.error("[Store.tsx] Gem product details not found in GEM_PRODUCT_MAP for ID:", purchasedProductId);
+        // This case should ideally not happen if GEM_PRODUCT_MAP is comprehensive
+        setPurchaseState('failed');
+        Alert.alert('Purchase Error', 'There was an issue processing your gem award. Please contact support.');
+      }
+
+    } catch (e: any) {
+      console.warn("[Store.tsx] Purchase error:", e);
+      playSound('action-fail');
+      let errorMessage = 'There was an error completing your purchase.';
+      if (e.userCancelled) {
+        console.log("[Store.tsx] User cancelled the purchase.");
+        errorMessage = 'Purchase cancelled.';
+        setPurchaseState('idle'); // User cancelled, so back to idle
+      } else {
+        setPurchaseState('failed');
       }
       
-      Alert.alert(
-        'Purchase Successful!',
-        `${pack.gems + pack.bonus} gems have been added to your account.`,
-        [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
-      );
-    } catch (error) {
-      console.error('Purchase failed:', error);
-      setPurchaseState('failed');
-      
-      // Log purchase_gems_fail event
       try {
-        // Use selectedPackage if pack is not available in catch scope (though it should be)
-        const failedPack = pack || selectedPackage;
-        if (failedPack) {
-          await analytics().logEvent('purchase_gems_fail', { 
-            package_id: failedPack.id, 
-            package_gems: failedPack.gems,
-            package_bonus: failedPack.bonus,
-            package_price: failedPack.price,
-            error_message: error instanceof Error ? error.message : String(error) // Capture error message
-          });
-          console.log(`[Analytics] Logged purchase_gems_fail event: ${failedPack.id}`);
-        } else {
-          console.log(`[Analytics] Logged purchase_gems_fail event (unknown package)`);
-          await analytics().logEvent('purchase_gems_fail', { 
-             error_message: error instanceof Error ? error.message : String(error)
-          });
-        }
+        await analytics().logEvent('purchase_gems_fail', { 
+          package_id: rcPack.identifier,
+          product_id: rcPack.product.identifier,
+          product_title: rcPack.product.title,
+          error_code: e.code, 
+          error_message: e.message,
+          user_cancelled: e.userCancelled
+        });
+        console.log(`[Analytics] Logged purchase_gems_fail event: ${rcPack.identifier}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging purchase_gems_fail event:', analyticsError);
       }
-      
-      Alert.alert(
-        'Purchase Failed',
-        'There was an error processing your purchase. Please try again.',
-        [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
-      );
+
+      if (!e.userCancelled) { // Only show error alert if not a user cancellation
+        Alert.alert(
+          'Purchase Failed',
+          errorMessage,
+          [{ text: 'OK', onPress: () => setPurchaseState('idle') }]
+        );
+      }
     } finally {
-      setSelectedPackage(null);
+      setSelectedRcPackage(null); // Clear selected package in all cases (success, fail, cancel)
+      // Only reset to idle if not already set by userCancelled or successful completion alert
+      if (purchaseState !== 'idle' && purchaseState !== 'success') {
+           // If it was 'processing' or 'failed' and not handled above, set to idle
+           // Success already has its own OK button to reset to idle.
+           // User cancel directly sets to idle.
+           if(purchaseState === 'failed') setPurchaseState('idle'); 
+      }
     }
   };
 
-  const renderPurchaseButton = (pack: GemPackage) => {
-    const isProcessing = purchaseState === 'processing' && selectedPackage?.id === pack.id;
-    
+  const renderRcGemPackageCard = (rcPack: PurchasesPackage) => {
+    let imageSource = require('../../assets/images/store/gems/gems_100.png');
+    if (rcPack.product.identifier.includes('350')) imageSource = require('../../assets/images/store/gems/gems_350.png');
+    if (rcPack.product.identifier.includes('800')) imageSource = require('../../assets/images/store/gems/gems_800.png');
+    if (rcPack.product.identifier.includes('1700')) imageSource = require('../../assets/images/store/gems/gems_1700.png');
+    if (rcPack.product.identifier.includes('4500')) imageSource = require('../../assets/images/store/gems/gems_4500.png');
+
+    const isProcessingThis = purchaseState === 'processing' && selectedRcPackage?.identifier === rcPack.identifier;
+
     return (
-      <TouchableOpacity 
-        style={[
-          styles.purchaseButton,
-          isProcessing && styles.purchaseButtonDisabled
-        ]}
-        onPress={() => handlePurchaseAttempt(pack)}
-        disabled={purchaseState !== 'idle'}
-      >
-        {isProcessing ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.purchaseButtonText}>
-            Purchase
-          </Text>
-        )}
-      </TouchableOpacity>
+      <View key={rcPack.identifier} style={styles.rcGemPackageCard}>
+        <Image source={imageSource} style={styles.rcGemImage} contentFit="contain" />
+        <View style={styles.rcGemInfo}>
+          <Text style={styles.rcGemTitle}>{rcPack.product.title}</Text>
+          <Text style={styles.rcGemDescription}>{rcPack.product.description}</Text>
+          <Text style={styles.rcGemPrice}>{rcPack.product.priceString}</Text>
+        </View>
+        <TouchableOpacity 
+          style={[
+            styles.purchaseButton,
+            (isProcessingThis || purchaseState === 'processing' && selectedRcPackage?.identifier !== rcPack.identifier) && styles.purchaseButtonDisabled
+          ]}
+          onPress={() => handleRcPurchasAttempt(rcPack)}
+          disabled={isProcessingThis || (purchaseState === 'processing' && selectedRcPackage?.identifier !== rcPack.identifier) }
+        >
+          {isProcessingThis ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.purchaseButtonText}>Purchase</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     );
   };
+
+  if (isFetchingPackages) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8C52FF" />
+        <Text>Loading gem packages...</Text>
+      </View>
+    );
+  }
+
+  if (rcGemPackages.length === 0) {
+    return (
+      <View style={styles.loadingContainer}> 
+        <Text>No gem packages available at the moment. Please check back later.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView 
@@ -359,40 +414,8 @@ const GemsTab = () => {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* <View style={styles.devWarning}>
-        <Text style={styles.devWarningText}>
-          Development Mode: Purchases are simulated and gems are added instantly.
-        </Text>
-      </View> */}
-      
       <Text style={styles.sectionTitle}>Select Gem Package</Text>
-      {gemPackages.map((pack) => (
-        <View key={pack.id} style={styles.gemPackage}>
-          <View style={styles.gemInfo}>
-            <View style={styles.leftContent}>
-              <Image 
-                source={pack.image} 
-                style={styles.gemImage}
-                contentFit="contain"
-                transition={200}
-              />
-            </View>
-            <View style={styles.rightContent}>
-              <View style={styles.priceContainer}>
-                <Text style={styles.price}>${pack.price.toFixed(2)}</Text>
-                <Text style={styles.priceLabel}>USD</Text>
-              </View>
-              <View style={styles.gemsContainer}>
-                <Text style={styles.gemsAmount}>{pack.gems}</Text>
-                {pack.bonus > 0 && (
-                  <Text style={styles.gemsBonus}>+{pack.bonus} Bonus</Text>
-                )}
-              </View>
-            </View>
-          </View>
-          {renderPurchaseButton(pack)}
-        </View>
-      ))}
+      {rcGemPackages.map(renderRcGemPackageCard)}
     </ScrollView>
   );
 };
@@ -403,7 +426,6 @@ const Store = () => {
 
   useEffect(() => {
     const initialTab = route.params?.initialTab || (activeTab.toLowerCase() as 'gems' | 'items');
-    // Log view_store event on mount or when tab changes
     const logViewStore = async () => {
       try {
         await analytics().logEvent('view_store', { 
@@ -416,7 +438,6 @@ const Store = () => {
     };
     logViewStore();
 
-    // Set active tab based on route params (runs only once on mount)
     if (route.params?.initialTab) {
       switch (route.params.initialTab) {
         case 'gems':
@@ -429,9 +450,8 @@ const Store = () => {
           break;
       }
     }
-  }, [route.params?.initialTab]); // Depend only on route params for initial setting
+  }, [route.params?.initialTab]);
 
-  // Log event when tab is manually changed by user
   useEffect(() => {
     const logTabChange = async () => {
       try {
@@ -443,11 +463,10 @@ const Store = () => {
         console.error('[Analytics] Error logging view_store tab change event:', analyticsError);
       }
     };
-    // Avoid logging on initial mount if route.params existed
     if (!route.params?.initialTab) {
        logTabChange(); 
     }
-  }, [activeTab]); // Log when activeTab changes
+  }, [activeTab]);
 
   return (
     <View style={styles.container}>
@@ -525,7 +544,6 @@ const AllItemsTab = () => {
        return;
     }
 
-    // Log purchase_item_fail event (insufficient funds)
     if (gemBalance < item.price) {
       playSound('action-fail');
       try {
@@ -550,7 +568,6 @@ const AllItemsTab = () => {
       [
         { text: "Cancel", style: "cancel", onPress: () => {
             playSound('action-fail');
-            // Log purchase_item_fail event (user cancelled)
             try {
               analytics().logEvent('purchase_item_fail', { 
                 item_id: item.id,
@@ -558,7 +575,7 @@ const AllItemsTab = () => {
                 item_category: item.category,
                 item_price: item.price,
                 reason: 'user_cancelled'
-              }); // No await needed for cancel
+              });
               console.log(`[Analytics] Logged purchase_item_fail (user_cancelled) event: ${item.id}`);
             } catch (analyticsError) {
               console.error('[Analytics] Error logging purchase_item_fail (user_cancelled) event:', analyticsError);
@@ -571,7 +588,6 @@ const AllItemsTab = () => {
             const success = await purchaseItem(item.id, item.price);
             
             if (success) {
-              // Log purchase_item_complete event
               try {
                 await analytics().logEvent('purchase_item_complete', { 
                   item_id: item.id,
@@ -587,14 +603,13 @@ const AllItemsTab = () => {
               playSound('activity-claim');
               Alert.alert("Purchase Successful", `${item.name} added to your inventory!`);
             } else {
-              // Log purchase_item_fail event (general failure)
               try {
                 await analytics().logEvent('purchase_item_fail', { 
                   item_id: item.id,
                   item_name: item.name,
                   item_category: item.category,
                   item_price: item.price,
-                  reason: 'purchase_error' // General error during purchase logic
+                  reason: 'purchase_error'
                 });
                 console.log(`[Analytics] Logged purchase_item_fail (purchase_error) event: ${item.id}`);
               } catch (analyticsError) {
@@ -995,6 +1010,51 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
     color: '#FFFFFF',
+  },
+  rcGemPackageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  rcGemImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+  },
+  rcGemInfo: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rcGemTitle: {
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 18,
+    color: '#333333',
+    marginBottom: 4,
+  },
+  rcGemDescription: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  rcGemPrice: {
+    fontFamily: 'Montserrat-SemiBold',
+    fontSize: 16,
+    color: '#8C52FF',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
 });
 
