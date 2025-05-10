@@ -79,8 +79,6 @@ const PetHatching: React.FC = () => {
 
     const setupAudio = async () => {
       try {
-        console.log('Setting up audio...');
-        
         // Initialize audio system
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -90,7 +88,6 @@ const PetHatching: React.FC = () => {
           playThroughEarpieceAndroid: false,
         });
 
-        console.log('Loading sound file...');
         const soundObject = new Audio.Sound();
         await soundObject.loadAsync(require('../../assets/sounds/egg-crack.mp3'));
         
@@ -99,14 +96,11 @@ const PetHatching: React.FC = () => {
           return;
         }
 
-        console.log('Sound loaded, checking status...');
         const status = await soundObject.getStatusAsync();
-        console.log('Sound status:', status);
 
         if (status.isLoaded) {
           setHatchingSound(soundObject);
           setIsSoundLoaded(true);
-          console.log('Sound successfully loaded and ready');
         } else {
           console.error('Sound loaded but status check failed');
         }
@@ -120,7 +114,6 @@ const PetHatching: React.FC = () => {
     return () => {
       mounted = false;
       if (hatchingSound) {
-        console.log('Cleaning up sound...');
         hatchingSound.unloadAsync();
       }
     };
@@ -182,14 +175,12 @@ const PetHatching: React.FC = () => {
       }
 
       const status = await hatchingSound.getStatusAsync();
-      console.log('Current sound status before playing:', status);
 
       if (status.isLoaded) {
         // Reset to beginning and ensure volume is up
         await hatchingSound.setPositionAsync(0);
         await hatchingSound.setVolumeAsync(1.0);
         
-        console.log('Playing sound...');
         await hatchingSound.playAsync();
       } else {
         console.error('Sound was marked as loaded but status check failed');
@@ -256,13 +247,13 @@ const PetHatching: React.FC = () => {
 
     // Play the cracking sound at the moment of hatching
     setTimeout(async () => {
-      console.log('Attempting to play sound at hatching moment...');
+      if (hatchingSound && isSoundLoaded) {
+        await playHatchingSound();
+      }
       setShakeIntensity(1.8);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      if (!isSoundLoaded) {
-        console.log('Sound not loaded at hatching moment');
-      }
-      await playHatchingSound();
+      setAnimationState('hatched');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }, 6000);
 
     // Complete hatching after 7 seconds with final celebration haptic

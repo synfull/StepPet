@@ -121,13 +121,10 @@ const Registration: React.FC = () => {
 
     try {
       // Check if username is already taken in Supabase
-      console.log(`Checking username: ${username}`);
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('username', { count: 'exact', head: true })
         .ilike('username', username);
-
-      console.log(`Username check result - existingProfile: ${JSON.stringify(existingProfile)}, checkError: ${JSON.stringify(checkError)}`);
 
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('Database error checking username:', checkError);
@@ -138,7 +135,6 @@ const Registration: React.FC = () => {
       }
 
       if (existingProfile && existingProfile.length > 0) {
-        console.log('Username already taken.');
         setError('Username is already taken');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setIsLoading(false);
@@ -185,7 +181,6 @@ const Registration: React.FC = () => {
 
         throw new Error(specificErrorMessage);
       }
-      console.log('Profile created successfully:', insertedProfileData);
 
       // --- New Pet Creation ---
       // 1. Create the initial pet object in memory
@@ -199,7 +194,6 @@ const Registration: React.FC = () => {
       // Ensure ID is included
       petFieldsForInsert.id = petId;
 
-      console.log('[Registration] Attempting direct Pet INSERT:', petFieldsForInsert);
       // 3. Direct INSERT into 'pets' table
       const { error: petInsertError } = await supabase
         .from('pets')
@@ -210,11 +204,9 @@ const Registration: React.FC = () => {
         // Handle potential errors, maybe try to clean up profile?
         throw new Error('Failed to create initial pet record.');
       }
-      console.log('[Registration] Direct Pet INSERT successful.');
 
       // 4. Prepare and Insert Initial MiniGames Data
       if (initialMiniGames) {
-        console.log('[Registration] Preparing initial MiniGames inserts...');
         const gameTypes = Object.keys(initialMiniGames) as Array<keyof MiniGames>;
         const insertPromises = [];
 
@@ -246,7 +238,6 @@ const Registration: React.FC = () => {
             }
           });
 
-          console.log(`[Registration] Inserting MiniGame row:`, rowToInsert);
           insertPromises.push(
             supabase.from('mini_games').insert(rowToInsert)
           );
@@ -255,66 +246,44 @@ const Registration: React.FC = () => {
         // Execute all inserts
         const results = await Promise.allSettled(insertPromises);
         results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            const supabaseError = result.reason?.error || result.reason;
-            console.error(`[Registration] Error inserting MiniGame (${gameTypes[index]}):`, supabaseError);
-            // Decide if this is critical - maybe throw an error?
+          if (result.status === 'fulfilled') {
           } else {
-            console.log(`[Registration] MiniGame (${gameTypes[index]}) successfully inserted.`);
+            console.error(`[Registration] Error inserting MiniGame (${gameTypes[index]}):`, result.reason);
           }
         });
       }
 
       // 5. Prepare and Insert Initial Milestones Data
       if (initialMilestones && initialMilestones.length > 0) {
-        console.log('[Registration] Preparing initial Milestones inserts...');
-        // Use for...of loop for sequential awaiting and better error catching
+        const insertMilestonePromises = [];
         for (const milestone of initialMilestones) {
-          // Map the code's 'id' field to the database's 'milestone_id' column
-          // Omit the 'id' field itself from the insert object (as it's auto-generated UUID)
-          const { id: milestoneIdentifier, ...restOfMilestone } = milestone;
+          const { id: milestoneIdentifier, ...milestoneData } = milestone; // Extract identifier
           const milestoneToInsert = {
-            ...keysToSnakeCase(restOfMilestone), // Convert other fields (steps, reward, claimed, etc.)
-            milestone_id: milestoneIdentifier, // Map to the correct DB column name
-            pet_id: petId, // Add the foreign key
+            ...keysToSnakeCase(milestoneData),
+            pet_id: petId,
+            milestone_id: milestoneIdentifier, // Ensure this is the string ID
           };
-          // Clean up undefined values before insert
-          Object.keys(milestoneToInsert).forEach(key => { 
-            if (milestoneToInsert[key] === undefined) { 
-                milestoneToInsert[key] = null; 
-            } 
-          });
-          
-          try {
-            console.log(`[Registration] Attempting insert for Milestone ID: ${milestoneIdentifier}`, milestoneToInsert);
-            const { error: insertError } = await supabase
-              .from('milestones')
-              .insert(milestoneToInsert); // Insert object targeting milestone_id
-              
-            if (insertError) {
-                // Log the specific error from the await
-                console.error(`[Registration] FAILED to insert Milestone ID (${milestoneIdentifier}):`, JSON.stringify(insertError, null, 2)); 
-                // Optionally: throw insertError; 
-            } else {
-                console.log(`[Registration] Successfully inserted Milestone ID (${milestoneIdentifier}).`);
-            }
-          } catch (catchError) {
-              // Catch errors not caught by the supabase client itself
-              console.error(`[Registration] CRITICAL error during insert for Milestone ID (${milestoneIdentifier}):`, catchError);
+          insertMilestonePromises.push(
+            supabase.from('milestones').insert(milestoneToInsert)
+          );
+        }
+        const milestoneResults = await Promise.allSettled(insertMilestonePromises);
+        milestoneResults.forEach((result, index) => {
+          const milestoneIdentifier = initialMilestones[index].id;
+          if (result.status === 'fulfilled') {
+          } else {
+            console.error(`[Registration] Error inserting Milestone ID (${milestoneIdentifier}):`, result.reason);
           }
-        } // End for loop
-         console.log('[Registration] Finished attempting milestone inserts.');
-
-      } else {
-        console.log('[Registration] No initial milestones defined or empty array.');
+        });
       }
 
       // --- End New Pet Creation ---
 
-      // Create and save UserData (local context/AsyncStorage)
-      const newUser: UserData = {
-        id: userId, // Use Supabase user ID
-        username,
+      const fullPetData: PetData = { ...newPetObject, miniGames: initialMiniGames, milestones: initialMilestones };
+
+      setUserData({
+        id: userId,
+        username: username,
         createdAt: new Date().toISOString(),
         lastActive: new Date().toISOString(),
         subscription: {
@@ -324,17 +293,11 @@ const Registration: React.FC = () => {
           isActive: true,
           autoRenew: false
         },
-        isRegistered: true
-      };
-      await AsyncStorage.setItem('@user_data', JSON.stringify(newUser));
-      console.log('[Registration.tsx] Calling setUserData');
-      setUserData(newUser);
-      console.log('[Registration.tsx] Calling setRegistrationStatus');
+        isRegistered: true 
+      });
       setRegistrationStatus({ isRegistered: true, lastCheck: new Date().toISOString() }, 'handleRegister');
 
-      // Update DataContext state AFTER successful direct DB inserts
-      console.log('[Registration.tsx] Calling setPetData to update context state.');
-      setPetData(newPetObject); // Update context state - the save triggered by this should now be an UPDATE
+      setPetData(fullPetData);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 

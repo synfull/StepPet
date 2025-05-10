@@ -10,7 +10,8 @@ import {
   RefreshControl,
   Alert,
   Easing,
-  AppState
+  AppState,
+  Platform
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -54,44 +55,44 @@ const BACKGROUND_FETCH_TASK = 'background-fetch-task';
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
-    console.log('Background task started at:', new Date().toISOString());
+    // console.log('Background task started at:', new Date().toISOString());
     
     // Get the current session
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
-      console.log('No user session in background task');
+      // console.log('No user session in background task');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
     // Load pet data
     const petData = await loadPetData();
     if (!petData) {
-      console.log('No pet data found in background task');
+      // console.log('No pet data found in background task');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
     if (petData.growthStage !== 'Egg') {
-      console.log('Pet is not an egg, skipping check');
+      // console.log('Pet is not an egg, skipping check');
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
-    console.log('Checking egg hatching status for:', petData.name);
+    // console.log('Checking egg hatching status for:', petData.name);
     
     // Get current steps
     const petCreationTime = new Date(petData.created);
     const dailySteps = await fetchDailySteps(petCreationTime, petData.startingStepCount || 0);
     const stepsSinceCreation = Math.max(0, dailySteps - (petData.startingStepCount || 0));
     
-    console.log('Steps since creation:', stepsSinceCreation);
-    console.log('Steps needed to hatch:', petData.stepsToHatch);
+    // console.log('Steps since creation:', stepsSinceCreation);
+    // console.log('Steps needed to hatch:', petData.stepsToHatch);
 
     // Check if egg is ready to hatch
     if (stepsSinceCreation >= petData.stepsToHatch) {
-      console.log('Egg is ready to hatch!');
+      // console.log('Egg is ready to hatch!');
       // Check if we've already sent a notification for this egg
       const hasSentNotification = await AsyncStorage.getItem(`egg_hatching_notification_${petData.id}`);
       if (!hasSentNotification) {
-        console.log('Sending hatching notification...');
+        // console.log('Sending hatching notification...');
         
         // Schedule a local notification
         await Notifications.scheduleNotificationAsync({
@@ -110,12 +111,12 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
         // Also send the push notification
         await sendEggHatchingNotification(session.user.id, petData.name);
         await AsyncStorage.setItem(`egg_hatching_notification_${petData.id}`, 'true');
-        console.log('Hatching notification sent');
+        // console.log('Hatching notification sent');
       } else {
-        console.log('Notification already sent for this egg');
+        // console.log('Notification already sent for this egg');
       }
     } else {
-      console.log('Egg not ready to hatch yet');
+      // console.log('Egg not ready to hatch yet');
     }
 
     return BackgroundFetch.BackgroundFetchResult.NewData;
@@ -216,7 +217,7 @@ const Home: React.FC = () => {
   useEffect(() => {
     // Only run if petData exists AND initial load hasn't completed yet
     if (petData && !initialLoadComplete) {
-      console.log('[Home.tsx] PetData loaded, triggering initial refreshStepData...');
+      // console.log('[Home.tsx] PetData loaded, triggering initial refreshStepData...');
       refreshStepData(); 
       setInitialLoadComplete(true); // Set flag to prevent re-running
     }
@@ -236,12 +237,12 @@ const Home: React.FC = () => {
         lastStepUpdate.current = now;
 
         if (petData.growthStage === 'Egg') {
-          console.log('[Pedometer Update - Egg]');
+          // console.log('[Pedometer Update - Egg]');
           const currentTime = new Date();
-          console.log('Current Time:', currentTime.toISOString());
-          console.log('Pet Creation Time:', petCreationTime.toISOString());
-          console.log('Starting Step Count:', petData.startingStepCount);
-          console.log('Current petData.totalSteps before calculation:', petData.totalSteps);
+          // console.log('Current Time:', currentTime.toISOString());
+          // console.log('Pet Creation Time:', petCreationTime.toISOString());
+          // console.log('Starting Step Count:', petData.startingStepCount);
+          // console.log('Current petData.totalSteps before calculation:', petData.totalSteps);
           
           const todayMidnight = new Date();
           todayMidnight.setHours(0, 0, 0, 0);
@@ -251,44 +252,32 @@ const Home: React.FC = () => {
           let totalStepsSinceCreation = 0;
 
           if (isSameDay(petCreationTime, currentTime)) {
+              // console.log(`[Pedometer Egg - TODAY] todayStepsCalc: ${todayStepsCalculated}, totalStepsSinceCreation: ${totalStepsSinceCreation}`);
               todayStepsCalculated = Math.max(0, todayStepsRaw - (petData.startingStepCount || 0));
-              totalStepsSinceCreation = todayStepsCalculated;
-              console.log(`[Pedometer Egg - TODAY] todayStepsCalc: ${todayStepsCalculated}, totalStepsSinceCreation: ${totalStepsSinceCreation}`);
+              totalStepsSinceCreation = todayStepsCalculated; // For eggs created today, total since creation is just today's steps post-start
           } else {
-              todayStepsCalculated = todayStepsRaw;
-              console.log(`[Pedometer Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
-              totalStepsSinceCreation = (petData?.totalStepsBeforeToday || 0) + todayStepsRaw;
-              console.log(`[Pedometer Egg - BEFORE] todayStepsCalc: ${todayStepsCalculated}, totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0}, todayStepsRaw: ${todayStepsRaw}, Calculated totalStepsSinceCreation: ${totalStepsSinceCreation}`);
+              // console.log(`[Pedometer Egg - BEFORE] Reading petData.totalStepsBeforeToday from state: ${petData?.totalStepsBeforeToday}`);
+              const stepsBeforeToday = petData?.totalStepsBeforeToday || 0;
+              todayStepsCalculated = todayStepsRaw; // Today's raw steps count fully
+              totalStepsSinceCreation = stepsBeforeToday + todayStepsCalculated;
+              // console.log(`[Pedometer Egg - BEFORE] todayStepsCalc: ${todayStepsCalculated}, totalStepsBeforeToday: ${petData?.totalStepsBeforeToday || 0}, todayStepsRaw: ${todayStepsRaw}, Calculated totalStepsSinc
           }
 
-          // 3. Update States
-          console.log('Updating context: setDailySteps:', todayStepsCalculated, 'setTotalSteps:', totalStepsSinceCreation);
+          // console.log('Updating context: setDailySteps:', todayStepsCalculated, 'setTotalSteps:', totalStepsSinceCreation);
           setDailySteps(todayStepsCalculated);
           setTotalSteps(totalStepsSinceCreation);
 
-          // 4. Update Pet Data (if changed)
-          // Calculate delta for XP update
-          const newStepsDelta = Math.max(0, totalStepsSinceCreation - (petData.totalSteps || 0));
-          console.log(`[Pedometer Egg] Calculated newStepsDelta: ${newStepsDelta}`);
-          
-          // Update only if total steps actually changed
-          if (newStepsDelta > 0) { 
-             console.log('Updating petData state and saving...');
-             const updatedPet = {
-              ...petData,
-              totalSteps: totalStepsSinceCreation,
-              // FIX: Add delta to existing XP, don't overwrite
-              xp: (petData.xp || 0) + newStepsDelta, 
-              // FIX: Remove incorrect update to totalStepsBeforeToday
-              // totalStepsBeforeToday: totalStepsSinceCreation 
-              // Ensure the already correctly stored value is preserved:
-              totalStepsBeforeToday: petData.totalStepsBeforeToday 
-            };
-            setPetData(updatedPet);
+          const newStepsDelta = totalStepsSinceCreation - (petData.totalSteps || 0);
+          // console.log(`[Pedometer Egg] Calculated newStepsDelta: ${newStepsDelta}`);
+
+          if (newStepsDelta > 0) {
+            // console.log('Updating petData state and saving...');
+            const { updatedPet } = await updatePetWithSteps(petData, newStepsDelta);
+            setPetData(updatedPet); // This will trigger save via DataContext
           } else {
-            console.log('No step delta detected, petData not updated.');
+            // console.log('No step delta detected, petData not updated.');
           }
-          console.log('[Pedometer Update - Egg End]');
+          // console.log('[Pedometer Update - Egg End]');
         } else {
           // Logic for hatched pets
            const todayMidnight = new Date();
@@ -309,7 +298,7 @@ const Home: React.FC = () => {
               // Created BEFORE today: Raw value is the total since creation
               stepsSinceCreationCalculated = totalStepsRaw;
            }
-           console.log(`[Pedometer Hatched v5] Calculated absolute stepsSinceCreation: ${stepsSinceCreationCalculated}`);
+           // console.log(`[Pedometer Hatched v5] Calculated absolute stepsSinceCreation: ${stepsSinceCreationCalculated}`);
            
            // Update totalSteps context if needed 
            if (stepsSinceCreationCalculated !== totalSteps) {
@@ -319,7 +308,7 @@ const Home: React.FC = () => {
            // *** FIX: Calculate the DELTA to pass to updatePetWithSteps ***
            const savedTotalSteps = petData.totalSteps || 0;
            const newStepsDelta = Math.max(0, stepsSinceCreationCalculated - savedTotalSteps);
-           console.log(`[Pedometer Hatched v5] Calculated newStepsDelta: ${newStepsDelta} (Absolute: ${stepsSinceCreationCalculated}, Saved: ${savedTotalSteps})`);
+           // console.log(`[Pedometer Hatched v5] Calculated newStepsDelta: ${newStepsDelta} (Absolute: ${stepsSinceCreationCalculated}, Saved: ${savedTotalSteps})`);
              
            // Call updatePetWithSteps with petData from closure and the calculated DELTA
            const { updatedPet: newPet, leveledUp } = await updatePetWithSteps(
@@ -558,10 +547,10 @@ const Home: React.FC = () => {
   
   // Refresh step data
   const refreshStepData = async () => {
-    console.log('[Refresh v10] Refresh triggered.');
+    // console.log('[Refresh v10] Refresh triggered.');
     try {
       if (!petData) {
-        console.log('[Refresh v10] No petData, skipping.');
+        // console.log('[Refresh v10] No petData, skipping.');
         return;
       }
 
@@ -572,7 +561,7 @@ const Home: React.FC = () => {
 
       // *** Check for day change and perform snapshot ***
       if (currentDayOfMonth !== lastProcessedDateRef.current) {
-          console.log(`[Refresh v10] New day detected (Current: ${currentDayOfMonth}, Last Processed: ${lastProcessedDateRef.current})! Running midnight snapshot.`);
+          // console.log(`[Refresh v10] New day detected (Current: ${currentDayOfMonth}, Last Processed: ${lastProcessedDateRef.current})! Running midnight snapshot.`);
           dailyStepsReset = true;
           updatedPetDataForCalc = {
               ...updatedPetDataForCalc,

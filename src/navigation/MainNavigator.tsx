@@ -21,6 +21,7 @@ import StoreNeck from '../screens/StoreNeck';
 import StoreEyewear from '../screens/StoreEyewear';
 import MilestoneUnlocked from '../screens/MilestoneUnlocked';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
+import { Milestone } from '../types/petTypes';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -41,7 +42,7 @@ export type RootStackParamList = {
   StoreHats: undefined;
   StoreNeck: undefined;
   StoreEyewear: undefined;
-  MilestoneUnlocked: undefined;
+  MilestoneUnlocked: { milestone: Milestone };
   Subscription: undefined;
 };
 
@@ -52,22 +53,22 @@ const MainNavigator: React.FC = () => {
   const { registrationStatus, isLoading: userLoading } = useUser();
 
   // Log state values on each render
-  console.log(`[MainNavigator] Rendering. Auth Loading: ${authLoading}, User Loading: ${userLoading}, User: ${!!user}, Reg Status: ${registrationStatus?.isRegistered}`);
+  // console.log(`[MainNavigator] Rendering. Auth Loading: ${authLoading}, User Loading: ${userLoading}, User: ${!!user}, Reg Status: ${registrationStatus?.isRegistered}`);
 
   if (authLoading || userLoading) {
-    console.log('[MainNavigator] Rendering Loading State (null)');
+    // console.log('[MainNavigator] Rendering Loading State (null)');
     return null; // Or a loading screen
   }
 
   // Determine which stack to show
   const showMainStack = user && registrationStatus.isRegistered;
-  console.log(`[MainNavigator] Determined showMainStack: ${showMainStack}`);
+  // console.log(`[MainNavigator] Determined showMainStack: ${showMainStack}`);
 
   // Log which stack is about to be rendered
   if (showMainStack) {
-    console.log('[MainNavigator] Rendering Main Stack');
+    // console.log('[MainNavigator] Rendering Main Stack');
   } else {
-    console.log('[MainNavigator] Rendering Auth Stack');
+    // console.log('[MainNavigator] Rendering Auth Stack');
   }
 
   return (
@@ -85,7 +86,7 @@ const MainNavigator: React.FC = () => {
           <Stack.Screen name="PetHatching" component={PetHatching} />
           <Stack.Screen 
             name="PetLevelUp" 
-            component={PetLevelUp} 
+            component={PetLevelUp as any}
             options={{ contentStyle: { backgroundColor: 'transparent' } }} 
           />
           <Stack.Screen name="Paywall" component={PaywallScreen} />

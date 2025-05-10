@@ -70,9 +70,7 @@ const Settings: React.FC = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsRestoring(true);
     try {
-      console.log('[Settings] Attempting to restore purchases...');
       const customerInfo = await Purchases.restorePurchases();
-      console.log('[Settings] Restore purchases finished. CustomerInfo:', customerInfo);
       
       if (customerInfo.entitlements.active['StepPet Premium']) {
         Alert.alert(
@@ -120,8 +118,6 @@ const Settings: React.FC = () => {
               }
               const userId = session.user.id;
 
-              console.log(`[Settings] Starting pet data reset for user: ${userId}`);
-
               // 1. Find the user's pet ID
               const { data: pet, error: findPetError } = await supabase
                   .from('pets')
@@ -136,22 +132,18 @@ const Settings: React.FC = () => {
 
               if (pet) {
                   const petId = pet.id;
-                  console.log(`[Settings] Found pet ${petId}. Deleting related data...`);
-
                   // 2. Delete related data (milestones, mini_games)
                   const { error: milestonesError } = await supabase
                       .from('milestones')
                       .delete()
                       .eq('pet_id', petId);
                   if (milestonesError) console.error('[Settings] Error deleting milestones:', milestonesError);
-                  else console.log('[Settings] Milestones deleted.');
 
                   const { error: miniGamesError } = await supabase
                       .from('mini_games')
                       .delete()
                       .eq('pet_id', petId);
                   if (miniGamesError) console.error('[Settings] Error deleting mini-games:', miniGamesError);
-                  else console.log('[Settings] Mini-games deleted.');
 
                   // 3. Delete the pet itself
                   const { error: petDeleteError } = await supabase
@@ -163,14 +155,11 @@ const Settings: React.FC = () => {
                       console.error('[Settings] Error deleting pet:', petDeleteError);
                       throw new Error('Failed to delete pet data.');
                   } 
-                  console.log(`[Settings] Pet ${petId} deleted successfully.`);
-                  
               } else {
                   console.log(`[Settings] No pet found for user ${userId}, nothing to delete.`);
               }
 
               // 4. Clear local state
-              console.log('[Settings] Clearing pet data from context.');
               setPetData(null); 
               
               // 5. Clear relevant AsyncStorage (Optional - depends if DataContext handles null correctly)
@@ -390,37 +379,6 @@ const Settings: React.FC = () => {
             'hand-left-outline'
           )}
         </View>
-        
-        {/* --- DEBUG SECTION START --- */}
-        {__DEV__ && ( // Only show debug section in development mode
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Debug Tools</Text>
-            {renderActionItem(
-              'Change Pet Type',
-              'Select a different pet type (debug)',
-              () => setShowPetSelector(true),
-              'paw-outline',
-              '#FF9800' // Orange color for debug
-            )}
-            {renderActionItem(
-              'Change Growth Stage',
-              'Set current growth stage (debug)',
-              () => setShowGrowthStageSelector(true),
-              'leaf-outline',
-              '#FF9800' // Orange color for debug
-            )}
-            {/* Add the Paywall Test Button here */}
-            <View style={{ paddingHorizontal: 0, paddingTop: 8 }}> 
-              {/* Adjusted padding: No horizontal padding needed inside the item, Add top padding */}
-              <Button
-                title="DEBUG: Show Paywall"
-                onPress={() => navigation.navigate('Paywall')} // Corrected screen name
-                style={{ backgroundColor: '#FFA726' }} // Orange color for debug
-              />
-            </View>
-          </View>
-        )}
-        {/* --- DEBUG SECTION END --- */}
         
         {/* Account Section */}
         <View style={styles.section}>

@@ -40,12 +40,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       
       if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
+        // console.log('Failed to get push token for push notification!');
         return;
       }
 
       const token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log('Push token:', token);
+      // console.log('Push token:', token);
 
       // Save the token to Supabase
       if (session?.user?.id) {
@@ -62,7 +62,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Set up notification handler
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
+      // console.log('Notification received:', notification);
     });
 
     return () => {
@@ -82,7 +82,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         table: 'notifications',
         filter: `user_id=eq.${session.user.id}`,
       }, (payload) => {
-        console.log('New notification:', payload);
+        // console.log('New notification:', payload);
         if (payload.eventType === 'INSERT') {
           const newNotification = payload.new as Notification;
           setNotifications(prev => [newNotification, ...prev]);

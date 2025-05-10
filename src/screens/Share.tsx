@@ -63,7 +63,6 @@ const Share: React.FC<ShareProps> = ({ route }) => {
              content_type: shareContentType,
              item_id: shareItemId
            });
-           console.log(`[Analytics] Logged share event (image): ${shareContentType} - ${shareItemId}`);
         } catch (analyticsError) {
           console.error('[Analytics] Error logging share event (image):', analyticsError);
         }
@@ -81,7 +80,6 @@ const Share: React.FC<ShareProps> = ({ route }) => {
            item_id: shareItemId,
            error_message: error instanceof Error ? error.message : String(error)
          });
-         console.log(`[Analytics] Logged share_fail event: ${shareContentType} - ${shareItemId}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging share_fail event:', analyticsError);
       }
@@ -121,7 +119,6 @@ const Share: React.FC<ShareProps> = ({ route }) => {
            content_type: shareContentType,
            item_id: shareItemId
          });
-         console.log(`[Analytics] Logged share event (text): ${shareContentType} - ${shareItemId}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging share event (text):', analyticsError);
       }
@@ -135,7 +132,6 @@ const Share: React.FC<ShareProps> = ({ route }) => {
            item_id: shareItemId,
            error_message: error instanceof Error ? error.message : String(error)
          });
-         console.log(`[Analytics] Logged share_fail event (text): ${shareContentType} - ${shareItemId}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging share_fail event (text):', analyticsError);
       }

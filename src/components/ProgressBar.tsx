@@ -59,13 +59,11 @@ const ProgressBar: React.FC<ProgressBarProps> = React.memo(({
 
   useEffect(() => {
     if (isInitialRender.current && clampedProgress > 0) {
-      console.log(`[ProgressBar Initial] Setting value directly: ${clampedProgress}`);
       progressAnim.setValue(clampedProgress);
       prevProgress.current = clampedProgress;
       isInitialRender.current = false;
     } else if (!isInitialRender.current) {
       if (Math.abs(clampedProgress - prevProgress.current) >= MIN_PROGRESS_CHANGE) {
-        console.log(`[ProgressBar Update] Calling startAnimation for: ${clampedProgress}`);
         startAnimation(clampedProgress);
         prevProgress.current = clampedProgress;
       }

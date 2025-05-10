@@ -64,7 +64,7 @@ export const playSound = async (soundName: 'ui-tap' | 'activity-claim' | 'action
 
 // Optional: Function to unload all sounds (e.g., on app close or settings change)
 export const unloadAllSounds = async () => {
-  console.log('Unloading all sounds...');
+  // console.log('Unloading all sounds...');
   for (const key in soundCache) {
     try {
       await soundCache[key].unloadAsync();
@@ -73,7 +73,7 @@ export const unloadAllSounds = async () => {
     }
     delete soundCache[key];
   }
-  console.log('All sounds unloaded.');
+  // console.log('All sounds unloaded.');
 };
 
 // Configure audio mode

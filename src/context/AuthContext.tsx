@@ -62,19 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log(`[AuthContext] onAuthStateChange triggered. Event: ${_event}, Session: ${!!session}`);
       if (session) {
-        console.log('[AuthContext] Saving session to AsyncStorage');
         await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
       } else {
-        console.log('[AuthContext] Removing session from AsyncStorage');
         await AsyncStorage.removeItem(SESSION_KEY);
       }
-      console.log('[AuthContext] Setting session state');
       setSession(session);
-      console.log('[AuthContext] Setting user state');
       setUser(session?.user ?? null);
-      console.log('[AuthContext] Setting loading state to false');
       setLoading(false);
     });
 
@@ -83,9 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string) => {
     setLoading(true);
-    console.log('[AuthContext] signUp started');
     try {
-      console.log('Attempting signup with email:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -98,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        console.error('Signup error:', error);
         return { error };
       }
 
@@ -109,25 +100,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (signInError) {
-        console.error('Sign in error:', signInError);
         return { error: signInError };
       }
 
       // Log sign_up event after successful auto-login
       try {
         await analytics().logEvent('sign_up');
-        console.log('[Analytics] Logged sign_up event');
       } catch (analyticsError) {
         console.error('[Analytics] Error logging sign_up event:', analyticsError);
       }
 
-      console.log('Signup and auto-login successful:', data);
-      console.log('[AuthContext] signUp successful, setting loading false');
       setLoading(false);
       return { error: null };
     } catch (error) {
       console.error('[AuthContext] signUp error:', error);
-      console.log('[AuthContext] signUp error, setting loading false');
       setLoading(false);
       return { error };
     }
@@ -135,14 +121,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    console.log('[AuthContext] signIn started');
     try {
-      console.log('[AuthContext] Calling signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      console.log(`[AuthContext] signInWithPassword result. Error: ${!!error}, Session: ${!!data.session}`);
       
       if (error) {
         setLoading(false);
@@ -152,10 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.session) {
         // Save auth session
         await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(data.session));
-        console.log('[AuthContext] Session saved after sign in');
         
         // Fetch user profile from Supabase (Still useful for checking existence/data)
-        console.log('[AuthContext] Fetching profile after sign in...');
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('id, username') // Only fetch what might be needed immediately, UserContext will fetch full profile
@@ -163,24 +144,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
           
         if (profileError) {
-          console.error('[AuthContext] Error fetching user profile during sign in check:', profileError);
           // Don't necessarily fail the whole login, UserContext can try again
         } else {
-           console.log('[AuthContext] Profile fetched successfully during sign in check.');
            // We fetched it, but we won't update UserContext from here anymore.
         }
         
         // Still useful to ensure registration status is marked true in storage on login
         const registrationStatus = { isRegistered: true, lastCheck: new Date().toISOString() };
-        console.log(`[AuthContext] Saving registrationStatus to AsyncStorage after sign in: ${JSON.stringify(registrationStatus)}`);
         await AsyncStorage.setItem('@registration_status', JSON.stringify(registrationStatus));
         
         // *** Identify user with RevenueCat ***
         const userId = data.session.user.id;
-        console.log(`[AuthContext] Calling Purchases.logIn with user ID: ${userId}`);
         try {
           await Purchases.logIn(userId);
-          console.log('[AuthContext] Purchases.logIn successful.');
         } catch (rcError) {
           console.error('[AuthContext] RevenueCat Purchases.logIn error:', rcError);
           // Decide if this should be a critical error or just logged
@@ -190,18 +166,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Log login event after successful sign in and data processing
         try {
           await analytics().logEvent('login');
-          console.log('[Analytics] Logged login event');
         } catch (analyticsError) {
           console.error('[Analytics] Error logging login event:', analyticsError);
         }
       }
       
-      console.log('[AuthContext] signIn successful, setting loading false');
       setLoading(false);
       return { error: null };
     } catch (error) {
       console.error('[AuthContext] signIn error:', error);
-      console.log('[AuthContext] signIn error, setting loading false');
       setLoading(false);
       return { error };
     }
@@ -212,16 +185,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Log sign_out event before clearing data
       try {
         await analytics().logEvent('sign_out');
-        console.log('[Analytics] Logged sign_out event');
       } catch (analyticsError) {
         console.error('[Analytics] Error logging sign_out event:', analyticsError);
       }
 
       // *** Log out of RevenueCat ***
-      console.log('[AuthContext] Calling Purchases.logOut');
       try {
         await Purchases.logOut();
-        console.log('[AuthContext] Purchases.logOut successful.');
       } catch (rcError) {
         console.error('[AuthContext] RevenueCat Purchases.logOut error:', rcError);
         // Decide if this should be a critical error or just logged

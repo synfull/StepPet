@@ -423,50 +423,51 @@ export const getRandomPetType = (): { type: PetType; category: PetCategory } => 
 // Create a new pet
 export const createNewPet = async (currentSteps: number, type?: PetType, category?: PetCategory, name?: string): Promise<PetData> => {
   const now = new Date();
-  const nowISO = now.toISOString();
-  
+  const selectedPetType = type || getRandomPetType().type;
+  const petCategory = category || PET_TYPES[selectedPetType].category;
+  const petName = name || `My ${PET_TYPES[selectedPetType].name}`;
+  let calculatedStartingStepCount = 0;
+
   // Get the current session
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user?.id) {
     throw new Error('No user found');
   }
 
-  // Get the current day's steps to use as the starting point
-  let currentDaySteps = 0;
-  // --- Restore Pedometer call ---
+  // Load pedometer permissions
   try {
-    console.log('[petUtils.ts] Requesting Pedometer permissions...');
+    // console.log('[petUtils.ts] Requesting Pedometer permissions...');
     const perm = await Pedometer.requestPermissionsAsync();
-    console.log('[petUtils.ts] Pedometer permission status:', perm.status);
-    
+    // console.log('[petUtils.ts] Pedometer permission status:', perm.status);
     if (perm.status !== 'granted') {
-      console.error('[petUtils.ts] Pedometer permission not granted.');
-      throw new Error('Pedometer permission denied.');
-    } else {
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
-        console.log('[petUtils.ts] Getting pedometer steps...');
-        const { steps } = await Pedometer.getStepCountAsync(todayMidnight, new Date());
-        currentDaySteps = steps;
-        console.log('[petUtils.ts] Pedometer steps received:', currentDaySteps);
+      console.warn('[petUtils.ts] Pedometer permission not granted.');
+      // Potentially set a flag or return a specific error state
     }
-  } catch (err) {
-    console.error('[petUtils.ts] Error interacting with Pedometer:', err);
-    currentDaySteps = 0;
-    console.warn('[petUtils.ts] Proceeding with startingStepCount = 0 due to Pedometer error.');
+  } catch (error) {
+    console.warn('[petUtils.ts] Error getting pedometer steps for new pet, defaulting startingStepCount to 0 or currentSteps:', error);
+    // Fallback to currentSteps if pedometer fails, or 0 if currentSteps is not reliable
+    calculatedStartingStepCount = currentSteps; 
   }
-  // --- END Restore --- 
-  
+
+  // Get current steps (since midnight)
+  const end = new Date();
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  // console.log('[petUtils.ts] Getting pedometer steps...');
+  const pedometerResult = await Pedometer.getStepCountAsync(start, end);
+  // console.log('[petUtils.ts] Pedometer steps received:', pedometerResult.steps);
+  calculatedStartingStepCount = pedometerResult.steps;
+
   // Calculate the start of the current week in UTC
   const startOfWeek = getStartOfWeekUTC(now);
   const startOfWeekISO = startOfWeek.toISOString();
-  console.log(`[createNewPet] Calculated start of week (UTC): ${startOfWeekISO}`);
+  // console.log(`[createNewPet] Calculated start of week (UTC): ${startOfWeekISO}`);
 
   return {
     id: generateUUID(),
-    name: name || 'Egg',
-    type: type || '',
-    category: category || 'mythic',
+    name: petName,
+    type: selectedPetType,
+    category: petCategory,
     level: 1,
     xp: 0,
     xpToNextLevel: LEVEL_REQUIREMENTS[0],
@@ -478,7 +479,7 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
     currentWeekStartDate: startOfWeekISO,
     totalStepsAtLastWeeklyCalc: 0,
     totalStepsBeforeToday: 0,
-    startingStepCount: currentDaySteps,
+    startingStepCount: calculatedStartingStepCount,
     appearance: {
       mainColor: '#FFFFFF',
       accentColor: '#FFFFFF',
@@ -492,14 +493,14 @@ export const createNewPet = async (currentSteps: number, type?: PetType, categor
       feed: { lastClaimed: null, claimedToday: false },
       fetch: { lastClaimed: null, claimsToday: 0 },
       adventure: { 
-        lastStarted: nowISO, 
+        lastStarted: now.toISOString(), 
         lastCompleted: null, 
         currentProgress: 0, 
         isActive: true 
       }
     },
     milestones: [...DEFAULT_MILESTONES],
-    created: nowISO
+    created: now.toISOString()
   };
 };
 
@@ -556,9 +557,7 @@ export const updatePetWithSteps = async (
   newStepsDelta: number, // Changed parameter name to reflect it's a delta
   xpBoost: number = 0 // Optional XP boost
 ): Promise<{ updatedPet: PetData; leveledUp: boolean }> => {
-  console.log(`[petUtils] updatePetWithSteps called with delta: ${newStepsDelta}, current totalSteps: ${currentPet.totalSteps}, xpBoost: ${xpBoost}`);
-
-  // Create a mutable copy
+  // console.log(`[petUtils] updatePetWithSteps called with delta: ${newStepsDelta}, current totalSteps: ${currentPet.totalSteps}, xpBoost: ${xpBoost}`);
   let updatedPet = { ...currentPet };
   let leveledUp = false;
 
@@ -566,12 +565,12 @@ export const updatePetWithSteps = async (
   if (updatedPet.growthStage === 'Egg') {
     // Update totalSteps for the egg (used for hatching check)
     updatedPet.totalSteps = (updatedPet.totalSteps || 0) + newStepsDelta;
-    console.log(`[petUtils] Egg totalSteps updated to: ${updatedPet.totalSteps}`);
+    // console.log(`[petUtils] Egg totalSteps updated to: ${updatedPet.totalSteps}`);
     // XP is not tracked for eggs in the same way, but let's add the boost if provided
     // updatedPet.xp = (updatedPet.xp || 0) + xpBoost;
     // Check for hatching based on the *updated* totalSteps
     if (updatedPet.totalSteps >= updatedPet.stepsToHatch) {
-      console.log(`[petUtils] Egg ready to hatch! Total steps (${updatedPet.totalSteps}) >= stepsToHatch (${updatedPet.stepsToHatch})`);
+      // console.log(`[petUtils] Egg ready to hatch! Total steps (${updatedPet.totalSteps}) >= stepsToHatch (${updatedPet.stepsToHatch})`);
       // Hatching logic will be handled elsewhere (e.g., PetDisplay tap)
       // We just return the updated egg state here.
     }
@@ -585,12 +584,12 @@ export const updatePetWithSteps = async (
   updatedPet.stepsSinceHatched = (updatedPet.stepsSinceHatched || 0) + newStepsDelta;
   // Note: weeklySteps is now handled in refreshStepData and passed in currentPet
 
-  console.log(`[petUtils] Updated totalSteps: ${updatedPet.totalSteps}, stepsSinceHatched: ${updatedPet.stepsSinceHatched}`);
+  // console.log(`[petUtils] Updated totalSteps: ${updatedPet.totalSteps}, stepsSinceHatched: ${updatedPet.stepsSinceHatched}`);
 
   // 2. Calculate XP earned (1 step = 1 XP) + optional boost
   const xpEarned = newStepsDelta + xpBoost;
   updatedPet.xp = (updatedPet.xp || 0) + xpEarned;
-  console.log(`[petUtils] XP updated to: ${updatedPet.xp} (Earned: ${xpEarned})`);
+  // console.log(`[petUtils] XP updated to: ${updatedPet.xp} (Earned: ${xpEarned})`);
 
   // 3. Handle Leveling Up
   let currentLevelIndex = updatedPet.level - 1;
@@ -603,7 +602,7 @@ export const updatePetWithSteps = async (
     updatedPet.level += 1;
     currentLevelIndex += 1;
     updatedPet.xpToNextLevel = LEVEL_REQUIREMENTS[currentLevelIndex] || Infinity; // Set next requirement or Infinity if max level
-    console.log(`[petUtils] Leveled up to ${updatedPet.level}! XP remaining: ${updatedPet.xp}, Next level XP: ${updatedPet.xpToNextLevel}`);
+    // console.log(`[petUtils] Leveled up to ${updatedPet.level}! XP remaining: ${updatedPet.xp}, Next level XP: ${updatedPet.xpToNextLevel}`);
 
     // --- Growth Stage Check --- 
     const oldGrowthStage = updatedPet.growthStage;
@@ -616,7 +615,7 @@ export const updatePetWithSteps = async (
           new_stage: updatedPet.growthStage,
           pet_type: updatedPet.type 
         });
-        console.log(`[Analytics] Logged pet_evolve event to stage: ${updatedPet.growthStage} for type: ${updatedPet.type}`);
+        // console.log(`[Analytics] Logged pet_evolve event to stage: ${updatedPet.growthStage} for type: ${updatedPet.type}`);
       } catch (analyticsError) {
         console.error('[Analytics] Error logging pet_evolve event:', analyticsError);
       }
