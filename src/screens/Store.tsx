@@ -365,12 +365,29 @@ const GemsTab = () => {
 
     const isProcessingThis = purchaseState === 'processing' && selectedRcPackage?.identifier === rcPack.identifier;
 
+    // Construct custom title and description
+    let displayTitle = rcPack.product.title;
+    let displayDescription = rcPack.product.description;
+    const productDetails = GEM_PRODUCT_MAP[rcPack.product.identifier];
+
+    if (productDetails) {
+      const baseGems = productDetails.gems;
+      const bonusGems = productDetails.bonus;
+      if (bonusGems > 0) {
+        displayTitle = `${baseGems} Gems + ${bonusGems} Bonus Gems`;
+        displayDescription = `Get ${baseGems} gems plus ${bonusGems} bonus gems!`;
+      } else {
+        displayTitle = `${baseGems} Gems`;
+        displayDescription = `Get ${baseGems} gems!`;
+      }
+    }
+
     return (
       <View key={rcPack.identifier} style={styles.rcGemPackageCard}>
         <Image source={imageSource} style={styles.rcGemImage} contentFit="contain" />
         <View style={styles.rcGemInfo}>
-          <Text style={styles.rcGemTitle}>{rcPack.product.title}</Text>
-          <Text style={styles.rcGemDescription}>{rcPack.product.description}</Text>
+          <Text style={styles.rcGemTitle}>{displayTitle}</Text>
+          <Text style={styles.rcGemDescription}>{displayDescription}</Text>
           <Text style={styles.rcGemPrice}>{rcPack.product.priceString}</Text>
         </View>
         <TouchableOpacity 
@@ -752,6 +769,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#333333',
     marginBottom: 8,
+    textAlign: 'center',
   },
   sectionSubtitle: {
     fontFamily: 'Montserrat-Medium',
